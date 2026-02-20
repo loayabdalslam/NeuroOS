@@ -5,7 +5,6 @@ export type WindowState = 'normal' | 'minimized' | 'maximized';
 export interface OSAppWindow {
   id: string;
   title: string;
-  icon: string;
   component: string; // Key for the component registry
   zIndex: number;
   isFocused: boolean;
@@ -20,9 +19,9 @@ export interface OSState {
   activeWindowId: string | null;
   nextZIndex: number;
   isStartMenuOpen: boolean;
-  
+
   // Actions
-  openApp: (title: string, icon: string, component: string) => void;
+  openApp: (component: string, title?: string) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
   updateWindow: (id: string, updates: Partial<OSAppWindow>) => void;
@@ -38,9 +37,9 @@ export const useOS = create<OSState>((set, get) => ({
   nextZIndex: 10,
   isStartMenuOpen: false,
 
-  openApp: (title, icon, component) => {
+  openApp: (component, title) => {
     const { appWindows, nextZIndex } = get();
-    
+
     // Check if app is already open
     const existing = appWindows.find(windowData => windowData.component === component);
     if (existing) {
@@ -52,17 +51,27 @@ export const useOS = create<OSState>((set, get) => ({
     }
 
     const id = Math.random().toString(36).substr(2, 9);
+
+    // Chat gets centered on screen, others stack
+    const isChatApp = component === 'chat';
+    const defaultSize = isChatApp
+      ? { width: 680, height: 580 }
+      : { width: 800, height: 600 };
+    const defaultPos = isChatApp
+      ? { x: Math.round((window.innerWidth - 680) / 2), y: Math.round((window.innerHeight - 580) / 2.4) }
+      : { x: 100 + appWindows.length * 30, y: 100 + appWindows.length * 30 };
+
     const newWindow: OSAppWindow = {
       id,
-      title,
-      icon,
+      title: title || component,
       component,
       zIndex: nextZIndex,
       isFocused: true,
       state: 'normal',
-      position: { x: 100 + appWindows.length * 30, y: 100 + appWindows.length * 30 },
-      size: { width: 800, height: 600 },
+      position: defaultPos,
+      size: defaultSize,
     };
+
 
     set({
       appWindows: [...appWindows.map(windowData => ({ ...windowData, isFocused: false })), newWindow],
@@ -117,9 +126,9 @@ export const useOS = create<OSState>((set, get) => ({
 
   sendAppAction: (idOrComponent, type, payload) => {
     set(state => ({
-      appWindows: state.appWindows.map(windowData => 
+      appWindows: state.appWindows.map(windowData =>
         (windowData.id === idOrComponent || windowData.component === idOrComponent)
-          ? { ...windowData, lastAction: { type, payload, timestamp: Date.now() } } 
+          ? { ...windowData, lastAction: { type, payload, timestamp: Date.now() } }
           : windowData
       ),
     }));

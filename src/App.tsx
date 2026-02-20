@@ -2,78 +2,79 @@ import React from 'react';
 import { useOS } from './hooks/useOS';
 import { Taskbar } from './components/Taskbar';
 import { StartMenu } from './components/StartMenu';
-import { OSWindow } from './components/OSWindow';
-import { TerminalApp } from './apps/Terminal';
-import { AgentStudio } from './apps/AgentStudio';
-import { SettingsApp } from './apps/Settings';
-import { FileExplorer } from './apps/FileExplorer';
-import { LLMManager } from './apps/LLMManager';
-import { MCPConnectors } from './apps/MCPConnectors';
-import { AutomationEngine } from './apps/AutomationEngine';
-import { motion } from 'motion/react';
-
-// Component Registry
-const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
-  terminal: TerminalApp,
-  agents: AgentStudio,
-  settings: SettingsApp,
-  files: FileExplorer,
-  llm: LLMManager,
-  automation: AutomationEngine,
-  mcp: MCPConnectors,
-};
+import { Desktop } from './components/Desktop';
+import { WindowManager } from './components/WindowManager';
+import { LockScreen } from './components/LockScreen';
+import { OnboardingFlow } from './components/OnboardingFlow';
+import { SystemAssistant } from './components/SystemAssistant';
+import { motion, AnimatePresence } from 'motion/react';
+import { useAuthStore } from './stores/authStore';
 
 export default function App() {
-  const { appWindows } = useOS();
+  const { users, isAddingUser, isAuthenticated, hasHydrated } = useAuthStore();
+
+  if (!hasHydrated) {
+    return (
+      <div className="h-screen w-screen bg-white flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="w-12 h-12 border-2 border-zinc-900 rounded-full flex items-center justify-center font-bold text-2xl animate-pulse">N</div>
+          <span className="text-xs font-bold tracking-[0.3em] uppercase opacity-20">Initializing Neuro Core</span>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen w-screen bg-[#F5F5F5] overflow-hidden relative font-sans text-zinc-900 selection:bg-black selection:text-white">
-      {/* Desktop Background */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[10%] left-[20%] w-[40vw] h-[40vw] bg-indigo-200/20 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[10%] right-[20%] w-[30vw] h-[30vw] bg-emerald-200/20 blur-[100px] rounded-full" />
-      </div>
+    <div className="h-screen w-screen bg-zinc-50 overflow-hidden relative font-sans text-zinc-900 selection:bg-zinc-900 selection:text-white">
 
-      {/* Desktop Icons (Optional) */}
-      <div className="absolute inset-0 p-6 grid grid-flow-col grid-rows-6 gap-4 w-fit">
-        {/* We could add desktop icons here if needed */}
-      </div>
+      {/* Security Layer */}
+      <AnimatePresence mode="wait">
+        {(users.length === 0 || isAddingUser) ? (
+          <OnboardingFlow key="onboarding" />
+        ) : (
+          !isAuthenticated && <LockScreen key="lockscreen" />
+        )}
+      </AnimatePresence>
 
-      {/* Windows Layer */}
-      <div className="absolute inset-0 z-10">
-        {appWindows.map(windowData => {
-          const Component = COMPONENT_REGISTRY[windowData.component] || (() => <div>App Not Found</div>);
-          return (
-            <OSWindow key={windowData.id} win={windowData}>
-              <Component windowData={windowData} />
-            </OSWindow>
-          );
-        })}
-      </div>
+      {/* Background & Icons */}
+      {isAuthenticated && (
+        <>
+          <Desktop />
 
-      {/* UI Shell */}
-      <StartMenu />
-      <Taskbar />
+          {/* Application Layer */}
+          <WindowManager />
 
-      {/* Boot Overlay (Optional) */}
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 1, delay: 1 }}
-        onAnimationComplete={(definition) => {
-          // Hide boot screen
-        }}
-        className="fixed inset-0 z-[10000] bg-black flex flex-col items-center justify-center pointer-events-none"
-      >
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-white flex flex-col items-center gap-4"
+          {/* UI Shell */}
+          <StartMenu />
+          <Taskbar />
+          <SystemAssistant />
+        </>
+      )}
+
+      {/* Boot Overlay (Only show if not first run to avoid conflict with onboarding) */}
+      {/* Boot Overlay (Only show if users exist to avoid conflict with onboarding) */}
+      {users.length > 0 && (
+        <motion.div
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.8, delay: 0.5, ease: "easeInOut" }}
+          className="fixed inset-0 z-[10000] bg-white flex flex-col items-center justify-center pointer-events-none"
         >
-          <div className="w-12 h-12 border-2 border-white rounded-xl flex items-center justify-center font-bold text-2xl">N</div>
-          <span className="text-sm font-bold tracking-[0.2em] uppercase">NeuroOS</span>
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col items-center gap-4 text-zinc-900"
+          >
+            <div className="w-12 h-12 border-2 border-zinc-900 rounded-full flex items-center justify-center font-bold text-2xl">N</div>
+            <span className="text-sm font-bold tracking-[0.2em] uppercase">NeuroOS</span>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
     </div>
   );
 }

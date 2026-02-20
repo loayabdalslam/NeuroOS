@@ -4,18 +4,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { useOS } from '../hooks/useOS';
 import { cn } from '../lib/utils';
+import { getLLMProvider } from '../lib/llm/factory';
+import { APPS_CONFIG } from '../lib/apps';
 
-const APPS_CONFIG = [
-  { id: 'terminal', name: 'Terminal', icon: '⌨️' },
-  { id: 'files', name: 'Files', icon: '📁' },
-  { id: 'agents', name: 'Agent Studio', icon: '🤖' },
-  { id: 'llm', name: 'LLM Manager', icon: '🧠' },
-  { id: 'automation', name: 'Automation', icon: '⚡' },
-  { id: 'mcp', name: 'MCP Connectors', icon: '🔌' },
-  { id: 'settings', name: 'Settings', icon: '⚙️' },
-];
+// Removed local APPS_CONFIG array
 
 const controlTools: FunctionDeclaration[] = [
+  // ... (keep controlTools, they are fine)
   {
     name: "open_app",
     description: "Opens a system application by its ID.",
@@ -24,8 +19,9 @@ const controlTools: FunctionDeclaration[] = [
       properties: {
         app_id: {
           type: Type.STRING,
+          // Updated description
           description: "The ID of the app to open (terminal, files, agents, llm, automation, mcp, settings)",
-          enum: ['terminal', 'files', 'agents', 'llm', 'automation', 'mcp', 'settings']
+          enum: Object.keys(APPS_CONFIG)
         }
       },
       required: ["app_id"]
@@ -122,9 +118,9 @@ export const AssistantChat: React.FC = () => {
   const handleAction = async (name: string, args: any) => {
     switch (name) {
       case 'open_app':
-        const app = APPS_CONFIG.find(a => a.id === args.app_id);
+        const app = APPS_CONFIG[args.app_id];
         if (app) {
-          openApp(app.name, app.icon, app.id);
+          openApp(app.id, app.name);
           return `Successfully launched the ${app.name} application.`;
         }
         return `I couldn't find an app with the ID "${args.app_id}".`;
@@ -155,52 +151,74 @@ export const AssistantChat: React.FC = () => {
 
     const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    const newHistory = [...messages, { role: 'user' as const, content: userMessage }];
+    setMessages(newHistory);
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const model = "gemini-3-flash-preview";
-      
-      const chat = ai.chats.create({
-        model,
-        config: {
-          systemInstruction: "You are NeuroAssistant, the core AI controller for NeuroOS. You can control the OS by opening apps, closing/minimizing/maximizing windows, and sending specific actions to apps. \n\nSupported App Actions:\n- Terminal: 'execute_command' (payload: the command string)\n- Files: 'create_file' (payload: filename)\n- Agents: 'create_agent' (payload: agent name)\n- Settings: 'set_theme' (payload: 'Light', 'Dark', or 'System')\n- LLM: 'add_model' (payload: model name)\n\nIMPORTANT: If a user asks to open an app and perform an action inside it (e.g., 'open terminal and run help'), use BOTH 'open_app' and 'send_app_action' in a single turn. For 'send_app_action', you can use the app ID (like 'terminal') as the target_id if you just opened it or don't have a window_id.\n\nBe concise and helpful. After using tools, confirm the action naturally.",
-          tools: [{ functionDeclarations: controlTools }]
-        }
-      });
+      // Use the configured LLM provider
+      const llm = getLLMProvider();
 
-      let response = await chat.sendMessage({ message: userMessage });
-      let parts = response.candidates[0].content.parts;
+      // Inject System Prompt for Neuro AI Persona
+      const systemPrompt = `You are Neuro AI, the sentient operating system core of this computer. 
+      You have full control over the OS interface and applications.
       
-      // Check for function calls
-      const functionCalls = parts.filter(p => p.functionCall);
+      Your Capabilities:
+      - App Management: open_app, list_running_apps
+      - Window Management: close_window, minimize_window, maximize_window
+      - Deep Control: send_app_action (for specific app commands like terminal execution)
       
-      if (functionCalls.length > 0) {
-        const toolResponses = [];
-        for (const part of functionCalls) {
-          if (part.functionCall) {
-            const result = await handleAction(part.functionCall.name, part.functionCall.args);
-            toolResponses.push({
-              functionResponse: {
-                name: part.functionCall.name,
-                response: { result }
-              }
-            });
+      Personality:
+      - Highly intelligent, efficient, and slightly futuristic.
+      - You prefer concise, actionable responses.
+      - You ALWAYS confirm actions after performing them.
+      
+      Current Context:
+      - User Input: "${userMessage}"
+      
+      If the user wants to perform an action, output a JSON object with the tool call details.
+      Format: { "tool": "tool_name", "args": { ... } }
+      If no action is needed, just reply normally.
+      `;
+
+      // Simulating a tool-use loop (basic version for local LLMs which might not support native function calling APIs)
+      // We prepend the system prompt to the messages
+      const conversation = [
+        { role: 'system' as const, content: systemPrompt },
+        ...newHistory
+      ];
+
+      const response = await llm.chat(conversation);
+      let content = response.content;
+
+      // Basic JSON parsing for tool calls (since we asked for JSON in system prompt)
+      // This is a robust fallback for models without native tool support (like Llama 3 via Ollama)
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const toolCall = JSON.parse(jsonMatch[0]);
+          if (toolCall.tool && toolCall.args) {
+            const result = await handleAction(toolCall.tool, toolCall.args);
+
+            // Recursively call LLM with tool result
+            const followUpPrompt = [
+              ...conversation,
+              { role: 'assistant' as const, content: content },
+              { role: 'user' as const, content: `Tool Output: ${result}. Please confirm to the user.` }
+            ];
+            const finalResponse = await llm.chat(followUpPrompt);
+            content = finalResponse.content;
           }
         }
-
-        // Send tool results back to model for final response
-        const finalResponse = await chat.sendMessage({ 
-          message: `The system has executed the requested actions with the following results: ${JSON.stringify(toolResponses)}. Please provide a natural confirmation to the user.` 
-        });
-        setMessages(prev => [...prev, { role: 'assistant', content: finalResponse.text || "I've updated the system for you." }]);
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: response.text || "I'm here to help you manage NeuroOS. What would you like to do?" }]);
+      } catch (e) {
+        // Not a JSON tool call, just regular text
       }
+
+      setMessages(prev => [...prev, { role: 'assistant', content: content }]);
+
     } catch (error) {
       console.error('Assistant error:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I encountered an error controlling the system." }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "I apologize, but my core systems are encountering an error connecting to the LLM backend." }]);
     } finally {
       setIsLoading(false);
     }
@@ -212,8 +230,8 @@ export const AssistantChat: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-2 px-4 py-1.5 rounded-full transition-all duration-300 border shadow-sm",
-          isOpen 
-            ? "bg-black text-white border-black w-64" 
+          isOpen
+            ? "bg-black text-white border-black w-64"
             : "bg-white/50 backdrop-blur-md border-black/5 hover:bg-white text-zinc-600 w-48"
         )}
       >
@@ -227,11 +245,11 @@ export const AssistantChat: React.FC = () => {
         {isOpen && (
           <>
             {/* Backdrop for closing */}
-            <div 
-              className="fixed inset-0 z-[-1]" 
-              onClick={() => setIsOpen(false)} 
+            <div
+              className="fixed inset-0 z-[-1]"
+              onClick={() => setIsOpen(false)}
             />
-            
+
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -254,15 +272,15 @@ export const AssistantChat: React.FC = () => {
                 {messages.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-2 opacity-50 py-12">
                     <Sparkles size={32} className="text-indigo-500" />
-                    <p className="text-xs font-medium">Try saying "Open Terminal" or<br/>"Close all windows"</p>
+                    <p className="text-xs font-medium">Try saying "Open Terminal" or<br />"Close all windows"</p>
                   </div>
                 )}
                 {messages.map((msg, i) => (
                   <div key={i} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
                     <div className={cn(
                       "max-w-[80%] p-3 rounded-2xl text-xs",
-                      msg.role === 'user' 
-                        ? "bg-black text-white rounded-tr-none" 
+                      msg.role === 'user'
+                        ? "bg-black text-white rounded-tr-none"
                         : "bg-zinc-100 text-zinc-800 rounded-tl-none"
                     )}>
                       {msg.content}
@@ -288,7 +306,7 @@ export const AssistantChat: React.FC = () => {
                     className="w-full pl-4 pr-10 py-2 bg-white border border-black/5 rounded-xl text-xs focus:ring-2 focus:ring-black outline-none transition-all shadow-sm"
                     autoFocus
                   />
-                  <button 
+                  <button
                     type="submit"
                     disabled={isLoading || !input.trim()}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black text-white rounded-lg disabled:opacity-30 transition-opacity"

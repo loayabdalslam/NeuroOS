@@ -23,5 +23,11 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-black/10 rounded-full hover:bg-black/20 transition-colors;
+  @apply bg-zinc-200 rounded-full hover:bg-zinc-300 transition-colors;
+}
+
+@layer utilities {
+  .ease-spring {
+    transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.1); /* Custom spring-like easing */
+  }
 }
