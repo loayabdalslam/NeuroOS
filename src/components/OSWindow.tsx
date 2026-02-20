@@ -5,6 +5,7 @@ import { useOS, OSAppWindow } from '../hooks/useOS';
 import { cn } from '../lib/utils';
 import { APPS_CONFIG } from '../lib/apps';
 import { useContextMenu, ContextMenuEntry } from './ContextMenu';
+import { NeuroIcon } from './icons/NeuroIcon';
 
 interface OSWindowProps {
   win: OSAppWindow;
@@ -97,12 +98,8 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
         {...titleBarCtx}
       >
         <div className="flex items-center gap-3">
-          <span className={cn("text-base opacity-80", isChatApp ? "text-sky-500" : "grayscale")}>
-            {(() => {
-              const appConfig = APPS_CONFIG[windowData.component];
-              const Icon = appConfig?.icon || LayoutGrid;
-              return <Icon size={16} />;
-            })()}
+          <span className={cn("flex items-center justify-center", isChatApp ? "text-sky-500" : "text-zinc-400")}>
+            <NeuroIcon size={14} showTM={false} />
           </span>
           <span className="text-sm font-semibold text-zinc-800 tracking-tight">{windowData.title}</span>
         </div>

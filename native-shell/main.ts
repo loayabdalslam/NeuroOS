@@ -23,6 +23,7 @@ const createWindow = () => {
         height: 800,
         frame: false, // Custom titlebar
         transparent: true, // For rounded corners if needed
+        icon: path.join(__dirname, '../build/icon.ico'), // Taskbar icon
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,

@@ -167,8 +167,11 @@ export const OnboardingFlow: React.FC = () => {
 
                         {currentStep === 2 && (
                             <div className="space-y-8 text-center">
-                                <div className="space-y-4">
-                                    <div className="flex justify-center gap-3">
+                                <div className="space-y-4 relative">
+                                    <div
+                                        className="flex justify-center gap-3 cursor-text"
+                                        onClick={() => document.getElementById('pin-input')?.focus()}
+                                    >
                                         {[0, 1, 2, 3].map(i => (
                                             <div
                                                 key={i}
@@ -182,12 +185,13 @@ export const OnboardingFlow: React.FC = () => {
                                         ))}
                                     </div>
                                     <input
+                                        id="pin-input"
                                         type="tel"
                                         autoFocus
                                         maxLength={4}
                                         value={formData.pin}
                                         onChange={e => setFormData({ ...formData, pin: e.target.value.replace(/[^0-9]/g, '') })}
-                                        className="absolute opacity-0 pointer-events-none"
+                                        className="absolute inset-0 opacity-0 cursor-text"
                                     />
                                     <p className="text-[11px] text-zinc-300 uppercase tracking-widest">Secure PIN Access</p>
                                 </div>

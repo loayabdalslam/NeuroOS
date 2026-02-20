@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { APPS_CONFIG } from '../lib/apps';
 import { cn } from '../lib/utils';
+import { NeuroIcon } from './icons/NeuroIcon';
 
 import { useAuthStore } from '../stores/authStore';
 
@@ -100,13 +101,13 @@ export const StartMenu: React.FC = () => {
                 {user?.avatar ? (
                   <img src={user.avatar} className="w-8 h-8 rounded-full object-cover ring-1 ring-zinc-200" />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-zinc-200 to-zinc-100 ring-1 ring-zinc-200 flex items-center justify-center text-zinc-400">
-                    <User size={16} />
+                  <div className="w-8 h-8 rounded-full bg-white ring-1 ring-zinc-100 flex items-center justify-center text-zinc-900 shadow-sm">
+                    <NeuroIcon size={14} showTM={false} />
                   </div>
                 )}
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold text-zinc-800">{user?.name || 'User'}</span>
-                  <span className="text-[10px] text-zinc-400 max-w-[150px] truncate">{user?.bio || 'NeuroOS'}</span>
+                  <span className="text-[10px] text-zinc-400 max-w-[150px] truncate">{user?.bio || 'NeuroOS Pilot'}</span>
                 </div>
               </div>
               <button

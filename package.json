@@ -27,6 +27,7 @@
       "dist-electron"
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -38,11 +39,22 @@
       "artifactName": "NeuroOS-Setup-${version}.${ext}"
     },
     "nsis": {
-      "oneClick": true,
-      "allowToChangeInstallationDirectory": false,
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeader": "build/installerHeader.bmp",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/installerSidebar.bmp",
+      "license": "build/license.txt",
+      "shortcutName": "Neuro OS",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Neuro OS",
+      "allowElevation": true,
+      "displayLanguageSelector": true,
+      "installerLanguages": ["en_US"],
+      "multiUser": true,
       "differentialPackage": true,
       "deleteAppDataOnUninstall": true,
       "runAfterFinish": true

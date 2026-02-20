@@ -1,7 +1,7 @@
 import React from 'react';
-import { LayoutGrid } from 'lucide-react';
 import { useOS } from '../hooks/useOS';
 import { OSWindow } from './OSWindow';
+import { NeuroIcon } from './icons/NeuroIcon';
 import { TerminalApp } from '../apps/Terminal';
 import { AgentStudio } from '../apps/AgentStudio';
 import { SettingsApp } from '../apps/Settings';
@@ -28,9 +28,9 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
 };
 
 const AppNotFound: React.FC<{ windowData?: any }> = () => (
-    <div className="flex flex-col items-center justify-center h-full text-zinc-400 gap-3">
-        <LayoutGrid size={48} strokeWidth={1} />
-        <p className="text-sm font-medium">App Not Found</p>
+    <div className="flex flex-col items-center justify-center h-full text-zinc-300 gap-4">
+        <NeuroIcon size={48} showTM={false} className="opacity-20" />
+        <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-40">App Not Found</p>
     </div>
 );
 

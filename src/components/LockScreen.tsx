@@ -5,6 +5,7 @@ import { User, ArrowRight, Lock, Plus, X, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
+import { NeuroIcon } from './icons/NeuroIcon';
 
 export const LockScreen: React.FC = () => {
     const { users, login, startAddUser, activeUserId } = useAuthStore();
@@ -86,8 +87,8 @@ export const LockScreen: React.FC = () => {
                                 {user.avatar ? (
                                     <img src={user.avatar} className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                                        <User size={32} className="text-white/50" />
+                                    <div className="w-full h-full bg-white flex items-center justify-center text-zinc-900">
+                                        <NeuroIcon size={32} showTM={false} />
                                     </div>
                                 )}
                             </div>

@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 import { LayoutGrid, Search, Bell, Wifi, Battery } from 'lucide-react';
 import { format } from 'date-fns';
 import { APPS_CONFIG } from '../lib/apps';
+import { NeuroIcon } from './icons/NeuroIcon';
 
 export const Taskbar: React.FC = () => {
   const { appWindows, openApp, toggleStartMenu, isStartMenuOpen, focusWindow } = useOS();
@@ -20,11 +21,11 @@ export const Taskbar: React.FC = () => {
         <button
           onClick={() => toggleStartMenu()}
           className={cn(
-            "p-2.5 rounded-full transition-all duration-200 hover:bg-zinc-100 active:scale-95 group",
-            isStartMenuOpen ? "bg-zinc-900 text-white hover:bg-zinc-800" : "text-zinc-600"
+            "p-2.5 rounded-full transition-all duration-200 hover:bg-zinc-100 active:scale-95 group flex items-center justify-center",
+            isStartMenuOpen ? "bg-zinc-900 text-white hover:bg-zinc-800" : "text-zinc-900"
           )}
         >
-          <LayoutGrid size={20} className={isStartMenuOpen ? "text-white" : "group-hover:text-zinc-900"} />
+          <NeuroIcon size={20} showTM={true} className={isStartMenuOpen ? "text-white" : "text-zinc-900"} />
         </button>
 
         <div className="w-px h-6 bg-zinc-100 mx-2" />
