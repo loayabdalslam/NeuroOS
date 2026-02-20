@@ -2,7 +2,7 @@
   "name": "react-example",
   "private": true,
   "version": "1.0.0",
-  "description": "Neuro OS - Minimalist Intelligence Core",
+  "description": "Neuro OS - Minimalist Intelligence Os For Productivity",
   "productName": "Neuro OS™",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -50,8 +50,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "YOUR_GITHUB_USERNAME",
-        "repo": "YOUR_REPO_NAME"
+        "owner": "loayabdalslam",
+        "repo": "NeuroOS"
       }
     ]
   },
