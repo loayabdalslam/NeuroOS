@@ -1,6 +1,9 @@
+
 <p align="center">
-  <img src="public/neuro-logo.svg" alt="NeuroOS Logo" width="80" height="80" />
+<img src="https://github.com/user-attachments/assets/8a648fee-6ecf-4751-8f83-9f603fc4cb2c" alt="NeuroOS Logo" width="80" height="80">
+
 </p>
+
 
 <h1 align="center">NeuroOS</h1>
 
