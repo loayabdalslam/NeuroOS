@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, BrainCircuit, User, Eraser, StopCircle, Copy, Trash2, CheckCircle2, XCircle, Loader2, Wrench } from 'lucide-react';
+import { Send, BrainCircuit, User, Eraser, StopCircle, Copy, Trash2, CheckCircle2, XCircle, Loader2, Wrench, Globe, FileText, Terminal } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { showContextMenu } from '../components/ContextMenu';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -16,7 +16,8 @@ import {
     stripToolCalls,
     getToolsForPrompt,
     ToolContext,
-    ToolResult
+    ToolResult,
+    getAllTools
 } from '../lib/ai';
 
 interface ChatAppProps {
@@ -39,6 +40,70 @@ interface Message {
 }
 
 const MAX_TOOL_ITERATIONS = 15;
+
+const ActionCard: React.FC<{ exec: ToolExecution }> = ({ exec }) => {
+    const toolDef = getAllTools().find(t => t.name === exec.tool);
+    const category = toolDef?.category || 'os';
+
+    const icons: Record<string, any> = {
+        os: Wrench,
+        file: FileText,
+        shell: Terminal,
+        browser: Globe,
+        generate: BrainCircuit,
+        automation: BrainCircuit
+    };
+
+    const Icon = icons[category] || Wrench;
+    const isRunning = exec.status === 'running';
+    const isSuccess = exec.status === 'success';
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className={cn(
+                "group relative flex flex-col gap-2 p-3 rounded-2xl border transition-all duration-300",
+                isRunning ? "bg-amber-50/50 border-amber-200/50 shadow-sm shadow-amber-100/20" :
+                    isSuccess ? "bg-white border-zinc-100 shadow-sm shadow-zinc-100/50" :
+                        "bg-red-50/50 border-red-200/50 shadow-sm shadow-red-100/20"
+            )}
+        >
+            <div className="flex items-center gap-3">
+                <div className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
+                    isRunning ? "bg-amber-100 text-amber-600 animate-pulse" :
+                        isSuccess ? "bg-zinc-100 text-zinc-500 group-hover:bg-sky-50 group-hover:text-sky-600" :
+                            "bg-red-100 text-red-600"
+                )}>
+                    {isRunning ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold tracking-wider uppercase text-zinc-400 group-hover:text-sky-500 transition-colors">
+                            {exec.tool.replace(/_/g, ' ')}
+                        </span>
+                        {isRunning && <span className="text-[10px] text-amber-500 font-medium animate-pulse">Executing...</span>}
+                    </div>
+                    <div className="text-[13px] text-zinc-600 truncate opacity-80 group-hover:opacity-100 transition-opacity">
+                        {Object.entries(exec.args).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                    </div>
+                </div>
+            </div>
+
+            {isSuccess && exec.result?.message && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="text-[12px] text-zinc-500 pl-11 pr-2 pb-1 border-t border-zinc-50 mt-1 pt-2 italic"
+                >
+                    {exec.result.message}
+                </motion.div>
+            )}
+        </motion.div>
+    );
+};
 
 export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
     const { aiConfig } = useSettingsStore();
@@ -86,16 +151,32 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
 
     // Handle external actions (e.g. from SystemAssistant)
     useEffect(() => {
-        if (windowData.lastAction && windowData.lastAction.type === 'initial_query') {
-            const { payload, timestamp } = windowData.lastAction;
+        if (windowData.lastAction) {
+            const { type, payload, timestamp } = windowData.lastAction;
             if (timestamp > lastProcessedAction.current) {
                 lastProcessedAction.current = timestamp;
-                if (payload && typeof payload === 'string') {
+
+                if (type === 'initial_query' && typeof payload === 'string') {
                     handleSend(payload);
+                }
+
+                if (type === 'open_file' && payload?.path) {
+                    const loadSession = async () => {
+                        try {
+                            const content = await readFile(payload.path);
+                            const data = JSON.parse(content);
+                            if (data.messages) {
+                                setMessages(data.messages);
+                            }
+                        } catch (e) {
+                            console.error('Failed to load AI session', e);
+                        }
+                    };
+                    loadSession();
                 }
             }
         }
-    }, [windowData.lastAction]);
+    }, [windowData.lastAction, readFile]);
 
     const handleSend = useCallback(async (text: string) => {
         if (!text.trim() || isLoading) return;
@@ -190,7 +271,13 @@ Personality: Autonomous, efficient, thorough. Plan ahead, execute decisively, co
                 if (llm.stream) {
                     await llm.stream(conversation, (chunk: string) => {
                         fullContent += chunk;
-                        const liveDisplay = accumulatedDisplay + (accumulatedDisplay ? '\n\n' : '') + fullContent;
+
+                        // Parse tool calls to strip them from display
+                        const currentToolCalls = parseToolCalls(fullContent);
+                        const strippedContent = stripToolCalls(fullContent, currentToolCalls);
+
+                        const liveDisplay = accumulatedDisplay + (accumulatedDisplay ? '\n\n' : '') + strippedContent;
+
                         setMessages(prev => prev.map(m =>
                             m.timestamp === assistantMsgId
                                 ? { ...m, content: liveDisplay, isStreaming: true }
@@ -337,8 +424,19 @@ Personality: Autonomous, efficient, thorough. Plan ahead, execute decisively, co
             className="flex flex-col h-full bg-white font-sans text-zinc-900"
         >
             {/* Header */}
-            <div className="h-11 border-b border-zinc-100 flex items-center justify-between px-4 bg-white shrink-0">
-                <div className="flex items-center gap-2">
+            <div
+                className="h-11 border-b border-zinc-100 flex items-center justify-between px-4 bg-white shrink-0 cursor-grab active:cursor-grabbing"
+                draggable={true}
+                onDragStart={(e) => {
+                    const sessionData = {
+                        title: `AI Session - ${new Date().toLocaleDateString()}`,
+                        messages: messages.filter(m => !m.isStreaming)
+                    };
+                    e.dataTransfer.setData('neuro/ai', JSON.stringify(sessionData));
+                    e.dataTransfer.effectAllowed = 'copy';
+                }}
+            >
+                <div className="flex items-center gap-2 pointer-events-none">
                     <div className="w-6 h-6 rounded-lg bg-sky-500 flex items-center justify-center">
                         <BrainCircuit size={14} className="text-white" />
                     </div>
@@ -398,7 +496,25 @@ Personality: Autonomous, efficient, thorough. Plan ahead, execute decisively, co
                             >
                                 {msg.role === 'assistant' ? (
                                     <div className="prose prose-sm max-w-none prose-zinc prose-p:my-0.5 prose-headings:my-1 prose-pre:bg-zinc-900 prose-pre:text-zinc-100 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-xl prose-code:text-sky-600 prose-code:bg-sky-50 prose-code:px-1 prose-code:rounded">
-                                        <Markdown>{msg.content || (msg.isStreaming ? '▋' : '')}</Markdown>
+                                        <Markdown
+                                            components={{
+                                                pre: ({ children, ...props }) => {
+                                                    // Detect if the content inside pre is a JSON tool call
+                                                    const content = React.Children.toArray(children)[0] as any;
+                                                    if (typeof content === 'string' && content.includes('"tool":')) {
+                                                        return null; // Hide tool calls entirely
+                                                    }
+                                                    // For actual code blocks, check the code tag inside
+                                                    if (content && typeof content === 'object' && 'props' in content) {
+                                                        const codeText = String(content.props?.children || '');
+                                                        if (codeText.includes('"tool":')) return null;
+                                                    }
+                                                    return <pre {...props}>{children}</pre>;
+                                                }
+                                            }}
+                                        >
+                                            {msg.content || (msg.isStreaming ? '▋' : '')}
+                                        </Markdown>
                                     </div>
                                 ) : (
                                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -408,41 +524,12 @@ Personality: Autonomous, efficient, thorough. Plan ahead, execute decisively, co
                                 )}
                             </div>
 
-                            {/* Tool Execution Status Badges */}
+                            {/* Tool Execution Action Cards */}
                             <AnimatePresence>
                                 {msg.toolExecutions && msg.toolExecutions.length > 0 && (
-                                    <div className="flex flex-col gap-1.5">
+                                    <div className="flex flex-col gap-2 mt-1">
                                         {msg.toolExecutions.map((exec, i) => (
-                                            <motion.div
-                                                key={`tool-${i}`}
-                                                initial={{ opacity: 0, y: -8, scale: 0.9 }}
-                                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.9 }}
-                                                transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border",
-                                                    exec.status === 'running'
-                                                        ? "bg-amber-50 border-amber-200 text-amber-700"
-                                                        : exec.status === 'success'
-                                                            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                                            : "bg-red-50 border-red-200 text-red-600"
-                                                )}
-                                            >
-                                                {exec.status === 'running' ? (
-                                                    <Loader2 size={12} className="animate-spin" />
-                                                ) : exec.status === 'success' ? (
-                                                    <CheckCircle2 size={12} />
-                                                ) : (
-                                                    <XCircle size={12} />
-                                                )}
-                                                <Wrench size={10} className="opacity-50" />
-                                                <span className="font-mono">{exec.tool}</span>
-                                                {exec.args && Object.keys(exec.args).length > 0 && (
-                                                    <span className="text-[10px] opacity-60 truncate max-w-[200px]">
-                                                        ({Object.entries(exec.args).map(([k, v]) => `${k}: ${typeof v === 'string' ? v.slice(0, 30) : v}`).join(', ')})
-                                                    </span>
-                                                )}
-                                            </motion.div>
+                                            <ActionCard key={`action-${i}`} exec={exec} />
                                         ))}
                                     </div>
                                 )}

@@ -66,6 +66,16 @@ export const StartMenu: React.FC = () => {
                 {Object.values(APPS_CONFIG).map(app => (
                   <button
                     key={app.id}
+                    draggable={true}
+                    onDragStart={(e: any) => {
+                      if (e.dataTransfer) {
+                        e.dataTransfer.setData('neuro/app', JSON.stringify({
+                          id: app.id,
+                          name: app.name
+                        }));
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }
+                    }}
                     onClick={() => {
                       openApp(app.id, app.name);
                       toggleStartMenu(false);

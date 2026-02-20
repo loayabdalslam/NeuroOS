@@ -223,6 +223,13 @@ export function stripToolCalls(text: string, calls: ParsedToolCall[]): string {
     for (const call of calls) {
         clean = clean.replace(call.rawMatch, '');
     }
+
+    // Proactive stripping for streaming: hide partial JSON blocks
+    // 1. Matches ```json { ... up to the end of string (unclosed fence)
+    clean = clean.replace(/```(?:json)?\s*\{[\s\S]*$/g, '');
+    // 2. Matches standalone { "tool": ... up to the end of string (unclosed object)
+    clean = clean.replace(/\{[^{}]*"tool"[\s\S]*$/g, '');
+
     // Clean up leftover markdown fences and whitespace
     clean = clean.replace(/```(?:json)?\s*```/g, '').trim();
     return clean;

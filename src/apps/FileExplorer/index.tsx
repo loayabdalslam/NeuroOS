@@ -366,6 +366,17 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
                                         layout
                                         key={file.path}
                                         data-file-item
+                                        draggable={true}
+                                        onDragStart={(e: any) => {
+                                            if (e.dataTransfer) {
+                                                e.dataTransfer.setData('neuro/file', JSON.stringify({
+                                                    name: file.name,
+                                                    path: file.path,
+                                                    isDirectory: file.isDirectory
+                                                }));
+                                                e.dataTransfer.effectAllowed = 'copy';
+                                            }
+                                        }}
                                         initial={{ opacity: 0, scale: 0.85 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.85 }}
@@ -381,6 +392,11 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
                                                 setSelectedFile(file);
                                                 openFileInViewer(file.path, file.name);
                                             }
+                                        }}
+                                        onDoubleClick={(e) => {
+                                            e.stopPropagation();
+                                            setRenamingPath(file.path);
+                                            setRenameValue(file.name);
                                         }}
                                         onContextMenu={(e) => {
                                             e.preventDefault();
@@ -413,6 +429,15 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
                                                 type="text"
                                                 value={renameValue}
                                                 onClick={e => e.stopPropagation()}
+                                                onFocus={e => {
+                                                    // Auto-select filename but not extension
+                                                    const dotIdx = renameValue.lastIndexOf('.');
+                                                    if (dotIdx > 0 && !file.isDirectory) {
+                                                        e.target.setSelectionRange(0, dotIdx);
+                                                    } else {
+                                                        e.target.select();
+                                                    }
+                                                }}
                                                 onChange={e => setRenameValue(e.target.value)}
                                                 onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenamingPath(null); }}
                                                 onBlur={handleRename}

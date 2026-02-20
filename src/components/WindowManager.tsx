@@ -11,6 +11,7 @@ import { MCPConnectors } from '../apps/MCPConnectors';
 import { AutomationEngine } from '../apps/AutomationEngine';
 import { ChatApp } from '../apps/Chat';
 import { FileViewer } from '../apps/FileViewer';
+import { BoardApp } from '../apps/Board';
 
 // Component Registry
 const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
@@ -23,6 +24,7 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
     mcp: MCPConnectors,
     chat: ChatApp,
     viewer: FileViewer,
+    board: BoardApp,
 };
 
 const AppNotFound: React.FC<{ windowData?: any }> = () => (
