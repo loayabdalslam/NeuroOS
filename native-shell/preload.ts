@@ -28,6 +28,23 @@ contextBridge.exposeInMainWorld('electron', {
         chat: (provider: string, data: any) => ipcRenderer.invoke('llm:chat', provider, data),
     },
 
+    // Shell Execution
+    shell: {
+        exec: (command: string, cwd?: string) => ipcRenderer.invoke('shell:exec', command, cwd),
+    },
+
+    // Browser / Web
+    browser: {
+        scrape: (url: string) => ipcRenderer.invoke('browser:scrape', url),
+        openExternal: (url: string) => ipcRenderer.invoke('browser:openExternal', url),
+    },
+
+    // System Info & Notifications
+    system: {
+        info: () => ipcRenderer.invoke('system:info'),
+        notification: (title: string, body: string) => ipcRenderer.invoke('system:notification', title, body),
+    },
+
     // Proxy Request
     proxyRequest: (url: string) => ipcRenderer.invoke('proxy-request', url),
 });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFileSystem } from '../../hooks/useFileSystem';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
-import { OSAppWindow } from '../../hooks/useOS';
+import { OSAppWindow, useOS } from '../../hooks/useOS';
 import {
     Folder, FileText, ArrowLeft, HardDrive, Upload, Plus,
     Trash2, RefreshCw, X, Check, FolderOpen, Edit3,
@@ -59,6 +59,7 @@ interface FileExplorerProps {
 export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
     const { isElectron, listFiles, selectDirectory, selectFiles, deleteFile, copyFile, writeFile, createDir, renameFile } = useFileSystem();
     const { workspacePath, setWorkspace, clearWorkspace } = useWorkspaceStore();
+    const { openApp, sendAppAction, appWindows } = useOS();
 
     const [currentPath, setCurrentPath] = useState<string>('');
     const [files, setFiles] = useState<FileEntry[]>([]);
@@ -77,6 +78,20 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
         setToast(msg);
         setTimeout(() => setToast(null), 2500);
     };
+
+    // Open a file in the FileViewer
+    const openFileInViewer = useCallback((filePath: string, fileName: string) => {
+        openApp('viewer', fileName);
+        // sendAppAction by component targets the newly created viewer
+        // Use setTimeout to ensure the window is created first
+        setTimeout(() => {
+            const allWindows = useOS.getState().appWindows;
+            const viewerWin = allWindows.filter(w => w.component === 'viewer').pop();
+            if (viewerWin) {
+                sendAppAction(viewerWin.id, 'open_file', { path: filePath, name: fileName });
+            }
+        }, 50);
+    }, [openApp, sendAppAction]);
 
     const refresh = useCallback(async (p?: string) => {
         const target = p ?? currentPath;
@@ -364,6 +379,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
                                                 navigateTo(file.path);
                                             } else {
                                                 setSelectedFile(file);
+                                                openFileInViewer(file.path, file.name);
                                             }
                                         }}
                                         onContextMenu={(e) => {

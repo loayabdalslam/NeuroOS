@@ -9,6 +9,7 @@ import { LLMManager } from '../apps/LLMManager';
 import { MCPConnectors } from '../apps/MCPConnectors';
 import { AutomationEngine } from '../apps/AutomationEngine';
 import { ChatApp } from '../apps/Chat';
+import { FileViewer } from '../apps/FileViewer';
 
 // Component Registry
 const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
@@ -20,6 +21,7 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
     automation: AutomationEngine,
     mcp: MCPConnectors,
     chat: ChatApp,
+    viewer: FileViewer,
 };
 
 export const WindowManager: React.FC = () => {

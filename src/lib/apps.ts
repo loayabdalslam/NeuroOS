@@ -7,6 +7,7 @@ import {
     Database,
     Settings,
     BrainCircuit,
+    Eye,
     LucideIcon
 } from 'lucide-react';
 
@@ -26,4 +27,5 @@ export const APPS_CONFIG: Record<string, AppConfig> = {
     automation: { id: 'automation', name: 'Automation', icon: Workflow, color: 'bg-amber-500' },
     mcp: { id: 'mcp', name: 'MCP Connectors', icon: Database, color: 'bg-rose-500' },
     settings: { id: 'settings', name: 'Settings', icon: Settings, color: 'bg-zinc-400' },
+    viewer: { id: 'viewer', name: 'File Viewer', icon: Eye, color: 'bg-violet-500' },
 };

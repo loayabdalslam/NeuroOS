@@ -114,6 +114,75 @@ app.on('ready', () => {
         };
     });
 
+    // ─── Shell Execution ──────────────────────────────────────
+    ipcMain.handle('shell:exec', async (_, command: string, cwd?: string) => {
+        const { exec } = require('child_process');
+        return new Promise((resolve) => {
+            exec(command, { cwd: cwd || undefined, timeout: 30000, maxBuffer: 1024 * 1024 }, (error: any, stdout: string, stderr: string) => {
+                resolve({
+                    stdout: stdout || '',
+                    stderr: stderr || '',
+                    code: error ? error.code || 1 : 0,
+                    error: error ? error.message : null
+                });
+            });
+        });
+    });
+
+    // ─── Web Scraping (CORS-free) ────────────────────────────
+    ipcMain.handle('browser:scrape', async (_, url: string) => {
+        try {
+            const response = await fetch(url, {
+                headers: { 'User-Agent': 'NeuroOS/1.0' }
+            });
+            const html = await response.text();
+            // Strip scripts and styles, extract text
+            const text = html
+                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                .replace(/<style[\s\S]*?<\/style>/gi, '')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            return { html: html.slice(0, 50000), text: text.slice(0, 20000), url };
+        } catch (error: any) {
+            throw new Error(`Scrape failed: ${error.message}`);
+        }
+    });
+
+    // ─── Open External URL ───────────────────────────────────
+    ipcMain.handle('browser:openExternal', async (_, url: string) => {
+        const { shell } = require('electron');
+        await shell.openExternal(url);
+    });
+
+    // ─── System Info ─────────────────────────────────────────
+    ipcMain.handle('system:info', async () => {
+        const os = require('os');
+        return {
+            platform: os.platform(),
+            arch: os.arch(),
+            hostname: os.hostname(),
+            cpus: os.cpus().length,
+            totalMemory: os.totalmem(),
+            freeMemory: os.freemem(),
+            uptime: os.uptime(),
+            homeDir: os.homedir(),
+            tmpDir: os.tmpdir(),
+            nodeVersion: process.version
+        };
+    });
+
+    // ─── Native Notification ─────────────────────────────────
+    ipcMain.handle('system:notification', async (_, title: string, body: string) => {
+        const { Notification: ElectronNotification } = require('electron');
+        if (ElectronNotification.isSupported()) {
+            const notif = new ElectronNotification({ title, body });
+            notif.show();
+            return true;
+        }
+        return false;
+    });
+
     // Proxy Request for CORS bypassing
     ipcMain.handle('proxy-request', async (_, url) => {
         try {

@@ -40,14 +40,19 @@ export const useOS = create<OSState>((set, get) => ({
   openApp: (component, title) => {
     const { appWindows, nextZIndex } = get();
 
-    // Check if app is already open
-    const existing = appWindows.find(windowData => windowData.component === component);
-    if (existing) {
-      get().focusWindow(existing.id);
-      if (existing.state === 'minimized') {
-        get().updateWindow(existing.id, { state: 'normal' });
+    // Multi-instance apps (viewer) always open a new window
+    const isMultiInstance = component === 'viewer';
+
+    if (!isMultiInstance) {
+      // Check if app is already open
+      const existing = appWindows.find(windowData => windowData.component === component);
+      if (existing) {
+        get().focusWindow(existing.id);
+        if (existing.state === 'minimized') {
+          get().updateWindow(existing.id, { state: 'normal' });
+        }
+        return;
       }
-      return;
     }
 
     const id = Math.random().toString(36).substr(2, 9);

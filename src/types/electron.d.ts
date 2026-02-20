@@ -1,10 +1,13 @@
+/**
+ * Electron API Types — global declaration for window.electron
+ */
 export { };
 
 declare global {
     interface Window {
         electron: {
             fileSystem: {
-                list: (path: string) => Promise<any[]>;
+                list: (path: string) => Promise<Array<{ name: string; isDirectory: boolean }>>;
                 read: (path: string) => Promise<string>;
                 write: (path: string, content: string) => Promise<void>;
                 createDir: (path: string) => Promise<void>;
@@ -23,6 +26,37 @@ declare global {
             };
             llm: {
                 chat: (provider: string, data: any) => Promise<any>;
+            };
+            shell: {
+                exec: (command: string, cwd?: string) => Promise<{
+                    stdout: string;
+                    stderr: string;
+                    code: number;
+                    error: string | null;
+                }>;
+            };
+            browser: {
+                scrape: (url: string) => Promise<{
+                    html: string;
+                    text: string;
+                    url: string;
+                }>;
+                openExternal: (url: string) => Promise<void>;
+            };
+            system: {
+                info: () => Promise<{
+                    platform: string;
+                    arch: string;
+                    hostname: string;
+                    cpus: number;
+                    totalMemory: number;
+                    freeMemory: number;
+                    uptime: number;
+                    homeDir: string;
+                    tmpDir: string;
+                    nodeVersion: string;
+                }>;
+                notification: (title: string, body: string) => Promise<boolean>;
             };
             proxyRequest: (url: string) => Promise<any>;
         };
