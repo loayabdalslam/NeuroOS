@@ -430,13 +430,16 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
                                                 value={renameValue}
                                                 onClick={e => e.stopPropagation()}
                                                 onFocus={e => {
-                                                    // Auto-select filename but not extension
-                                                    const dotIdx = renameValue.lastIndexOf('.');
-                                                    if (dotIdx > 0 && !file.isDirectory) {
-                                                        e.target.setSelectionRange(0, dotIdx);
-                                                    } else {
-                                                        e.target.select();
-                                                    }
+                                                    const val = e.target.value;
+                                                    const dotIdx = val.lastIndexOf('.');
+                                                    // Use a small timeout to ensure selection happens after browser default focus behavior
+                                                    setTimeout(() => {
+                                                        if (dotIdx > 0 && !file.isDirectory) {
+                                                            e.target.setSelectionRange(0, dotIdx);
+                                                        } else {
+                                                            e.target.select();
+                                                        }
+                                                    }, 10);
                                                 }}
                                                 onChange={e => setRenameValue(e.target.value)}
                                                 onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenamingPath(null); }}

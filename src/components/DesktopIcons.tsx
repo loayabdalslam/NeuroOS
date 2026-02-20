@@ -47,24 +47,30 @@ export const DesktopIcons: React.FC = () => {
         if (!desktopPath || !isElectron) return;
         setLoading(true);
         try {
-            // Ensure desktop folder exists
-            const exists = await statFile(desktopPath);
-            if (!exists) {
-                await createDir(desktopPath);
+            // First try to list, if it fails with ENOENT, try to create
+            try {
+                const entries = await listFiles(desktopPath);
+                setIcons(entries.map((e: any) => ({
+                    name: e.name,
+                    path: e.path,
+                    isDirectory: e.isDirectory
+                })));
+            } catch (e: any) {
+                // If directory doesn't exist, create it once
+                if (e.message?.includes('ENOENT') || e.code === 'ENOENT') {
+                    await createDir(desktopPath);
+                    setIcons([]);
+                } else {
+                    throw e; // Re-throw other errors
+                }
             }
-
-            const entries = await listFiles(desktopPath);
-            setIcons(entries.map((e: any) => ({
-                name: e.name,
-                path: e.path,
-                isDirectory: e.isDirectory
-            })));
         } catch (e) {
-            console.error('Failed to load desktop icons', e);
+            // Silent fail for background refresh to avoid console spam
+            // console.error('Failed to load desktop icons', e);
         } finally {
             setLoading(false);
         }
-    }, [desktopPath, isElectron, listFiles, createDir, statFile]);
+    }, [desktopPath, isElectron, listFiles, createDir]);
 
     useEffect(() => {
         refresh();
