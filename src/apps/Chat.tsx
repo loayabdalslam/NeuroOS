@@ -142,12 +142,29 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
         }
     }), [openApp, closeWindow, sendAppAction, appWindows, workspacePath, writeFile, readFile, listFiles, createDir, deleteFile]);
 
-    // Auto-scroll to bottom
+    // Better Auto-scroll with Resize Observer and Smooth behavior
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages]);
+        if (!scrollRef.current) return;
+
+        const scrollContainer = scrollRef.current;
+        const scrollToBottom = () => {
+            scrollContainer.scrollTo({
+                top: scrollContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        };
+
+        const observer = new ResizeObserver(() => {
+            // Only scroll if we are near the bottom already (allow user to stay up)
+            const isNearBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 200;
+            if (isNearBottom || isLoading) {
+                scrollContainer.scrollTop = scrollContainer.scrollHeight;
+            }
+        });
+
+        observer.observe(scrollContainer.firstElementChild || scrollContainer);
+        return () => observer.disconnect();
+    }, [messages, isLoading]);
 
     // Handle external actions (e.g. from SystemAssistant)
     useEffect(() => {
@@ -186,7 +203,8 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
         setInput('');
         setIsLoading(true);
 
-        const assistantMsgId = Date.now();
+        // Use a unique ID to avoid collisions with user message if they happen in the same ms
+        const assistantMsgId = Date.now() + Math.random();
         setMessages(prev => [...prev, {
             role: 'assistant',
             content: '',
@@ -276,7 +294,8 @@ Personality: Autonomous, efficient, thorough. Plan ahead, execute decisively, co
                         const currentToolCalls = parseToolCalls(fullContent);
                         const strippedContent = stripToolCalls(fullContent, currentToolCalls);
 
-                        const liveDisplay = accumulatedDisplay + (accumulatedDisplay ? '\n\n' : '') + strippedContent;
+                        // IMPROVEMENT: Ensure we don't repeat accumulated text
+                        const liveDisplay = accumulatedDisplay + (accumulatedDisplay && strippedContent ? '\n\n' : '') + strippedContent;
 
                         setMessages(prev => prev.map(m =>
                             m.timestamp === assistantMsgId
@@ -295,7 +314,9 @@ Personality: Autonomous, efficient, thorough. Plan ahead, execute decisively, co
                 if (toolCalls.length === 0) {
                     // Done — no more tool calls
                     continueLoop = false;
-                    const finalDisplay = accumulatedDisplay + (accumulatedDisplay ? '\n\n' : '') + fullContent;
+                    const finalContent = stripToolCalls(fullContent, []).trim();
+                    const finalDisplay = (accumulatedDisplay + (accumulatedDisplay && finalContent ? '\n\n' : '') + finalContent).trim();
+
                     setMessages(prev => prev.map(m =>
                         m.timestamp === assistantMsgId
                             ? { ...m, content: finalDisplay, isStreaming: false }
@@ -479,10 +500,10 @@ Personality: Autonomous, efficient, thorough. Plan ahead, execute decisively, co
                         <div className="flex flex-col gap-2 max-w-[85%]">
                             {/* Bubble */}
                             <div className={cn(
-                                "relative px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
+                                "relative px-5 py-3.5 rounded-3xl text-[14px] leading-[1.6] shadow-sm transition-all",
                                 msg.role === 'user'
-                                    ? "bg-zinc-900 text-white rounded-tr-sm"
-                                    : "bg-zinc-50 border border-zinc-100 text-zinc-800 rounded-tl-sm"
+                                    ? "bg-gradient-to-br from-zinc-800 to-zinc-900 text-white rounded-tr-sm"
+                                    : "bg-white/80 backdrop-blur-md border border-zinc-100/50 text-zinc-800 rounded-tl-sm shadow-zinc-200/20"
                             )}
                                 onContextMenu={(e) => {
                                     e.preventDefault();
