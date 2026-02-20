@@ -1,0 +1,9 @@
+{
+  "name": "NeuroOS",
+  "description": "A minimalist, AI-native operating system with window management, agent orchestration, and modular app runtime.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

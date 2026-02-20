@@ -1,0 +1,127 @@
+import { create } from 'zustand';
+
+export type WindowState = 'normal' | 'minimized' | 'maximized';
+
+export interface OSAppWindow {
+  id: string;
+  title: string;
+  icon: string;
+  component: string; // Key for the component registry
+  zIndex: number;
+  isFocused: boolean;
+  state: WindowState;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  lastAction?: { type: string; payload: any; timestamp: number };
+}
+
+export interface OSState {
+  appWindows: OSAppWindow[];
+  activeWindowId: string | null;
+  nextZIndex: number;
+  isStartMenuOpen: boolean;
+  
+  // Actions
+  openApp: (title: string, icon: string, component: string) => void;
+  closeWindow: (id: string) => void;
+  focusWindow: (id: string) => void;
+  updateWindow: (id: string, updates: Partial<OSAppWindow>) => void;
+  toggleStartMenu: (open?: boolean) => void;
+  minimizeWindow: (id: string) => void;
+  maximizeWindow: (id: string) => void;
+  sendAppAction: (id: string, type: string, payload: any) => void;
+}
+
+export const useOS = create<OSState>((set, get) => ({
+  appWindows: [],
+  activeWindowId: null,
+  nextZIndex: 10,
+  isStartMenuOpen: false,
+
+  openApp: (title, icon, component) => {
+    const { appWindows, nextZIndex } = get();
+    
+    // Check if app is already open
+    const existing = appWindows.find(windowData => windowData.component === component);
+    if (existing) {
+      get().focusWindow(existing.id);
+      if (existing.state === 'minimized') {
+        get().updateWindow(existing.id, { state: 'normal' });
+      }
+      return;
+    }
+
+    const id = Math.random().toString(36).substr(2, 9);
+    const newWindow: OSAppWindow = {
+      id,
+      title,
+      icon,
+      component,
+      zIndex: nextZIndex,
+      isFocused: true,
+      state: 'normal',
+      position: { x: 100 + appWindows.length * 30, y: 100 + appWindows.length * 30 },
+      size: { width: 800, height: 600 },
+    };
+
+    set({
+      appWindows: [...appWindows.map(windowData => ({ ...windowData, isFocused: false })), newWindow],
+      activeWindowId: id,
+      nextZIndex: nextZIndex + 1,
+      isStartMenuOpen: false,
+    });
+  },
+
+  closeWindow: (id) => {
+    set(state => ({
+      appWindows: state.appWindows.filter(windowData => windowData.id !== id),
+      activeWindowId: state.activeWindowId === id ? null : state.activeWindowId,
+    }));
+  },
+
+  focusWindow: (id) => {
+    const { nextZIndex } = get();
+    set(state => ({
+      appWindows: state.appWindows.map(windowData => ({
+        ...windowData,
+        isFocused: windowData.id === id,
+        zIndex: windowData.id === id ? nextZIndex : windowData.zIndex,
+      })),
+      activeWindowId: id,
+      nextZIndex: nextZIndex + 1,
+    }));
+  },
+
+  updateWindow: (id, updates) => {
+    set(state => ({
+      appWindows: state.appWindows.map(windowData => windowData.id === id ? { ...windowData, ...updates } : windowData),
+    }));
+  },
+
+  toggleStartMenu: (open) => {
+    set(state => ({ isStartMenuOpen: open ?? !state.isStartMenuOpen }));
+  },
+
+  minimizeWindow: (id) => {
+    set(state => ({
+      appWindows: state.appWindows.map(windowData => windowData.id === id ? { ...windowData, state: 'minimized', isFocused: false } : windowData),
+      activeWindowId: state.activeWindowId === id ? null : state.activeWindowId,
+    }));
+  },
+
+  maximizeWindow: (id) => {
+    set(state => ({
+      appWindows: state.appWindows.map(windowData => windowData.id === id ? { ...windowData, state: 'maximized' } : windowData),
+    }));
+  },
+
+  sendAppAction: (idOrComponent, type, payload) => {
+    set(state => ({
+      appWindows: state.appWindows.map(windowData => 
+        (windowData.id === idOrComponent || windowData.component === idOrComponent)
+          ? { ...windowData, lastAction: { type, payload, timestamp: Date.now() } } 
+          : windowData
+      ),
+    }));
+  }
+}));
