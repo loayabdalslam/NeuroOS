@@ -54,7 +54,7 @@
       "allowElevation": true,
       "displayLanguageSelector": true,
       "installerLanguages": ["en_US"],
-      "multiUser": true,
+      "perMachine": true,
       "differentialPackage": true,
       "deleteAppDataOnUninstall": true,
       "runAfterFinish": true
