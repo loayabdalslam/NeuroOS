@@ -8,6 +8,7 @@ import {
     Folder, File, FileCode, FileText, FileImage,
     Music, Video, Archive, BrainCircuit
 } from 'lucide-react';
+import { NeuroIcon } from './icons/NeuroIcon';
 
 interface DesktopFile {
     name: string;
@@ -118,7 +119,7 @@ export const DesktopIcons: React.FC = () => {
                             onDoubleClick={() => handleOpen(icon)}
                         >
                             <div className={cn("w-12 h-12 flex items-center justify-center rounded-2xl bg-white shadow-sm border border-zinc-100 group-hover:shadow-md transition-all", color)}>
-                                <Icon size={28} strokeWidth={1.5} />
+                                <NeuroIcon size={24} showTM={false} />
                             </div>
                             <span className="text-[11px] font-medium text-zinc-900 text-center line-clamp-2 drop-shadow-sm px-1 leading-tight">
                                 {icon.name.replace('.ai', '')}

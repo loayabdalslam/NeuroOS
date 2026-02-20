@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, GripVertical, FileText, File, Folder, AppWindow, ImageIcon, FileCode } from 'lucide-react';
+import { X, GripVertical, FileText, File, Folder, AppWindow, ImageIcon, FileCode, ExternalLink } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';
 import { BoardCard as BoardCardType } from './types';
 import { APPS_CONFIG } from '../../lib/apps';
@@ -15,7 +16,7 @@ interface CardProps {
 export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [previewContent, setPreviewContent] = useState<string | null>(null);
-    const [previewType, setPreviewType] = useState<'text' | 'image' | 'code' | 'none'>('none');
+    const [previewType, setPreviewType] = useState<'text' | 'image' | 'code' | 'markdown' | 'html' | 'none'>('none');
     const { readFile } = useFileSystem();
 
     useEffect(() => {
@@ -28,8 +29,12 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                 const fetchContent = async () => {
                     try {
                         const content = await readFile(card.metadata.path);
-                        setPreviewContent(content.slice(0, 1000)); // First 1000 chars
-                        setPreviewType(ext === 'md' ? 'text' : (['js', 'ts', 'tsx', 'py'].includes(ext!) ? 'code' : 'text'));
+                        setPreviewContent(content); // For rich previews, we might need more than just 1000 chars if small
+
+                        if (ext === 'md') setPreviewType('markdown');
+                        else if (ext === 'html' || ext === 'svg') setPreviewType('html');
+                        else if (['js', 'ts', 'tsx', 'py'].includes(ext!)) setPreviewType('code');
+                        else setPreviewType('text');
                     } catch (e) {
                         console.error('Failed to read file for preview', e);
                     }
@@ -89,18 +94,39 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
 
                         {/* Preview Area */}
                         {!card.metadata?.isDirectory && (
-                            <div className="flex-1 bg-zinc-50/50 rounded-lg p-3 border border-zinc-100/50 overflow-hidden relative group/preview">
-                                {previewType === 'text' || previewType === 'code' ? (
+                            <div className="flex-1 bg-zinc-50/50 rounded-xl border border-zinc-100/50 overflow-hidden relative group/preview min-h-[160px]">
+                                {previewType === 'markdown' ? (
+                                    <div className="p-4 text-[11px] prose prose-zinc prose-sm max-w-none text-zinc-600 font-sans overflow-hidden">
+                                        <ReactMarkdown>{previewContent || ''}</ReactMarkdown>
+                                    </div>
+                                ) : previewType === 'html' ? (
+                                    <div className="w-full h-full relative group-hover/preview:opacity-90 transition-opacity">
+                                        <iframe
+                                            srcDoc={previewContent || ''}
+                                            className="w-full h-full border-0 pointer-events-none scale-[0.6] origin-top-left"
+                                            style={{ width: '166.66%', height: '166.66%' }}
+                                            title="HTML Preview"
+                                        />
+                                        <div className="absolute inset-0 z-10" /> {/* Click protection */}
+                                    </div>
+                                ) : previewType === 'text' || previewType === 'code' ? (
                                     <div className={cn(
-                                        "text-[10px] leading-relaxed text-zinc-500 whitespace-pre-wrap line-clamp-[10] break-words",
+                                        "p-4 text-[10px] leading-relaxed text-zinc-500 whitespace-pre-wrap line-clamp-[12] break-words",
                                         previewType === 'code' ? "font-mono text-blue-600/70" : "font-sans"
                                     )}>
-                                        {previewContent || "Loading preview..."}
+                                        {previewContent?.slice(0, 1000) || "Loading preview..."}
                                     </div>
                                 ) : previewType === 'image' ? (
-                                    <div className="w-full h-full flex items-center justify-center bg-zinc-100 rounded">
-                                        <ImageIcon size={24} className="text-zinc-300" />
-                                        <span className="sr-only">Image Preview</span>
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-100/50 rounded p-2">
+                                        <div className="relative group/img">
+                                            <ImageIcon size={32} strokeWidth={1} className="text-zinc-300 animate-pulse" />
+                                            <img
+                                                src={`file://${card.metadata.path}`}
+                                                alt="preview"
+                                                className="absolute inset-0 w-full h-full object-cover rounded opacity-0 group-hover/img:opacity-100 transition-opacity"
+                                                onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                                            />
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center gap-2 grayscale opacity-40">
@@ -108,7 +134,11 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                                         <span className="text-[9px] uppercase font-bold tracking-tighter">No Preview</span>
                                     </div>
                                 )}
-                                <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-zinc-50/80 to-transparent pointer-events-none" />
+                                <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white/90 via-white/40 to-transparent pointer-events-none z-20" />
+
+                                <div className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur shadow-sm border border-zinc-100 opacity-0 group-hover/preview:opacity-100 transition-all scale-90 hover:scale-100 cursor-pointer">
+                                    <ExternalLink size={10} className="text-zinc-400" />
+                                </div>
                             </div>
                         )}
                     </div>

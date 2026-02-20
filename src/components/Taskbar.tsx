@@ -34,7 +34,6 @@ export const Taskbar: React.FC = () => {
         <div className="flex items-center gap-2">
           {appWindows.map(windowData => {
             const appConfig = APPS_CONFIG[windowData.component];
-            const Icon = appConfig?.icon || LayoutGrid; // Fallback
 
             return (
               <button
@@ -45,7 +44,12 @@ export const Taskbar: React.FC = () => {
                   windowData.isFocused ? "bg-zinc-100 text-zinc-900 ring-1 ring-zinc-200 shadow-sm custom-spring-bounce" : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600"
                 )}
               >
-                <Icon size={20} strokeWidth={1.5} className="group-hover:scale-110 transition-transform" />
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
+                  windowData.isFocused ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-600"
+                )}>
+                  <NeuroIcon size={16} showTM={false} />
+                </div>
                 {windowData.isFocused && (
                   <div className="absolute -bottom-1 w-1 h-1 rounded-full bg-zinc-900" />
                 )}

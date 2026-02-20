@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Command, Search, Monitor, Cpu, Battery, Wifi, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useOS } from '../hooks/useOS';
 import { APPS_CONFIG } from '../lib/apps';
 import { useAuthStore } from '../stores/authStore';
+import { NeuroIcon } from './icons/NeuroIcon';
 
 export const SystemAssistant: React.FC = () => {
     const { openApp, sendAppAction } = useOS();
@@ -63,8 +64,8 @@ export const SystemAssistant: React.FC = () => {
                         isOpen ? "opacity-0 pointer-events-none scale-90" : "opacity-100 scale-100"
                     )}
                 >
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400/20 via-purple-400/20 to-blue-400/20 animate-pulse" />
-                    <Sparkles size={16} className="text-blue-500 group-hover:rotate-12 transition-transform" />
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-zinc-100 via-zinc-200 to-zinc-100 animate-pulse opacity-50" />
+                    <NeuroIcon size={16} showTM={false} className="text-zinc-900 group-hover:rotate-12 transition-transform" />
                     <span className="text-sm font-medium text-zinc-800">Ask {user?.name || 'NeuroOS'}...</span>
                 </button>
             </div>
@@ -88,8 +89,8 @@ export const SystemAssistant: React.FC = () => {
                 >
                     {/* Search Input */}
                     <div className="flex items-center gap-4 p-4 border-b border-black/5">
-                        <div className="p-2 bg-gradient-to-br from-blue-500 to-violet-500 rounded-lg shadow-lg shadow-blue-500/20">
-                            <Sparkles className="text-white" size={20} />
+                        <div className="p-2 bg-zinc-900 rounded-lg shadow-lg shadow-black/20">
+                            <NeuroIcon size={20} showTM={false} className="text-white" />
                         </div>
                         <input
                             ref={inputRef}
@@ -122,8 +123,8 @@ export const SystemAssistant: React.FC = () => {
                                         onClick={() => handleLaunch(app.id)}
                                         className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-black/5 transition-colors group text-left"
                                     >
-                                        <div className={cn("p-2 rounded-lg text-white group-hover:scale-105 transition-transform", app.color)}>
-                                            <app.icon size={18} />
+                                        <div className={cn("p-2 rounded-lg text-white group-hover:scale-105 transition-transform bg-zinc-900")}>
+                                            <NeuroIcon size={18} showTM={false} />
                                         </div>
                                         <div className="flex-1">
                                             <div className="text-sm font-medium text-zinc-900">{app.name}</div>
@@ -141,8 +142,8 @@ export const SystemAssistant: React.FC = () => {
                                 onClick={handleAskAI}
                                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition-colors group text-left border border-transparent hover:border-blue-100"
                             >
-                                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                                    <Sparkles size={18} />
+                                <div className="p-2 bg-zinc-900 text-white rounded-lg">
+                                    <NeuroIcon size={18} showTM={false} />
                                 </div>
                                 <div>
                                     <div className="text-sm font-medium text-blue-900">Ask Neuro AI</div>
@@ -158,21 +159,21 @@ export const SystemAssistant: React.FC = () => {
                                     <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">System Control</span>
                                 </div>
                                 <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 border border-zinc-100">
-                                    <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
-                                        <Battery size={18} />
+                                    <div className="p-2 bg-zinc-900 text-white rounded-lg">
+                                        <NeuroIcon size={18} showTM={false} />
                                     </div>
                                     <div>
                                         <div className="text-sm font-medium">Power</div>
-                                        <div className="text-xs text-zinc-500">Balanced</div>
+                                        <div className="text-xs text-zinc-500">Optimized</div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 border border-zinc-100">
-                                    <div className="p-2 bg-violet-100 text-violet-600 rounded-lg">
-                                        <Wifi size={18} />
+                                    <div className="p-2 bg-zinc-900 text-white rounded-lg">
+                                        <NeuroIcon size={18} showTM={false} />
                                     </div>
                                     <div>
                                         <div className="text-sm font-medium">Network</div>
-                                        <div className="text-xs text-zinc-500">Online</div>
+                                        <div className="text-xs text-zinc-500">Secure</div>
                                     </div>
                                 </div>
                             </div>

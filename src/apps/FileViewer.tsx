@@ -6,6 +6,7 @@ import {
     File, Download, Copy, ZoomIn, ZoomOut, RotateCw,
     WrapText, AlignLeft
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 // ─── Extension Mapping ──────────────────────────────
 type FileType = 'text' | 'code' | 'image' | 'video' | 'audio' | 'markdown' | 'pdf' | 'json' | 'html' | 'unknown';
@@ -226,7 +227,13 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                 }
 
             case 'markdown':
-                return renderCodeView(content, 'markdown');
+                return (
+                    <div className="h-full overflow-auto bg-white p-8">
+                        <div className="max-w-4xl mx-auto prose prose-zinc prose-sm md:prose-base !text-zinc-800 font-sans">
+                            <ReactMarkdown>{content}</ReactMarkdown>
+                        </div>
+                    </div>
+                );
 
             case 'code':
                 return renderCodeView(content, lang);
