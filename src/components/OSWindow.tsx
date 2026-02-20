@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Minus, Square, Maximize2, LayoutGrid, Minimize2, Copy, Pin } from 'lucide-react';
+import { X, Minus, Square, Maximize2, Minimize2, LayoutGrid } from 'lucide-react';
 import { useOS, OSAppWindow } from '../hooks/useOS';
 import { cn } from '../lib/utils';
 import { APPS_CONFIG } from '../lib/apps';
@@ -53,10 +53,7 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
     };
   }, [isDragging, windowData.id, updateWindow]);
 
-  if (windowData.state === 'minimized') return null;
-
   const isMaximized = windowData.state === 'maximized';
-
   const isChatApp = windowData.component === 'chat';
 
   const titleBarCtx = useContextMenu(useCallback(() => [
@@ -64,7 +61,9 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
     { label: isMaximized ? 'Restore' : 'Maximize', icon: Maximize2, action: () => updateWindow(windowData.id, { state: isMaximized ? 'normal' : 'maximized' }) },
     { type: 'divider' as const },
     { label: 'Close', icon: X, action: () => closeWindow(windowData.id), danger: true, shortcut: 'Alt+F4' },
-  ], [windowData.id, isMaximized]));
+  ], [windowData.id, isMaximized, minimizeWindow, updateWindow, closeWindow]));
+
+  if (windowData.state === 'minimized') return null;
 
   return (
     <motion.div

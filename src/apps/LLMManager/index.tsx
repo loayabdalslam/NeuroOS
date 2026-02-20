@@ -3,13 +3,33 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { Bot, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
 export const LLMManager: React.FC = () => {
-    const { llmConfig, updateLlmConfig } = useSettingsStore();
+    const { aiConfig, updateAiConfig } = useSettingsStore();
     const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+    // For LLM Manager, we'll focus on the first provider or the active one
+    const activeProvider = aiConfig.providers.find(p => p.id === aiConfig.activeProviderId) || aiConfig.providers[0];
 
     const handleSave = () => {
         setStatus('saving');
         setTimeout(() => setStatus('saved'), 800);
         setTimeout(() => setStatus('idle'), 2500);
+    };
+
+    const handleUpdateProvider = (type: string) => {
+        // Find existing or update
+        const providers = [...aiConfig.providers];
+        const idx = providers.findIndex(p => p.type === type);
+        if (idx !== -1) {
+            updateAiConfig({ activeProviderId: providers[idx].id });
+        }
+    };
+
+    const updateCurrentProvider = (updates: Partial<any>) => {
+        if (!activeProvider) return;
+        const providers = aiConfig.providers.map(p =>
+            p.id === activeProvider.id ? { ...p, ...updates } : p
+        );
+        updateAiConfig({ providers });
     };
 
     return (
@@ -29,26 +49,31 @@ export const LLMManager: React.FC = () => {
                 <div className="space-y-3">
                     <label className="text-sm font-medium text-zinc-700">AI Provider</label>
                     <div className="grid grid-cols-3 gap-3">
-                        {(['ollama', 'lmstudio', 'openai'] as const).map(p => (
-                            <button
-                                key={p}
-                                onClick={() => updateLlmConfig({ provider: p })}
-                                className={`
-                                    p-4 rounded-xl border text-left transition-all
-                                    ${llmConfig.provider === p
-                                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600'
-                                        : 'border-zinc-200 hover:bg-zinc-50 text-zinc-600'
-                                    }
-                                `}
-                            >
-                                <div className="font-semibold capitalize mb-1">{p}</div>
-                                <div className="text-[10px] opacity-70">
-                                    {p === 'ollama' && 'Local Llama 3/Mistral'}
-                                    {p === 'lmstudio' && 'Local API Comptaible'}
-                                    {p === 'openai' && 'Cloud API (Coming Soon)'}
-                                </div>
-                            </button>
-                        ))}
+                        {(['ollama', 'lmstudio', 'openai', 'gemini', 'anthropic'] as const).map(p => {
+                            const isSelected = activeProvider?.type === p;
+                            return (
+                                <button
+                                    key={p}
+                                    onClick={() => handleUpdateProvider(p)}
+                                    className={`
+                                        p-4 rounded-xl border text-left transition-all
+                                        ${isSelected
+                                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600'
+                                            : 'border-zinc-200 hover:bg-zinc-50 text-zinc-600'
+                                        }
+                                    `}
+                                >
+                                    <div className="font-semibold capitalize mb-1">{p}</div>
+                                    <div className="text-[10px] opacity-70">
+                                        {p === 'ollama' && 'Local Llama 3/Mistral'}
+                                        {p === 'lmstudio' && 'Local API Compatible'}
+                                        {p === 'openai' && 'Cloud API (GPT-4)'}
+                                        {p === 'gemini' && 'Google Gemini Pro'}
+                                        {p === 'anthropic' && 'Claude 3.5 Sonnet'}
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -56,7 +81,7 @@ export const LLMManager: React.FC = () => {
                 <div className="p-5 border border-zinc-200 rounded-2xl bg-zinc-50 space-y-4">
                     <h3 className="text-sm font-semibold flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                        {llmConfig.provider === 'ollama' ? 'Ollama Configuration' : 'Provider Settings'}
+                        {activeProvider?.type === 'ollama' ? 'Ollama Configuration' : 'Provider Settings'}
                     </h3>
 
                     <div className="grid gap-4">
@@ -64,19 +89,32 @@ export const LLMManager: React.FC = () => {
                             <label className="text-xs font-medium text-zinc-500">Base URL</label>
                             <input
                                 type="text"
-                                value={llmConfig.baseUrl}
-                                onChange={(e) => updateLlmConfig({ baseUrl: e.target.value })}
+                                value={activeProvider?.baseUrl || ''}
+                                onChange={(e) => updateCurrentProvider({ baseUrl: e.target.value })}
                                 className="w-full px-3 py-2 bg-white border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                 placeholder="http://localhost:11434"
                             />
                         </div>
 
+                        {activeProvider?.type !== 'ollama' && activeProvider?.type !== 'lmstudio' && (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-zinc-500">API Key</label>
+                                <input
+                                    type="password"
+                                    value={activeProvider?.apiKey || ''}
+                                    onChange={(e) => updateCurrentProvider({ apiKey: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    placeholder="sk-..."
+                                />
+                            </div>
+                        )}
+
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-zinc-500">Model Name</label>
                             <input
                                 type="text"
-                                value={llmConfig.model}
-                                onChange={(e) => updateLlmConfig({ model: e.target.value })}
+                                value={activeProvider?.selectedModel || ''}
+                                onChange={(e) => updateCurrentProvider({ selectedModel: e.target.value })}
                                 className="w-full px-3 py-2 bg-white border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                 placeholder="llama3"
                             />

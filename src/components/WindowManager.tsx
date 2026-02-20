@@ -1,4 +1,5 @@
 import React from 'react';
+import { LayoutGrid } from 'lucide-react';
 import { useOS } from '../hooks/useOS';
 import { OSWindow } from './OSWindow';
 import { TerminalApp } from '../apps/Terminal';
@@ -24,13 +25,20 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
     viewer: FileViewer,
 };
 
+const AppNotFound: React.FC<{ windowData?: any }> = () => (
+    <div className="flex flex-col items-center justify-center h-full text-zinc-400 gap-3">
+        <LayoutGrid size={48} strokeWidth={1} />
+        <p className="text-sm font-medium">App Not Found</p>
+    </div>
+);
+
 export const WindowManager: React.FC = () => {
     const { appWindows } = useOS();
 
     return (
         <div className="absolute inset-0 z-10 pointer-events-none">
             {appWindows.map(windowData => {
-                const Component = COMPONENT_REGISTRY[windowData.component] || (() => <div>App Not Found</div>);
+                const Component = COMPONENT_REGISTRY[windowData.component] || AppNotFound;
                 return (
                     <OSWindow key={windowData.id} win={windowData}>
                         <Component windowData={windowData} />
