@@ -15,7 +15,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             clearWorkspace: () => set({ workspacePath: null }),
         }),
         {
-            name: 'neuro-workspace-v1',
+            name: 'neuro-workspace-v2',
         }
     )
 );

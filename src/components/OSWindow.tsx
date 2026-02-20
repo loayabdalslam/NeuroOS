@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Minus, Square, Maximize2, LayoutGrid } from 'lucide-react';
+import { X, Minus, Square, Maximize2, LayoutGrid, Minimize2, Copy, Pin } from 'lucide-react';
 import { useOS, OSAppWindow } from '../hooks/useOS';
 import { cn } from '../lib/utils';
 import { APPS_CONFIG } from '../lib/apps';
+import { useContextMenu, ContextMenuEntry } from './ContextMenu';
 
 interface OSWindowProps {
   win: OSAppWindow;
@@ -58,6 +59,13 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
 
   const isChatApp = windowData.component === 'chat';
 
+  const titleBarCtx = useContextMenu(useCallback(() => [
+    { label: 'Minimize', icon: Minimize2, action: () => minimizeWindow(windowData.id) },
+    { label: isMaximized ? 'Restore' : 'Maximize', icon: Maximize2, action: () => updateWindow(windowData.id, { state: isMaximized ? 'normal' : 'maximized' }) },
+    { type: 'divider' as const },
+    { label: 'Close', icon: X, action: () => closeWindow(windowData.id), danger: true, shortcut: 'Alt+F4' },
+  ], [windowData.id, isMaximized]));
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: isChatApp ? 0.88 : 0.95, y: isChatApp ? 0 : 10 }}
@@ -87,6 +95,7 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
         className="h-10 bg-white border-b border-zinc-100 flex items-center justify-between px-3 cursor-default select-none shrink-0"
         onMouseDown={handleMouseDown}
         onDoubleClick={() => updateWindow(windowData.id, { state: isMaximized ? 'normal' : 'maximized' })}
+        {...titleBarCtx}
       >
         <div className="flex items-center gap-3">
           <span className={cn("text-base opacity-80", isChatApp ? "text-sky-500" : "grayscale")}>

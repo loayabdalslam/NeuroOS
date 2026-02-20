@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFileSystem } from '../../hooks/useFileSystem';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
+import { OSAppWindow } from '../../hooks/useOS';
 import {
     Folder, FileText, ArrowLeft, HardDrive, Upload, Plus,
     Trash2, RefreshCw, X, Check, FolderOpen, Edit3,
@@ -9,6 +10,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { showContextMenu, ContextMenuEntry } from '../../components/ContextMenu';
+import { Copy, ClipboardPaste, FilePlus, FolderPlus } from 'lucide-react';
 
 interface FileEntry {
     name: string;
@@ -49,7 +52,11 @@ const formatSize = (bytes: number) => {
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 };
 
-export const FileExplorer: React.FC = () => {
+interface FileExplorerProps {
+    windowData?: OSAppWindow;
+}
+
+export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
     const { isElectron, listFiles, selectDirectory, selectFiles, deleteFile, copyFile, writeFile, createDir, renameFile } = useFileSystem();
     const { workspacePath, setWorkspace, clearWorkspace } = useWorkspaceStore();
 
@@ -308,7 +315,20 @@ export const FileExplorer: React.FC = () => {
             </AnimatePresence>
 
             {/* Main Content */}
-            <div className="flex-1 overflow-auto p-3">
+            <div className="flex-1 overflow-auto p-3" onContextMenu={(e) => {
+                // Only fire if clicking empty space (not a file item)
+                if ((e.target as HTMLElement).closest('[data-file-item]')) return;
+                e.preventDefault();
+                showContextMenu(e.clientX, e.clientY, [
+                    { label: 'New File', icon: FilePlus, action: () => setIsCreatingFile(true) },
+                    { label: 'New Folder', icon: FolderPlus, action: () => setIsCreatingFile(true) },
+                    { type: 'divider' },
+                    { label: 'Upload Files', icon: Upload, action: handleUpload },
+                    { label: 'Refresh', icon: RefreshCw, action: refresh, shortcut: 'F5' },
+                    { type: 'divider' },
+                    { label: 'Change Workspace', icon: FolderOpen, action: handleSelectWorkspace },
+                ]);
+            }}>
                 {loading ? (
                     <div className="flex items-center justify-center h-full text-zinc-300">
                         <RefreshCw size={24} className="animate-spin" />
@@ -330,6 +350,7 @@ export const FileExplorer: React.FC = () => {
                                     <motion.div
                                         layout
                                         key={file.path}
+                                        data-file-item
                                         initial={{ opacity: 0, scale: 0.85 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.85 }}
@@ -344,6 +365,24 @@ export const FileExplorer: React.FC = () => {
                                             } else {
                                                 setSelectedFile(file);
                                             }
+                                        }}
+                                        onContextMenu={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setSelectedFile(file);
+                                            const items: ContextMenuEntry[] = [
+                                                ...(file.isDirectory ? [
+                                                    { label: 'Open Folder', icon: FolderOpen, action: () => navigateTo(file.path) },
+                                                ] : [
+                                                    { label: 'Select', icon: Check, action: () => setSelectedFile(file) },
+                                                ]),
+                                                { type: 'divider' as const },
+                                                { label: 'Rename', icon: Edit3, action: () => { setRenamingPath(file.path); setRenameValue(file.name); }, shortcut: 'F2' },
+                                                { label: 'Copy Path', icon: Copy, action: () => navigator.clipboard.writeText(file.path) },
+                                                { type: 'divider' as const },
+                                                { label: 'Delete', icon: Trash2, action: () => setConfirmDelete(file.path), danger: true, shortcut: 'Del' },
+                                            ];
+                                            showContextMenu(e.clientX, e.clientY, items);
                                         }}
                                     >
                                         {/* Icon */}

@@ -78,7 +78,7 @@ export const useAuthStore = create<AuthState>()(
             setHasHydrated: (val) => set({ hasHydrated: val }),
         }),
         {
-            name: 'neuro-auth-storage-v2', // Changed name to reset storage for migration
+            name: 'neuro-auth-storage-v3', // Incremented version to reset setup
             partialize: (state) => ({
                 users: state.users,
                 // Do not persist auth state or temporary UI state

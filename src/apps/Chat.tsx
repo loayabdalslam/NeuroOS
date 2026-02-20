@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, BrainCircuit, User, Eraser, StopCircle, Save } from 'lucide-react';
+import { Send, BrainCircuit, User, Eraser, StopCircle, Save, Copy, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { showContextMenu } from '../components/ContextMenu';
 import { useSettingsStore } from '../stores/settingsStore';
 import { getLLMProvider } from '../lib/llm/factory';
 import { useOS, OSAppWindow } from '../hooks/useOS';
@@ -338,7 +339,17 @@ Personality: Precise, intelligent, and helpful. Confirm actions clearly. Use mar
                             msg.role === 'user'
                                 ? "bg-zinc-900 text-white rounded-tr-sm"
                                 : "bg-zinc-50 border border-zinc-100 text-zinc-800 rounded-tl-sm"
-                        )}>
+                        )}
+                            onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                showContextMenu(e.clientX, e.clientY, [
+                                    { label: 'Copy Message', icon: Copy, action: () => navigator.clipboard.writeText(msg.content) },
+                                    { type: 'divider' },
+                                    { label: 'Delete Message', icon: Trash2, action: () => setMessages(prev => prev.filter(m => m !== msg)), danger: true },
+                                ]);
+                            }}
+                        >
                             {msg.role === 'assistant' ? (
                                 <div className="prose prose-sm max-w-none prose-zinc prose-p:my-0.5 prose-headings:my-1 prose-pre:bg-zinc-900 prose-pre:text-zinc-100 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-xl prose-code:text-sky-600 prose-code:bg-sky-50 prose-code:px-1 prose-code:rounded">
                                     <Markdown>{msg.content || (msg.isStreaming ? '▋' : '')}</Markdown>
