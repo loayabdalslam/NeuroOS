@@ -20,10 +20,22 @@ export default function App() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex flex-col items-center gap-4"
+          className="flex flex-col items-center gap-6"
         >
-          <div className="w-12 h-12 border-2 border-zinc-900 rounded-full flex items-center justify-center font-bold text-2xl animate-pulse">N</div>
-          <span className="text-xs font-bold tracking-[0.3em] uppercase opacity-20">Initializing Neuro Core</span>
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="text-3xl font-light tracking-tighter text-zinc-900">
+              Neuro OS<span className="align-top text-[10px] ml-1 font-bold">TM</span>
+            </h1>
+            <div className="w-12 h-[1px] bg-zinc-200 overflow-hidden">
+              <motion.div
+                initial={{ x: '-100%' }}
+                animate={{ x: '100%' }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                className="w-full h-full bg-zinc-900"
+              />
+            </div>
+          </div>
+          <span className="text-[10px] font-medium tracking-[0.4em] uppercase text-zinc-400">Initializing Core</span>
         </motion.div>
       </div>
     );
@@ -57,23 +69,24 @@ export default function App() {
           </>
         )}
 
-        {/* Boot Overlay (Only show if not first run to avoid conflict with onboarding) */}
-        {/* Boot Overlay (Only show if users exist to avoid conflict with onboarding) */}
+        {/* Boot Overlay */}
         {users.length > 0 && (
           <motion.div
             initial={{ opacity: 1 }}
             animate={{ opacity: 0 }}
-            transition={{ duration: 0.8, delay: 0.5, ease: "easeInOut" }}
+            transition={{ duration: 1.2, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
             className="fixed inset-0 z-[10000] bg-white flex flex-col items-center justify-center pointer-events-none"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.4 }}
-              className="flex flex-col items-center gap-4 text-zinc-900"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="flex flex-col items-center gap-2 text-zinc-900"
             >
-              <div className="w-12 h-12 border-2 border-zinc-900 rounded-full flex items-center justify-center font-bold text-2xl">N</div>
-              <span className="text-sm font-bold tracking-[0.2em] uppercase">NeuroOS</span>
+              <h1 className="text-4xl font-light tracking-tighter">
+                Neuro OS<span className="align-top text-[12px] ml-1 font-bold">TM</span>
+              </h1>
+              <div className="h-[1px] w-8 bg-zinc-200 mt-2" />
             </motion.div>
           </motion.div>
         )}

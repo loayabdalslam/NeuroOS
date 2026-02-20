@@ -47,4 +47,16 @@ contextBridge.exposeInMainWorld('electron', {
 
     // Proxy Request
     proxyRequest: (url: string) => ipcRenderer.invoke('proxy-request', url),
+
+    // Auto-Updater
+    updates: {
+        check: () => ipcRenderer.invoke('update:check'),
+        download: () => ipcRenderer.invoke('update:download'),
+        install: () => ipcRenderer.invoke('update:install'),
+        onStatus: (callback: (data: any) => void) => {
+            const listener = (_: any, data: any) => callback(data);
+            ipcRenderer.on('update:status', listener);
+            return () => ipcRenderer.removeListener('update:status', listener);
+        }
+    }
 });

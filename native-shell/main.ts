@@ -1,6 +1,7 @@
 // @ts-nocheck
 const electron = require('electron');
 const { app, BrowserWindow, ipcMain, dialog } = electron;
+const { autoUpdater } = require('electron-updater');
 console.log('ENV CHECK:', {
     node: process.version,
     electron: process.versions.electron,
@@ -10,9 +11,9 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-// electron-squirrel-startup is handled by electron-builder for this project.
-
+// Configure AutoUpdater
+autoUpdater.autoDownload = false; // We want to control when to download
+autoUpdater.allowPrerelease = false;
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -36,6 +37,8 @@ const createWindow = () => {
         mainWindow.webContents.openDevTools();
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+        // Start update check in production
+        autoUpdater.checkForUpdatesAndNotify();
     }
 
     // Window Controls IPC
@@ -49,6 +52,36 @@ const createWindow = () => {
 
 app.on('ready', () => {
     createWindow();
+
+    // ─── Auto-Updater IPC & Events ────────────────────────────
+
+    autoUpdater.on('checking-for-update', () => {
+        mainWindow?.webContents.send('update:status', { state: 'checking' });
+    });
+
+    autoUpdater.on('update-available', (info) => {
+        mainWindow?.webContents.send('update:status', { state: 'available', info });
+    });
+
+    autoUpdater.on('update-not-available', (info) => {
+        mainWindow?.webContents.send('update:status', { state: 'up-to-date', info });
+    });
+
+    autoUpdater.on('error', (err) => {
+        mainWindow?.webContents.send('update:status', { state: 'error', error: err.message });
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+        mainWindow?.webContents.send('update:status', { state: 'downloading', progress: progressObj });
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+        mainWindow?.webContents.send('update:status', { state: 'downloaded', info });
+    });
+
+    ipcMain.handle('update:check', () => autoUpdater.checkForUpdates());
+    ipcMain.handle('update:download', () => autoUpdater.downloadUpdate());
+    ipcMain.handle('update:install', () => autoUpdater.quitAndInstall());
 
     // File System IPC Handlers
     ipcMain.handle('file:homeDir', () => os.homedir());

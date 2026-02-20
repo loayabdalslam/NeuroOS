@@ -1,7 +1,9 @@
 {
   "name": "react-example",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Neuro OS - Minimalist Intelligence Core",
+  "productName": "Neuro OS™",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -13,6 +15,46 @@
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron\"",
     "electron:build": "vite build && tsc -p native-shell/tsconfig.json && electron-builder"
   },
+  "build": {
+    "appId": "cloud.chatit.neuroos",
+    "productName": "Neuro OS™",
+    "copyright": "Copyright © 2026 Neuro OS",
+    "directories": {
+      "output": "release/${version}"
+    },
+    "files": [
+      "dist",
+      "dist-electron"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "NeuroOS-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Neuro OS",
+      "differentialPackage": true,
+      "deleteAppDataOnUninstall": true,
+      "runAfterFinish": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "YOUR_GITHUB_USERNAME",
+        "repo": "YOUR_REPO_NAME"
+      }
+    ]
+  },
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
@@ -22,6 +64,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "electron-updater": "^6.8.3",
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
