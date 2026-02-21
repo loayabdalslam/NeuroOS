@@ -9,6 +9,7 @@ console.log('ENV CHECK:', {
 });
 import path from 'path';
 import fs from 'fs/promises';
+import http from 'http';
 import os from 'os';
 
 // Configure AutoUpdater
@@ -36,15 +37,35 @@ const createWindow = () => {
     // LOAD THE APP
     const loadURL = async () => {
         if (process.env.VITE_DEV_SERVER_URL) {
-            console.log('LOADING DEV WEB:', process.env.VITE_DEV_SERVER_URL);
-            setTimeout(async () => {
-                try {
-                    await mainWindow!.loadURL(process.env.VITE_DEV_SERVER_URL!);
-                } catch (e) {
-                    console.log('RETRYING LOAD...');
-                    loadURL();
-                }
-            }, 500);
+            const devUrl = process.env.VITE_DEV_SERVER_URL;
+
+
+            const checkServer = () => {
+                const req = http.get(devUrl, (res) => {
+                    let data = '';
+                    res.on('data', chunk => { data += chunk; });
+                    res.on('end', () => {
+                        // Check if it's a valid Vite page (contains "vite" or "client")
+                        if (res.statusCode === 200 && (data.includes('vite') || data.includes('client') || data.includes('/src/main.tsx'))) {
+
+                            mainWindow!.loadURL(devUrl).catch(e => {
+                                console.error('LOAD ERROR:', e);
+                                setTimeout(checkServer, 1000);
+                            });
+                        } else {
+
+                            setTimeout(checkServer, 1000);
+                        }
+                    });
+                });
+
+                req.on('error', () => {
+
+                    setTimeout(checkServer, 1000);
+                });
+            };
+
+            checkServer();
             mainWindow!.webContents.openDevTools();
         } else {
             mainWindow!.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -275,8 +296,10 @@ app.on('ready', () => {
         });
     };
 
-    // Patch the default session (main window)
-    patchSession(session.defaultSession);
+    // Patch the default session (main window) - ONLY in production to avoid interfering with Vite HMR
+    if (!process.env.VITE_DEV_SERVER_URL) {
+        patchSession(session.defaultSession);
+    }
 
     // 5. Also patch any new webview sessions (they may use a different partition)
     app.on('web-contents-created', (_event: any, contents: any) => {

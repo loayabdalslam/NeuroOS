@@ -22,7 +22,14 @@ export default defineConfig(({ mode }) => {
       host: '127.0.0.1',
       strictPort: true,
       watch: {
-        ignored: ['**/native-shell/**', '**/dist-electron/**'],
+        ignored: [
+          '**/native-shell/**',
+          '**/dist-electron/**',
+          '**/release/**',
+          '**/dist/**',
+          '**/scripts/**',
+          '**/neuro_os.db*',
+        ],
       },
     },
   };

@@ -11,10 +11,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
-    "dev:preclean": "powershell -Command \"Get-Process | Where-Object { $_.Path -like '*NeuroOS*' -or $_.Name -like '*NeuroOS*' -or $_.Name -like '*electron*' } | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1\"",
-    "electron": "tsc -p native-shell/tsconfig.json && wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
-    "electron:dev": "npm run dev:preclean && concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron\"",
-    "electron:build": "npm run dev:preclean && rimraf release dist dist-electron && vite build && tsc -p native-shell/tsconfig.json && electron-builder"
+    "electron": "tsc -p native-shell/tsconfig.json && wait-on http-get://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron\"",
+    "electron:build": "rimraf release dist dist-electron && vite build && tsc -p native-shell/tsconfig.json && electron-builder"
   },
   "build": {
     "appId": "cloud.chatit.neuroos",
