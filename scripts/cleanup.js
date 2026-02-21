@@ -32,10 +32,12 @@ try {
     });
     // Kill projects by name as well
     if (process.platform === 'win32') {
-        const apps = ['"Neuro OS™"', '"Neuro OS"', '"electron"'];
+        const apps = ['"Neuro OS™"', '"Neuro OS"', '"NeuroOS"', '"electron"', 'NeuroOS-Setup-1.1.0'];
         apps.forEach(app => {
             try {
+                // Try both with and without .exe
                 execSync(`taskkill /F /IM ${app}.exe /T /F`, { stdio: 'ignore' });
+                execSync(`taskkill /F /IM ${app} /T /F`, { stdio: 'ignore' });
             } catch (e) { }
         });
     }
