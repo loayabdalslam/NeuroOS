@@ -30,6 +30,15 @@ try {
             }
         }
     });
+    // Kill projects by name as well
+    if (process.platform === 'win32') {
+        const apps = ['"Neuro OS™"', '"Neuro OS"', '"electron"'];
+        apps.forEach(app => {
+            try {
+                execSync(`taskkill /F /IM ${app}.exe /T /F`, { stdio: 'ignore' });
+            } catch (e) { }
+        });
+    }
     console.log(`[Cleanup] Port ${port} is now free.`);
 } catch (error) {
     // If netstat/lsof fails, it usually means no process is using the port
