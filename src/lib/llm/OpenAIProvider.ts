@@ -59,7 +59,7 @@ export class OpenAIProvider implements LLMProvider {
         }
     }
 
-    async stream(messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<void> {
+    async stream(messages: LLMMessage[], onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void> {
         const endpoint = `${this.baseUrl}/chat/completions`;
 
         const response = await fetch(endpoint, {
@@ -76,7 +76,13 @@ export class OpenAIProvider implements LLMProvider {
                 })),
                 stream: true
             }),
+            signal, // Pass AbortSignal to cancel mid-stream
         });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({ error: { message: response.statusText } }));
+            throw new Error(`API Error ${response.status}: ${errData?.error?.message || response.statusText}`);
+        }
 
         if (!response.body) throw new Error('No response body');
 

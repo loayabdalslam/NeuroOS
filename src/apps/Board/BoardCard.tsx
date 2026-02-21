@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { X, GripVertical, FileText, File, Folder, AppWindow, ImageIcon, FileCode, ExternalLink, Globe, Activity, Eye, Edit3 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';

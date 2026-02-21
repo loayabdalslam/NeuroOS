@@ -43,7 +43,7 @@ export class OllamaProvider implements LLMProvider {
         }
     }
 
-    async stream(messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<void> {
+    async stream(messages: LLMMessage[], onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void> {
         const response = await fetch(`${this.baseUrl}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -52,7 +52,13 @@ export class OllamaProvider implements LLMProvider {
                 messages,
                 stream: true,
             }),
+            signal,
         });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => null);
+            throw new Error(`Ollama Error ${response.status}: ${errData?.error || response.statusText}. Is Ollama running? Try: ollama serve`);
+        }
 
         if (!response.body) throw new Error('No response body');
 
@@ -64,7 +70,6 @@ export class OllamaProvider implements LLMProvider {
             if (done) break;
 
             const chunk = decoder.decode(value, { stream: true });
-            // Ollama stream sends line-separated JSON objects
             const lines = chunk.split('\n').filter(line => line.trim() !== '');
 
             for (const line of lines) {

@@ -200,3 +200,41 @@ registerTool({
         }
     }
 });
+
+// ─── Update Memory ────────────────────────────────────────────────
+registerTool({
+    name: 'update_memory',
+    description: 'Saves a key-value fact to long-term memory so it persists across sessions.',
+    category: 'os',
+    parameters: {
+        key: { type: 'string', description: 'Memory key (e.g. "user_name", "preferred_language")', required: true },
+        value: { type: 'string', description: 'Value to store', required: true }
+    },
+    handler: async (args, ctx): Promise<ToolResult> => {
+        ctx.updateMemory(args.key, args.value);
+        return { success: true, message: `🧠 Remembered: **${args.key}** = "${args.value}"`, data: { key: args.key, value: args.value } };
+    }
+});
+
+// ─── Save to Workspace ────────────────────────────────────────────
+registerTool({
+    name: 'save_to_workspace',
+    description: 'Saves text content to a file in the workspace.',
+    category: 'file',
+    parameters: {
+        filename: { type: 'string', description: 'File name (e.g. "notes.md", "data.json")', required: true },
+        content: { type: 'string', description: 'Content to write to the file', required: true }
+    },
+    handler: async (args, ctx): Promise<ToolResult> => {
+        if (!ctx.workspacePath) return { success: false, message: '❌ No workspace is set. Open File Manager to set one.' };
+        try {
+            const sep = ctx.workspacePath.includes('/') ? '/' : '\\';
+            const fullPath = `${ctx.workspacePath}${sep}${args.filename}`;
+            await ctx.writeFile(fullPath, args.content);
+            return { success: true, message: `💾 Saved **${args.filename}** to workspace.`, data: { path: fullPath } };
+        } catch (e: any) {
+            return { success: false, message: `❌ Failed to save: ${e.message}` };
+        }
+    }
+});
+

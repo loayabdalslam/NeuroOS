@@ -58,6 +58,12 @@ declare global {
                 }>;
                 notification: (title: string, body: string) => Promise<boolean>;
             };
+            updates: {
+                check: () => Promise<void>;
+                download: () => Promise<void>;
+                install: () => Promise<void>;
+                onStatus: (callback: (status: any) => void) => () => void;
+            };
             proxyRequest: (url: string) => Promise<any>;
         };
     }

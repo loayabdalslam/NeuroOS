@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-
-import { motion, AnimatePresence } from 'framer-motion'; // Changed from 'motion/react' to 'framer-motion'
+import { motion, AnimatePresence } from 'motion/react';
 import { User, ArrowRight, Lock, Plus, X, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { NeuroIcon } from './icons/NeuroIcon';
+import backgroundPng from '../assets/Background.png';
 
 export const LockScreen: React.FC = () => {
     const { users, login, startAddUser, activeUserId } = useAuthStore();
@@ -52,8 +52,8 @@ export const LockScreen: React.FC = () => {
             transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
             className="fixed inset-0 z-[5000] bg-black/40 backdrop-blur-2xl flex flex-col items-center justify-center text-white"
         >
-            {/* Background Image (Optional, could come from user settings) */}
-            <div className="absolute inset-0 -z-10 bg-[url('/Background.png')] bg-center bg-cover opacity-50" />
+            {/* Background Image */}
+            <div className="absolute inset-0 -z-10 bg-center bg-cover opacity-50" style={{ backgroundImage: `url(${backgroundPng})` }} />
             <div className="absolute inset-0 -z-10 bg-black/40" />
 
             {/* Time / Date */}

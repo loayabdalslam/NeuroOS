@@ -10,11 +10,20 @@ interface AISession {
     history: { role: 'user' | 'assistant'; content: string; timestamp: number }[];
 }
 
+interface BrowserRequestResult {
+    success: boolean;
+    data?: any;
+    error?: string;
+}
+
 interface AIStore {
     sessions: Record<string, AISession>;
     currentSessionId: string | null;
     memory: Record<string, any>;
     browserLogs: { type: 'info' | 'action' | 'error'; message: string; timestamp: number; tabId?: string }[];
+
+    // Promise bridge for browser tool results
+    pendingBrowserRequests: Map<string, { resolve: (r: BrowserRequestResult) => void; reject: (e: any) => void }>;
 
     // Actions
     createSession: () => string;
@@ -23,6 +32,11 @@ interface AIStore {
     updateMemory: (key: string, value: any) => void;
     addBrowserLog: (log: { type: 'info' | 'action' | 'error'; message: string; tabId?: string }) => void;
     clearBrowserLogs: () => void;
+
+    /** Register a pending request; returns requestId */
+    registerBrowserRequest: (resolve: (r: BrowserRequestResult) => void, reject: (e: any) => void) => string;
+    /** Resolve a pending request */
+    resolveBrowserRequest: (requestId: string, result: BrowserRequestResult) => void;
 }
 
 export const useAIStore = create<AIStore>()(
@@ -32,6 +46,7 @@ export const useAIStore = create<AIStore>()(
             currentSessionId: null,
             memory: {},
             browserLogs: [],
+            pendingBrowserRequests: new Map(),
 
             createSession: () => {
                 const id = uuidv4();
@@ -90,7 +105,22 @@ export const useAIStore = create<AIStore>()(
                 }));
             },
 
-            clearBrowserLogs: () => set({ browserLogs: [] })
+            clearBrowserLogs: () => set({ browserLogs: [] }),
+
+            registerBrowserRequest: (resolve, reject) => {
+                const id = `br_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+                // Use get() to mutate the Map directly (Map is not frozen by zustand)
+                get().pendingBrowserRequests.set(id, { resolve, reject });
+                return id;
+            },
+
+            resolveBrowserRequest: (requestId, result) => {
+                const pending = get().pendingBrowserRequests.get(requestId);
+                if (pending) {
+                    get().pendingBrowserRequests.delete(requestId);
+                    pending.resolve(result);
+                }
+            },
         }),
         {
             name: 'neuro-ai-store',

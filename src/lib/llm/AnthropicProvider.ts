@@ -14,40 +14,40 @@ export class AnthropicProvider implements LLMProvider {
         this.model = model;
     }
 
+    private buildBody(messages: LLMMessage[], stream: boolean): { body: any; systemMessage: string | undefined } {
+        const systemMessage = messages.find(m => m.role === 'system')?.content;
+        const conversationMessages = messages
+            .filter(m => m.role !== 'system')
+            .map(m => ({ role: m.role, content: m.content }));
+
+        const body: any = {
+            model: this.model,
+            messages: conversationMessages,
+            max_tokens: 4096,
+            stream,
+        };
+        if (systemMessage) body.system = systemMessage;
+
+        return { body, systemMessage };
+    }
+
     async chat(messages: LLMMessage[]): Promise<LLMResponse> {
         try {
-            const systemMessage = messages.find(m => m.role === 'system')?.content;
-            const conversationMessages = messages
-                .filter(m => m.role !== 'system')
-                .map(m => ({
-                    role: m.role,
-                    content: m.content
-                }));
-
-            const body: any = {
-                model: this.model,
-                messages: conversationMessages,
-                max_tokens: 4096,
-            };
-
-            if (systemMessage) {
-                body.system = systemMessage;
-            }
-
+            const { body } = this.buildBody(messages, false);
             const response = await fetch(`${this.baseUrl}/messages`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'x-api-key': this.apiKey,
                     'anthropic-version': '2023-06-01',
-                    'anthropic-dangerous-direct-browser-access': 'true' // Needed for client-side requests
+                    'anthropic-dangerous-direct-browser-access': 'true',
                 },
                 body: JSON.stringify(body),
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
-                throw new Error(`Anthropic API Error: ${response.status} ${response.statusText} ${errorData ? JSON.stringify(errorData) : ''}`);
+                throw new Error(`Anthropic API Error ${response.status}: ${errorData?.error?.message || response.statusText}`);
             }
 
             const data = await response.json();
@@ -65,40 +65,24 @@ export class AnthropicProvider implements LLMProvider {
         }
     }
 
-    async stream(messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<void> {
-        // Basic implementation for now, falling back to non-streaming if needed or implementing later
-        // For this task, chat is the priority.
-        // But let's try a basic stream implementation.
-
-        const systemMessage = messages.find(m => m.role === 'system')?.content;
-        const conversationMessages = messages
-            .filter(m => m.role !== 'system')
-            .map(m => ({
-                role: m.role,
-                content: m.content
-            }));
-
-        const body: any = {
-            model: this.model,
-            messages: conversationMessages,
-            max_tokens: 4096,
-            stream: true
-        };
-
-        if (systemMessage) {
-            body.system = systemMessage;
-        }
-
+    async stream(messages: LLMMessage[], onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void> {
+        const { body } = this.buildBody(messages, true);
         const response = await fetch(`${this.baseUrl}/messages`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'x-api-key': this.apiKey,
                 'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
+                'anthropic-dangerous-direct-browser-access': 'true',
             },
             body: JSON.stringify(body),
+            signal,
         });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => null);
+            throw new Error(`Anthropic API Error ${response.status}: ${errData?.error?.message || response.statusText}`);
+        }
 
         if (!response.body) throw new Error('No response body');
 

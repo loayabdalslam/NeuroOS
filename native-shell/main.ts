@@ -218,27 +218,91 @@ app.on('ready', () => {
         return false;
     });
 
-    // ─── Header Stripping for Iframe Support ────────────────
+    // ─── Header Stripping + Full Webview Support ─────────────────
     const { session } = require('electron');
-    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-        const responseHeaders = { ...details.responseHeaders };
 
-        // Remove restrictive headers
-        delete responseHeaders['x-frame-options'];
-        delete responseHeaders['X-Frame-Options'];
-        delete responseHeaders['content-security-policy'];
-        delete responseHeaders['Content-Security-Policy'];
+    // Real Chrome UA — Google/Facebook check this
+    const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-        callback({ cancel: false, responseHeaders });
+    const patchSession = (ses: any) => {
+        // 1. Strip restrictive response headers (X-Frame-Options, CSP, etc.)
+        ses.webRequest.onHeadersReceived((details: any, callback: any) => {
+            const h = { ...details.responseHeaders };
+            delete h['x-frame-options'];
+            delete h['X-Frame-Options'];
+            delete h['content-security-policy'];
+            delete h['Content-Security-Policy'];
+            delete h['x-content-type-options'];
+            delete h['X-Content-Type-Options'];
+            callback({ cancel: false, responseHeaders: h });
+        });
+
+        // 2. Spoof request headers — send real Chrome UA so sites don't block webview
+        ses.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
+            const h = { ...details.requestHeaders };
+            h['User-Agent'] = CHROME_UA;
+            h['Accept-Language'] = 'en-US,en;q=0.9';
+            h['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8';
+            // Remove Electron/webview identifying headers
+            delete h['X-Electron-Version'];
+            callback({ cancel: false, requestHeaders: h });
+        });
+
+        // 3. Grant all permission requests (media, geolocation, notifications, etc.)
+        ses.setPermissionRequestHandler((_wc: any, _permission: string, callback: any) => {
+            callback(true);
+        });
+        ses.setPermissionCheckHandler(() => true);
+
+        // 4. Disable certificate verification errors for webview tabs
+        ses.setCertificateVerifyProc((_req: any, callback: any) => {
+            callback(0); // 0 = success / allow all
+        });
+    };
+
+    // Patch the default session (main window)
+    patchSession(session.defaultSession);
+
+    // 5. Also patch any new webview sessions (they may use a different partition)
+    app.on('web-contents-created', (_event: any, contents: any) => {
+        if (contents.getType() === 'webview') {
+            // Fix navigation errors: don't crash on ERR_ABORTED
+            contents.on('did-fail-load', (
+                _e: any,
+                errorCode: number,
+                _errorDescription: string,
+                validatedURL: string,
+                isMainFrame: boolean
+            ) => {
+                // ERR_ABORTED (-3) is normal for redirects — ignore it
+                if (errorCode === -3) return;
+                if (isMainFrame) {
+                    console.warn(`[webview] Failed to load: ${validatedURL} (code: ${errorCode})`);
+                }
+            });
+
+            // Allow navigation to any URL in webview
+            contents.on('will-navigate', (_e: any, _url: string) => {
+                // Allow all navigations — don't block them
+            });
+
+            // Open DevTools on Ctrl+Shift+I for any focused webview
+            contents.on('before-input-event', (_e: any, input: any) => {
+                if (input.type === 'keyDown' && input.control && input.shift && input.key === 'I') {
+                    if (contents.isDevToolsOpened()) contents.closeDevTools();
+                    else contents.openDevTools();
+                }
+            });
+        }
     });
 
-    // Proxy Request for CORS bypassing
-    ipcMain.handle('proxy-request', async (_, url) => {
+    // ─── Proxy Request for CORS bypassing ───────────────────────
+    ipcMain.handle('proxy-request', async (_: any, url: string) => {
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { headers: { 'User-Agent': CHROME_UA } });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
                 return await response.json();
             }
             return await response.text();
@@ -247,6 +311,11 @@ app.on('ready', () => {
             throw error;
         }
     });
+});
+
+// Ignore all certificate errors globally (important for webviews)
+app.on('certificate-error', (_event: any, _webContents: any, _url: string, _error: any, _certificate: any, callback: any) => {
+    callback(true); // Trust all certificates
 });
 
 app.on('window-all-closed', () => {

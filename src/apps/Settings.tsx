@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { Settings as SettingsIcon, Shield, Palette, Globe, Key, Bell, Info, Bot, Zap, Database, Monitor, Brain, Check, RefreshCw, Download, ArrowUpCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { OSAppWindow } from '../hooks/useOS';
@@ -292,7 +293,7 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
                   )}
 
                   <div className="flex gap-3 mt-6">
-                    {(updateStatus.state === 'idle' || updateStatus.state === 'up-to-date' || updateStatus.state === 'error') && (
+                    {(updateStatus.state === 'idle' || updateStatus.state === 'up-to-date' || updateStatus.state === 'error' || updateStatus.state === 'checking') && (
                       <button
                         onClick={handleCheckUpdate}
                         disabled={updateStatus.state === 'checking'}
@@ -343,7 +344,7 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
 
           {activeTab === 'about' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 text-center py-12">
-               <h1 className="text-4xl font-light tracking-tighter text-zinc-900">
+              <h1 className="text-4xl font-light tracking-tighter text-zinc-900">
                 Neuro OS<span className="align-top text-[12px] ml-1 font-bold">TM</span>
               </h1>
               <p className="text-zinc-400 text-sm mt-2">Experimental Neural Operating Environment</p>

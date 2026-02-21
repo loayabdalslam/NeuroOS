@@ -19,7 +19,7 @@ import {
     RefreshCcw,
     StopCircle
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { OSAppWindow, useOS } from '../hooks/useOS';
 import { useAIStore } from '../stores/aiStore';
@@ -38,15 +38,18 @@ interface BrowserProps {
     windowData: OSAppWindow;
 }
 
-// Chrome-like User-Agent for maximum site compatibility
-const NEURO_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+// Chrome 122 UA — matches main.ts spoofing to avoid webview detection
+const NEURO_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+
+const DEFAULT_HOME = 'https://www.bing.com'; // Bing works in webviews unlike Google
 
 const normalizeUrl = (input: string): string => {
     const trimmed = input.trim();
-    if (!trimmed) return 'https://www.google.com/search?igu=1';
+    if (!trimmed) return DEFAULT_HOME;
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
     if (trimmed.includes('.') && !trimmed.includes(' ')) return `https://${trimmed}`;
-    return `https://www.google.com/search?q=${encodeURIComponent(trimmed)}&igu=1`;
+    // Use Bing search — Google blocks webview via igu/webhp params
+    return `https://www.bing.com/search?q=${encodeURIComponent(trimmed)}`;
 };
 
 const extractDomain = (url: string): string => {
@@ -70,7 +73,7 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
     const { updateWindow } = useOS();
     const { browserLogs, addBrowserLog, clearBrowserLogs } = useAIStore();
 
-    const createTab = (url = 'https://www.google.com/search?igu=1', title = 'Google'): Tab => ({
+    const createTab = (url = DEFAULT_HOME, title = 'New Tab'): Tab => ({
         id: Math.random().toString(36).substring(7),
         url,
         title,
@@ -81,14 +84,14 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
 
     const [tabs, setTabs] = useState<Tab[]>([{ ...createTab(), id: 'default' }]);
     const [activeTabId, setActiveTabId] = useState('default');
-    const [inputValue, setInputValue] = useState('https://www.google.com/search?igu=1');
+    const [inputValue, setInputValue] = useState(DEFAULT_HOME);
     const [showSidebar, setShowSidebar] = useState<'history' | 'logs' | 'devtools' | null>(null);
     const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
     const [isInputFocused, setIsInputFocused] = useState(false);
     const [urlHistory, setUrlHistory] = useState<string[]>([]);
 
     // Webview refs - one per tab
-    const webviewRefs = useRef<Record<string, Electron.WebviewTag>>({});
+    const webviewRefs = useRef<Record<string, any>>({});
 
     const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
     const activeWebview = webviewRefs.current[activeTabId];
@@ -105,29 +108,169 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
         }
     }, [activeTabId, activeTab.url, activeTab.title, isInputFocused]);
 
-    // Handle incoming AI automation actions
+    // Handle incoming AI automation actions – full browser control engine
     useEffect(() => {
         if (!windowData.lastAction) return;
         const { type, payload } = windowData.lastAction;
-        addBrowserLog({ type: 'action', message: `AI Triggered: ${type}`, tabId: activeTabId });
+        const requestId: string | undefined = payload?.__requestId;
 
-        if (type === 'navigate' && payload.url) {
+        addBrowserLog({ type: 'action', message: `AI Action: ${type}`, tabId: activeTabId });
+
+        const wv = webviewRefs.current[activeTabId];
+        const ai = useAIStore.getState();
+
+        const ok = (data: any) => {
+            if (requestId) ai.resolveBrowserRequest(requestId, { success: true, data });
+        };
+        const fail = (error: string) => {
+            if (requestId) ai.resolveBrowserRequest(requestId, { success: false, error });
+        };
+
+        // ── NAVIGATION ──────────────────────────────────────────────────────────
+        if (type === 'navigate' && payload?.url) {
             navigateTo(activeTabId, normalizeUrl(payload.url));
+            ok({ url: normalizeUrl(payload.url), status: 'navigating' });
+
+        } else if (type === 'navigate_and_wait' && payload?.url) {
+            if (!wv) { fail('No webview available'); return; }
+            const url = normalizeUrl(payload.url);
+            const timeout = payload.timeout ?? 15000;
+            const cleanup = () => wv.removeEventListener('did-stop-loading', onLoad);
+            const timer = setTimeout(() => { cleanup(); ok({ url: wv.src || url, title: wv.getTitle?.() || '', timedOut: true }); }, timeout);
+            function onLoad() { cleanup(); clearTimeout(timer); ok({ url: wv.src || url, title: wv.getTitle?.() || '' }); }
+            wv.addEventListener('did-stop-loading', onLoad);
+            navigateTo(activeTabId, url);
+
+            // ── SCRAPING ────────────────────────────────────────────────────────────
+        } else if (type === 'scrape_page') {
+            if (!wv) { fail('No webview available'); return; }
+            const maxLen = payload?.maxLength ?? 6000;
+            wv.executeJavaScript(`(function(){
+    const title=document.title;
+    const meta=document.querySelector('meta[name="description"]')?.content||'';
+    const h1s=[...document.querySelectorAll('h1')].map(e=>e.innerText.trim()).filter(Boolean);
+    const h2s=[...document.querySelectorAll('h2')].map(e=>e.innerText.trim()).filter(Boolean).slice(0,8);
+    const links=[...document.querySelectorAll('a[href]')].map(a=>({text:a.innerText.trim().slice(0,80),href:a.href})).filter(l=>l.text&&l.href.startsWith('http')).slice(0,30);
+    const candidates=[...document.querySelectorAll('article,main,[role="main"],.content,.post-body,.entry-content')];
+    let el=candidates[0]||document.body;
+    const clone=el.cloneNode(true);
+    clone.querySelectorAll&&clone.querySelectorAll('nav,header,footer,script,style,aside,[class*="sidebar"],[class*="ad"],[class*="banner"]').forEach(e=>e.remove());
+    const rawText=(clone.innerText||clone.textContent||'').replace(/\\s{3,}/g,'\\n\\n').trim().slice(0,${maxLen});
+    return{title,meta,url:location.href,h1s,h2s,cleanText:rawText,links};
+})()`).then(r => ok(r)).catch(e => fail(`Scrape error: ${e.message}`));
+
+        } else if (type === 'get_html') {
+            if (!wv) { fail('No webview'); return; }
+            wv.executeJavaScript(`document.documentElement.outerHTML.slice(0,${payload?.limit ?? 50000})`)
+                .then(html => ok({ html, url: wv.src })).catch(e => fail(e.message));
+
+        } else if (type === 'get_links') {
+            if (!wv) { fail('No webview'); return; }
+            wv.executeJavaScript(`[...document.querySelectorAll('a[href]')].map(a=>({text:a.innerText.trim().slice(0,100),href:a.href,title:a.title})).filter(l=>l.href.startsWith('http')).slice(0,${payload?.limit ?? 50})`)
+                .then(links => ok({ links, url: wv.src })).catch(e => fail(e.message));
+
+        } else if (type === 'get_page_info') {
+            if (!wv) { fail('No webview'); return; }
+            wv.executeJavaScript(`({title:document.title,url:location.href,readyState:document.readyState,bodyLength:document.body?.innerText?.length||0})`)
+                .then(info => ok({ ...(info as any), canGoBack: wv.canGoBack(), canGoForward: wv.canGoForward() }))
+                .catch(e => fail(e.message));
+
+            // ── INTERACTION ─────────────────────────────────────────────────────────
+        } else if (type === 'click') {
+            if (!wv) { fail('No webview'); return; }
+            let script: string;
+            const sel = payload?.selector;
+            const txt = payload?.text;
+            if (sel) {
+                script = `(function(){const el=document.querySelector(${JSON.stringify(sel)});if(el){el.scrollIntoView({block:'center'});el.click();return{clicked:true,tag:el.tagName.toLowerCase(),text:el.innerText?.trim().slice(0,50)}}return{clicked:false,reason:'Not found: '+${JSON.stringify(sel)}}})()`;
+            } else if (txt) {
+                script = `(function(){const all=[...document.querySelectorAll('a,button,input[type="submit"],[role="button"]')];const el=all.find(e=>(e.innerText||e.value||'').toLowerCase().includes(${JSON.stringify(txt.toLowerCase())}));if(el){el.scrollIntoView({block:'center'});el.click();return{clicked:true,tag:el.tagName.toLowerCase(),text:(el.innerText||el.value||'').trim().slice(0,50)}}return{clicked:false,reason:'No match for text: '+${JSON.stringify(txt)}}})()`;
+            } else if (payload?.x !== undefined) {
+                script = `(function(){const el=document.elementFromPoint(${payload.x},${payload.y});if(el){el.click();return{clicked:true,tag:el.tagName.toLowerCase()}}return{clicked:false}})()`;
+            } else { fail('click requires selector, text, or x/y'); return; }
+            wv.executeJavaScript(script).then(r => { addBrowserLog({ type: 'info', message: `Click: ${JSON.stringify(r)}`, tabId: activeTabId }); ok(r); }).catch(e => fail(e.message));
+
+        } else if (type === 'type') {
+            if (!wv) { fail('No webview'); return; }
+            const sel2 = payload?.selector || 'input[type="text"],input[type="search"],textarea,input:not([type="hidden"]):not([type="submit"])';
+            const text = String(payload?.text ?? '');
+            const clear = payload?.clear !== false;
+            wv.executeJavaScript(`(function(){
+    const el=document.querySelector(${JSON.stringify(sel2)});
+    if(!el)return{typed:false,reason:'Not found'};
+    el.focus();
+    const niv=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')?.set||Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value')?.set;
+    if(niv&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA')){
+        if(${clear})niv.call(el,'');
+        niv.call(el,${JSON.stringify(clear ? text : '')});
+        if(!${clear}){el.value+='';}
+        niv.call(el,el.value+${JSON.stringify(clear ? '' : text)});
+        el.dispatchEvent(new Event('input',{bubbles:true}));
+        el.dispatchEvent(new Event('change',{bubbles:true}));
+    } else {
+        if(${clear})el.innerText='';
+        el.innerText+=${JSON.stringify(text)};
+        el.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    return{typed:true,tag:el.tagName.toLowerCase(),value:el.value||el.innerText}
+})()`).then(r => { addBrowserLog({ type: 'info', message: `Typed: ${JSON.stringify(r)}`, tabId: activeTabId }); ok(r); }).catch(e => fail(e.message));
+
+        } else if (type === 'submit') {
+            if (!wv) { fail('No webview'); return; }
+            wv.executeJavaScript(`(function(){const f=document.querySelector(${JSON.stringify(payload?.selector || 'form')});if(f){f.submit();return{submitted:true}}const b=document.querySelector('[type="submit"]');if(b){b.click();return{submitted:true,via:'button'}}return{submitted:false}})()`)
+                .then(r => ok(r)).catch(e => fail(e.message));
+
+        } else if (type === 'key_press') {
+            if (!wv) { fail('No webview'); return; }
+            const key = payload?.key ?? 'Return';
+            wv.executeJavaScript(`(function(){const el=document.activeElement||document.body;['keydown','keypress','keyup'].forEach(t=>{el.dispatchEvent(new KeyboardEvent(t,{key:${JSON.stringify(key)},code:${JSON.stringify(key)},keyCode:13,bubbles:true,cancelable:true}))});return{pressed:${JSON.stringify(key)}}})()`).then(r => ok(r)).catch(e => fail(e.message));
+
+        } else if (type === 'scroll') {
+            if (!wv) { fail('No webview'); return; }
+            wv.executeJavaScript(`window.scrollBy({left:${payload?.x ?? 0},top:${payload?.y ?? 0},behavior:'${payload?.behavior ?? 'smooth'}'});({scrollX:window.scrollX,scrollY:window.scrollY})`)
+                .then(r => ok(r)).catch(e => fail(e.message));
+
+        } else if (type === 'scroll_to') {
+            if (!wv) { fail('No webview'); return; }
+            wv.executeJavaScript(`(function(){const el=document.querySelector(${JSON.stringify(payload?.selector)});if(el){el.scrollIntoView({behavior:'smooth',block:'center'});return{found:true}}return{found:false}})()`)
+                .then(r => ok(r)).catch(e => fail(e.message));
+
+            // ── UTILITIES ─────────────────────────────────────────────────────────
+        } else if (type === 'evaluate') {
+            if (!wv) { fail('No webview'); return; }
+            wv.executeJavaScript(payload?.code ?? 'null')
+                .then(r => ok({ result: r })).catch(e => fail(`JS: ${e.message}`));
+
+        } else if (type === 'wait_for_selector') {
+            if (!wv) { fail('No webview'); return; }
+            const wsel = payload?.selector;
+            const timeout2 = payload?.timeout ?? 10000;
+            wv.executeJavaScript(`new Promise((res,rej)=>{const start=Date.now();const f=()=>{const el=document.querySelector(${JSON.stringify(wsel)});if(el)res({found:true,tag:el.tagName.toLowerCase()});else if(Date.now()-start>${timeout2})rej(new Error('Timeout waiting for ${wsel}'));else setTimeout(f,200)};f()})`)
+                .then(r => ok(r)).catch(e => fail(e.message));
+
+        } else if (type === 'wait') {
+            const ms = Math.min(payload?.ms ?? 1000, 30000);
+            setTimeout(() => ok({ waited: ms }), ms);
+
+            // ── LEGACY / TABS ─────────────────────────────────────────────────────
         } else if (type === 'back') {
-            activeWebview?.goBack();
+            wv?.goBack(); ok({ navigated: 'back' });
         } else if (type === 'forward') {
-            activeWebview?.goForward();
+            wv?.goForward(); ok({ navigated: 'forward' });
         } else if (type === 'refresh') {
-            activeWebview?.reload();
+            wv?.reload(); ok({ refreshed: true });
         } else if (type === 'new_tab') {
-            addNewTab(payload.url || 'https://www.google.com');
+            addNewTab(payload?.url || 'https://www.google.com');
+            ok({ status: 'tab opened' });
         } else if (type === 'close_tab') {
-            closeTab(payload.id || activeTabId);
-        } else if (type === 'execute_js' && payload.code) {
-            // Full JS automation capability
-            activeWebview?.executeJavaScript(payload.code)
-                .then(result => addBrowserLog({ type: 'info', message: `JS Result: ${JSON.stringify(result)}`, tabId: activeTabId }))
-                .catch(err => addBrowserLog({ type: 'error', message: `JS Error: ${err.message}`, tabId: activeTabId }));
+            closeTab(payload?.id || activeTabId);
+            ok({ status: 'tab closed' });
+        } else if (type === 'execute_js' && payload?.code) {
+            wv?.executeJavaScript(payload.code)
+                .then(result => { addBrowserLog({ type: 'info', message: `JS: ${JSON.stringify(result)}`, tabId: activeTabId }); ok({ result }); })
+                .catch(err => { addBrowserLog({ type: 'error', message: `JS Error: ${err.message}`, tabId: activeTabId }); fail(err.message); });
+        } else {
+            if (requestId) fail(`Unknown action: ${type}`);
         }
     }, [windowData.lastAction]);
 
@@ -168,7 +311,7 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
     const reload = () => activeTab.isLoading ? activeWebview?.stop() : activeWebview?.reload();
 
     // Webview event wiring
-    const wireWebviewEvents = (wv: Electron.WebviewTag, tabId: string) => {
+    const wireWebviewEvents = (wv: any, tabId: string) => {
         if (!wv || (wv as any).__wired) return;
         (wv as any).__wired = true;
 
@@ -414,7 +557,7 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
                                 }}
                                 src={tab.url}
                                 useragent={NEURO_USER_AGENT}
-                                allowpopups="true"
+                                allowpopups={true as any}
                                 webpreferences="allowRunningInsecureContent, javascript=yes, images=yes, plugins=yes"
                                 style={{ width: '100%', height: '100%', display: 'flex' }}
                             />

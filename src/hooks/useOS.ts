@@ -100,6 +100,7 @@ export const useOS = create<OSState>((set, get) => ({
         ...windowData,
         isFocused: windowData.id === id,
         zIndex: windowData.id === id ? nextZIndex : windowData.zIndex,
+        state: (windowData.id === id && windowData.state === 'minimized') ? 'normal' : windowData.state
       })),
       activeWindowId: id,
       nextZIndex: nextZIndex + 1,

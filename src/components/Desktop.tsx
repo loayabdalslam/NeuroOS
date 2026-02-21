@@ -7,6 +7,7 @@ import { DesktopIcons } from './DesktopIcons';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useFileSystem } from '../hooks/useFileSystem';
 import { useAuthStore } from '../stores/authStore';
+import backgroundPng from '../assets/Background.png';
 
 
 interface DesktopProps {
@@ -41,7 +42,7 @@ export const Desktop: React.FC<DesktopProps> = ({ children }) => {
       ) : (
         <div
           className="absolute inset-0 bg-cover bg-center transition-all duration-500 ease-in-out"
-          style={{ backgroundImage: `url('/Background.png')` }}
+          style={{ backgroundImage: `url(${backgroundPng})` }}
         />
       )}
 
