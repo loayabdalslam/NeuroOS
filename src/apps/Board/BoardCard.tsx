@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, GripVertical, FileText, File, Folder, AppWindow, ImageIcon, FileCode, ExternalLink } from 'lucide-react';
+import { X, GripVertical, FileText, File, Folder, AppWindow, ImageIcon, FileCode, ExternalLink, Globe, Activity, Eye, Edit3 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';
 import { BoardCard as BoardCardType } from './types';
 import { APPS_CONFIG } from '../../lib/apps';
 import { useFileSystem } from '../../hooks/useFileSystem';
+import { useOS } from '../../hooks/useOS';
+import { WeatherWidget, StockWidget, NewsCarousel } from '../../components/Widgets';
 
 interface CardProps {
     card: BoardCardType;
@@ -16,34 +18,58 @@ interface CardProps {
 export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [previewContent, setPreviewContent] = useState<string | null>(null);
-    const [previewType, setPreviewType] = useState<'text' | 'image' | 'code' | 'markdown' | 'html' | 'none'>('none');
+    const [previewType, setPreviewType] = useState<'text' | 'image' | 'video' | 'code' | 'markdown' | 'html' | 'none'>('none');
     const { readFile } = useFileSystem();
+    const { openApp, sendAppAction, appWindows } = useOS();
+
+    const handleOpenFile = () => {
+        if (!card.metadata?.path) return;
+        const path = card.metadata.path;
+        const name = card.content;
+
+        // Use viewer for "Read Full" as requested by user
+        openApp('viewer', name);
+        setTimeout(() => {
+            const viewerWin = useOS.getState().appWindows.filter(w => w.component === 'viewer').pop();
+            if (viewerWin) {
+                sendAppAction(viewerWin.id, 'open_file', { path, name });
+            }
+        }, 100);
+    };
 
     useEffect(() => {
         if (card.type === 'file' && !card.metadata?.isDirectory && card.metadata?.path) {
-            const ext = card.metadata.path.split('.').pop()?.toLowerCase();
-            const textExtensions = ['txt', 'md', 'json', 'js', 'ts', 'tsx', 'css', 'html', 'py'];
-            const imageExtensions = ['png', 'jpg', 'jpeg', 'svg', 'gif', 'webp'];
+            const ext = card.metadata.path.split('.').pop()?.toLowerCase() || '';
+            const imageExtensions = ['png', 'jpg', 'jpeg', 'svg', 'gif', 'webp', 'bmp'];
+            const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'mkv'];
+            const codeExtensions = ['js', 'ts', 'tsx', 'py', 'json', 'css', 'scss', 'sh', 'sql'];
+            const markdownExtensions = ['md'];
+            const htmlExtensions = ['html']; // SVG handled as image if needed or HTML if preferred
 
-            if (textExtensions.includes(ext || '')) {
-                const fetchContent = async () => {
-                    try {
-                        const content = await readFile(card.metadata.path);
-                        setPreviewContent(content); // For rich previews, we might need more than just 1000 chars if small
+            const fetchContent = async (type: 'markdown' | 'html' | 'code' | 'text') => {
+                try {
+                    const content = await readFile(card.metadata.path!);
+                    setPreviewContent(content);
+                    setPreviewType(type);
+                } catch (e) {
+                    console.error(`Failed to read file for ${type} preview`, e);
+                }
+            };
 
-                        if (ext === 'md') setPreviewType('markdown');
-                        else if (ext === 'html' || ext === 'svg') setPreviewType('html');
-                        else if (['js', 'ts', 'tsx', 'py'].includes(ext!)) setPreviewType('code');
-                        else setPreviewType('text');
-                    } catch (e) {
-                        console.error('Failed to read file for preview', e);
-                    }
-                };
-                fetchContent();
-            } else if (imageExtensions.includes(ext || '')) {
+            if (markdownExtensions.includes(ext)) {
+                fetchContent('markdown');
+            } else if (htmlExtensions.includes(ext)) {
+                fetchContent('html');
+            } else if (codeExtensions.includes(ext)) {
+                fetchContent('code');
+            } else if (imageExtensions.includes(ext)) {
                 setPreviewType('image');
-                // For images, we might use a dedicated API or just a path if the browser can see it
-                // Local server usually serves these
+            } else if (videoExtensions.includes(ext)) {
+                setPreviewType('video');
+            } else if (['txt'].includes(ext)) {
+                fetchContent('text');
+            } else {
+                setPreviewType('none');
             }
         }
     }, [card.type, card.metadata?.path, card.metadata?.isDirectory, readFile]);
@@ -83,21 +109,54 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
 
             {/* Content Display/Edit */}
             <div className="flex-1 overflow-hidden">
-                {card.type === 'file' ? (
+                {(card.type as string) === 'file' || (card.type as string) === 'link' ? (
                     <div className="flex flex-col gap-2 p-1 h-full min-h-[120px]">
                         <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded-md bg-zinc-50 flex items-center justify-center text-zinc-400">
-                                {card.metadata?.isDirectory ? <Folder size={14} /> : (previewType === 'code' ? <FileCode size={14} /> : <FileText size={14} />)}
+                                {card.type === 'widget' ? <Activity size={12} className="text-purple-500" /> : card.type === 'link' ? <Globe size={14} className="text-sky-500" /> : (card.metadata?.isDirectory ? <Folder size={14} /> : (previewType === 'code' ? <FileCode size={14} /> : <FileText size={14} />))}
                             </div>
                             <span className="text-[11px] font-bold truncate text-zinc-600 tracking-tight">{card.content}</span>
                         </div>
 
                         {/* Preview Area */}
-                        {!card.metadata?.isDirectory && (
+                        {(card.type === 'link' || !card.metadata?.isDirectory) && (
                             <div className="flex-1 bg-zinc-50/50 rounded-xl border border-zinc-100/50 overflow-hidden relative group/preview min-h-[160px]">
-                                {previewType === 'markdown' ? (
-                                    <div className="p-4 text-[11px] prose prose-zinc prose-sm max-w-none text-zinc-600 font-sans overflow-hidden">
-                                        <ReactMarkdown>{previewContent || ''}</ReactMarkdown>
+                                {card.type === 'link' ? (
+                                    <div className="w-full h-full relative group-hover/preview:opacity-95 transition-opacity">
+                                        <iframe
+                                            src={card.metadata?.url}
+                                            className="w-full h-full border-0 pointer-events-none scale-[0.5] origin-top-left"
+                                            style={{ width: '200%', height: '200%' }}
+                                            title="Link Preview"
+                                        />
+                                        <div className="absolute inset-0 z-10" />
+                                    </div>
+                                ) : (card.type as string) === 'widget' ? (
+                                    <div className="w-full h-full bg-white flex flex-col">
+                                        {card.metadata?.widgetType === 'weather' ? (
+                                            <WeatherWidget minimalist />
+                                        ) : card.metadata?.widgetType === 'stocks' ? (
+                                            <StockWidget symbol={card.metadata?.symbol} minimalist />
+                                        ) : (
+                                            <NewsCarousel minimalist />
+                                        )}
+                                    </div>
+                                ) : previewType === 'markdown' ? (
+                                    <div className="p-5 text-[13px] prose prose-zinc lg:prose-base max-w-none text-zinc-700 font-sans leading-relaxed text-left h-full overflow-y-auto scrollbar-hide md-preview">
+                                        <ReactMarkdown
+                                            components={{
+                                                h1: ({ node, ...props }) => <h1 className="text-lg font-bold mb-2 text-zinc-900 border-b border-zinc-100 pb-1" {...props} />,
+                                                h2: ({ node, ...props }) => <h2 className="text-base font-bold mb-2 text-zinc-800" {...props} />,
+                                                h3: ({ node, ...props }) => <h3 className="text-sm font-bold mb-1 text-zinc-800" {...props} />,
+                                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                                ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                                                ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
+                                                li: ({ node, ...props }) => <li className="mb-0.5" {...props} />,
+                                                strong: ({ node, ...props }) => <strong className="font-black text-zinc-900" {...props} />,
+                                            }}
+                                        >
+                                            {previewContent || ''}
+                                        </ReactMarkdown>
                                     </div>
                                 ) : previewType === 'html' ? (
                                     <div className="w-full h-full relative group-hover/preview:opacity-90 transition-opacity">
@@ -117,15 +176,29 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                                         {previewContent?.slice(0, 1000) || "Loading preview..."}
                                     </div>
                                 ) : previewType === 'image' ? (
-                                    <div className="w-full h-full flex items-center justify-center bg-zinc-100/50 rounded p-2">
-                                        <div className="relative group/img">
-                                            <ImageIcon size={32} strokeWidth={1} className="text-zinc-300 animate-pulse" />
-                                            <img
-                                                src={`file://${card.metadata.path}`}
-                                                alt="preview"
-                                                className="absolute inset-0 w-full h-full object-cover rounded opacity-0 group-hover/img:opacity-100 transition-opacity"
-                                                onLoad={(e) => (e.currentTarget.style.opacity = '1')}
-                                            />
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-100/50 rounded-xl overflow-hidden relative">
+                                        <img
+                                            src={`file://${card.metadata.path}`}
+                                            alt="preview"
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover/preview:scale-110"
+                                            onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover/preview:opacity-100 transition-opacity" />
+                                    </div>
+                                ) : previewType === 'video' ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-900 rounded-xl overflow-hidden relative">
+                                        <video
+                                            src={`file://${card.metadata.path}`}
+                                            autoPlay
+                                            muted
+                                            loop
+                                            playsInline
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                                        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
+                                            <div className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+                                            <span className="text-[8px] font-bold text-white/90 uppercase tracking-widest">Live Preview</span>
                                         </div>
                                     </div>
                                 ) : (
@@ -134,11 +207,23 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                                         <span className="text-[9px] uppercase font-bold tracking-tighter">No Preview</span>
                                     </div>
                                 )}
-                                <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white/90 via-white/40 to-transparent pointer-events-none z-20" />
+                                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-20" />
 
-                                <div className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur shadow-sm border border-zinc-100 opacity-0 group-hover/preview:opacity-100 transition-all scale-90 hover:scale-100 cursor-pointer">
-                                    <ExternalLink size={10} className="text-zinc-400" />
+                                <div
+                                    onClick={handleOpenFile}
+                                    className="absolute top-2 right-2 p-2 rounded-full bg-white/90 backdrop-blur-md shadow-lg border border-zinc-200/50 opacity-0 group-hover/preview:opacity-100 transition-all duration-300 scale-90 hover:scale-110 cursor-pointer z-30 hover:bg-sky-50 hover:border-sky-200 group/btn"
+                                    title="Open full file"
+                                >
+                                    <ExternalLink size={12} className="text-zinc-500 group-hover/btn:text-sky-600 transition-colors" />
                                 </div>
+
+                                <button
+                                    onClick={handleOpenFile}
+                                    className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-zinc-200 shadow-sm text-[10px] font-bold text-zinc-500 opacity-0 group-hover/preview:opacity-100 transition-all duration-300 hover:bg-zinc-50 hover:text-zinc-800 z-30 flex items-center gap-1.5"
+                                >
+                                    <Eye size={12} />
+                                    Read Full
+                                </button>
                             </div>
                         )}
                     </div>

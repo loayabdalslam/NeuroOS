@@ -48,7 +48,7 @@ export const Taskbar: React.FC = () => {
                   "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
                   windowData.isFocused ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-600"
                 )}>
-                  <NeuroIcon size={16} showTM={false} />
+                  <span className="text-sm font-bold uppercase">{appConfig?.name.charAt(0) || 'N'}</span>
                 </div>
                 {windowData.isFocused && (
                   <div className="absolute -bottom-1 w-1 h-1 rounded-full bg-zinc-900" />

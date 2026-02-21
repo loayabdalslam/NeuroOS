@@ -60,6 +60,19 @@ export const BoardApp: React.FC<BoardProps> = ({ windowData }) => {
         loadBoard();
     }, [workspacePath]);
 
+    // Handle incoming actions (automation)
+    useEffect(() => {
+        if (windowData.lastAction) {
+            const { type, payload } = windowData.lastAction;
+            if (type === 'add_card') {
+                addCard(payload.type as CType, {
+                    content: payload.content,
+                    metadata: payload.metadata
+                });
+            }
+        }
+    }, [windowData.lastAction]);
+
     const saveBoard = useCallback(async (currentBoard: BoardData) => {
         if (!workspacePath) return;
         setIsSaving(true);
@@ -213,11 +226,19 @@ export const BoardApp: React.FC<BoardProps> = ({ windowData }) => {
         const fileData = e.dataTransfer.getData('neuro/file');
         if (fileData) {
             const file = JSON.parse(fileData);
-            addCard('file', {
-                content: file.name,
-                position: { x, y },
-                metadata: { path: file.path, isDirectory: file.isDirectory }
-            });
+            if (file.type === 'url') {
+                addCard('link', {
+                    content: file.url || file.path,
+                    position: { x, y },
+                    metadata: { url: file.url || file.path }
+                });
+            } else {
+                addCard('file', {
+                    content: file.name,
+                    position: { x, y },
+                    metadata: { path: file.path, isDirectory: file.isDirectory }
+                });
+            }
             return;
         }
 

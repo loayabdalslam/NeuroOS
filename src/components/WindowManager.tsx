@@ -12,6 +12,7 @@ import { AutomationEngine } from '../apps/AutomationEngine';
 import { ChatApp } from '../apps/Chat';
 import { FileViewer } from '../apps/FileViewer';
 import { BoardApp } from '../apps/Board';
+import { BrowserApp } from '../apps/Browser';
 
 // Component Registry
 const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
@@ -25,6 +26,7 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
     chat: ChatApp,
     viewer: FileViewer,
     board: BoardApp,
+    browser: BrowserApp,
 };
 
 const AppNotFound: React.FC<{ windowData?: any }> = () => (

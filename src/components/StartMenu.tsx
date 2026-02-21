@@ -87,7 +87,7 @@ export const StartMenu: React.FC = () => {
                       "w-12 h-12 rounded-[14px] flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-all duration-300 ease-spring",
                       app.color
                     )}>
-                      <NeuroIcon size={24} showTM={false} />
+                      <span className="text-xl font-bold uppercase tracking-tighter">{app.name.charAt(0)}</span>
                     </div>
                     <span className="text-[11px] font-medium text-zinc-600 group-hover:text-zinc-900">{app.name}</span>
                   </button>

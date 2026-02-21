@@ -9,6 +9,7 @@ import {
     BrainCircuit,
     Eye,
     Layout,
+    Globe,
     LucideIcon
 } from 'lucide-react';
 
@@ -30,4 +31,5 @@ export const APPS_CONFIG: Record<string, AppConfig> = {
     settings: { id: 'settings', name: 'Settings', icon: Settings, color: 'bg-zinc-400' },
     viewer: { id: 'viewer', name: 'File Viewer', icon: Eye, color: 'bg-violet-500' },
     board: { id: 'board', name: 'NeuroBoard', icon: Layout, color: 'bg-indigo-400' },
+    browser: { id: 'browser', name: 'Browser', icon: Globe, color: 'bg-sky-400' },
 };

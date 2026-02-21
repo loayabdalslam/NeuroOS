@@ -1,4 +1,4 @@
-export type CardType = 'note' | 'sticky' | 'file' | 'app';
+export type CardType = 'note' | 'sticky' | 'file' | 'app' | 'link' | 'widget';
 
 export interface BoardCard {
     id: string;

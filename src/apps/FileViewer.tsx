@@ -167,13 +167,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
 
             case 'video':
                 return (
-                    <div className="flex items-center justify-center h-full bg-black">
-                        <video
-                            src={blobUrl}
-                            controls
-                            autoPlay={false}
-                            className="max-w-full max-h-full"
-                        />
+                    <div className="h-full w-full bg-zinc-950 flex items-center justify-center p-8">
+                        <div className="relative w-full max-w-5xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/5 bg-black group/player">
+                            <video
+                                src={blobUrl}
+                                controls
+                                autoPlay
+                                className="w-full h-full object-contain"
+                            />
+                        </div>
                     </div>
                 );
 

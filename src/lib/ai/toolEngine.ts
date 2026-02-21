@@ -32,6 +32,7 @@ export interface ToolContext {
     createDir: (path: string) => Promise<void>;
     deleteFile: (path: string) => Promise<void>;
     addMessage: (role: 'assistant' | 'system', content: string) => void;
+    updateMemory: (key: string, value: any) => void;
 }
 
 export interface ToolResult {

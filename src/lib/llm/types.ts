@@ -17,6 +17,6 @@ export interface LLMProvider {
     name: string;
     description: string;
     chat(messages: LLMMessage[]): Promise<LLMResponse>;
-    stream(messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<void>;
+    stream(messages: LLMMessage[], onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void>;
     validateConfig?(): Promise<boolean>;
 }

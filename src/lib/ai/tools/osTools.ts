@@ -3,6 +3,7 @@
  */
 import { registerTool, ToolContext, ToolResult } from '../toolEngine';
 import { APPS_CONFIG } from '../../apps';
+import { useOS } from '../../../hooks/useOS';
 
 // ─── Open App ────────────────────────────────────────────────────
 registerTool({
@@ -161,6 +162,41 @@ registerTool({
             };
         } catch (e: any) {
             return { success: false, message: `❌ Failed to open file: ${e.message}` };
+        }
+    }
+});
+registerTool({
+    name: 'add_board_widget',
+    description: 'Adds a live data widget (weather, stocks, news) to the project NeuroBoard.',
+    category: 'os',
+    parameters: {
+        type: { type: 'string', description: 'Widget type: "weather", "stocks", "news"', enum: ['weather', 'stocks', 'news'], required: true },
+        symbol: { type: 'string', description: 'Stock symbol (if type is stocks)', required: false }
+    },
+    handler: async (args): Promise<ToolResult> => {
+        try {
+            const os = useOS.getState();
+            const boardWin = os.appWindows.find(w => w.component === 'board');
+
+            if (!boardWin) {
+                os.openApp('board', 'NeuroBoard');
+            }
+
+            // Small delay to ensure board handles action if just opened
+            setTimeout(() => {
+                const targetBoard = useOS.getState().appWindows.find(w => w.component === 'board');
+                if (targetBoard) {
+                    useOS.getState().sendAppAction(targetBoard.id, 'add_card', {
+                        type: 'widget',
+                        content: args.type.toUpperCase(),
+                        metadata: { widgetType: args.type, symbol: args.symbol }
+                    });
+                }
+            }, 500);
+
+            return { success: true, message: `✅ Added **${args.type}** widget to NeuroBoard.` };
+        } catch (e: any) {
+            return { success: false, message: `❌ Failed to add widget: ${e.message}` };
         }
     }
 });
