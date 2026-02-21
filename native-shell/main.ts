@@ -36,24 +36,15 @@ const createWindow = () => {
     // LOAD THE APP
     const loadURL = async () => {
         if (process.env.VITE_DEV_SERVER_URL) {
-            console.log('TRYING TO LOAD DEV URL:', process.env.VITE_DEV_SERVER_URL);
-
-            // Debug load failures
-            mainWindow!.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-                console.error(`PAGE FAILED TO LOAD: ${validatedURL} (${errorCode}: ${errorDescription})`);
-            });
-
-            mainWindow!.webContents.on('did-finish-load', () => {
-                console.log('PAGE LOADED SUCCESSFULLY');
-            });
-
-            try {
-                await mainWindow!.loadURL(process.env.VITE_DEV_SERVER_URL!);
-                console.log('mainWindow.loadURL returned');
-            } catch (err) {
-                console.warn('LOAD FAILED, RETRYING IN 2s...', err);
-                setTimeout(loadURL, 2000);
-            }
+            console.log('LOADING DEV WEB:', process.env.VITE_DEV_SERVER_URL);
+            setTimeout(async () => {
+                try {
+                    await mainWindow!.loadURL(process.env.VITE_DEV_SERVER_URL!);
+                } catch (e) {
+                    console.log('RETRYING LOAD...');
+                    loadURL();
+                }
+            }, 500);
             mainWindow!.webContents.openDevTools();
         } else {
             mainWindow!.loadFile(path.join(__dirname, '../dist/index.html'));
