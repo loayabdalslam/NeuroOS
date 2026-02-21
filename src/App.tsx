@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useOS } from './hooks/useOS';
 import { Taskbar } from './components/Taskbar';
 import { StartMenu } from './components/StartMenu';
@@ -10,9 +10,20 @@ import { SystemAssistant } from './components/SystemAssistant';
 import { ContextMenuProvider } from './components/ContextMenu';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from './stores/authStore';
+import { useWorkspaceStore } from './stores/workspaceStore';
 
 export default function App() {
   const { users, isAddingUser, isAuthenticated, hasHydrated } = useAuthStore();
+  const { workspacePath, setWorkspace } = useWorkspaceStore();
+
+  // if the persisted workspace path disappears (moved/deleted), clear it
+  useEffect(() => {
+    if (workspacePath && window.electron && window.electron.fileSystem?.stat) {
+      window.electron.fileSystem
+        .stat(workspacePath)
+        .catch(() => setWorkspace(null));
+    }
+  }, [workspacePath, setWorkspace]);
 
   if (!hasHydrated) {
     return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { Bot, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
@@ -32,6 +32,38 @@ export const LLMManager: React.FC = () => {
         updateAiConfig({ providers });
     };
 
+    // if Ollama or LMStudio provider and baseUrl changes, attempt to refresh model list
+    useEffect(() => {
+        const fetchModels = async (url: string) => {
+            try {
+                const cleanUrl = url.replace(/\/+$/g, '');
+                const res = await fetch(`${cleanUrl}/api/tags`);
+                if (res.ok) {
+                    const data = await res.json();
+                    let list: string[] = [];
+                    if (Array.isArray(data)) {
+                        list = data;
+                    } else if (data.tags) {
+                        list = data.tags;
+                    } else if (data.models) {
+                        list = data.models.map((m: any) => m.name || m.model || m);
+                    }
+                    if (list.length && activeProvider) {
+                        updateCurrentProvider({ models: list });
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to fetch models in manager from', url, e);
+            }
+        };
+
+        if (activeProvider && (activeProvider.type === 'ollama' || activeProvider.type === 'lmstudio')) {
+            if (activeProvider.baseUrl) {
+                fetchModels(activeProvider.baseUrl);
+            }
+        }
+    }, [activeProvider?.baseUrl]);
+
     return (
         <div className="flex flex-col h-full bg-white p-6 overflow-y-auto">
             <div className="flex items-center gap-3 mb-8">
@@ -49,12 +81,12 @@ export const LLMManager: React.FC = () => {
                 <div className="space-y-3">
                     <label className="text-sm font-medium text-zinc-700">AI Provider</label>
                     <div className="grid grid-cols-3 gap-3">
-                        {(['ollama', 'lmstudio', 'openai', 'gemini', 'anthropic'] as const).map(p => {
-                            const isSelected = activeProvider?.type === p;
+                        {aiConfig.providers.map(p => {
+                            const isSelected = activeProvider?.id === p.id;
                             return (
                                 <button
-                                    key={p}
-                                    onClick={() => handleUpdateProvider(p)}
+                                    key={p.id}
+                                    onClick={() => handleUpdateProvider(p.type)}
                                     className={`
                                         p-4 rounded-xl border text-left transition-all
                                         ${isSelected
@@ -63,13 +95,9 @@ export const LLMManager: React.FC = () => {
                                         }
                                     `}
                                 >
-                                    <div className="font-semibold capitalize mb-1">{p}</div>
+                                    <div className="font-semibold capitalize mb-1">{p.name}</div>
                                     <div className="text-[10px] opacity-70">
-                                        {p === 'ollama' && 'Local Llama 3/Mistral'}
-                                        {p === 'lmstudio' && 'Local API Compatible'}
-                                        {p === 'openai' && 'Cloud API (GPT-4)'}
-                                        {p === 'gemini' && 'Google Gemini Pro'}
-                                        {p === 'anthropic' && 'Claude 3.5 Sonnet'}
+                                        {p.type === 'ollama' && 'Local Llama 3/Mistral'}
                                     </div>
                                 </button>
                             );

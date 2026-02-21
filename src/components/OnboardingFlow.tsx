@@ -15,16 +15,74 @@ const STEPS = [
 
 export const OnboardingFlow: React.FC = () => {
     const { addUser, users, cancelAddUser } = useAuthStore();
-    const { updateAiConfig } = useSettingsStore();
+    const { aiConfig, updateAiConfig, updateProvider } = useSettingsStore();
 
     const [currentStep, setCurrentStep] = useState(users.length > 0 ? 1 : 0);
     const [formData, setFormData] = useState({
         name: '',
         bio: '',
         avatar: '',
-        pin: '',
-        apiKey: ''
+        pin: ''
     });
+
+    // --- AI onboarding state -------------------------------------------------
+    const providers = aiConfig.providers;
+    const [selectedProviderId, setSelectedProviderId] = useState<string>(aiConfig.activeProviderId || providers[0]?.id);
+    const currentProvider = providers.find(p => p.id === selectedProviderId);
+
+    const [baseUrl, setBaseUrl] = useState(currentProvider?.baseUrl || '');
+    const [apiKey, setApiKey] = useState(currentProvider?.apiKey || '');
+    const [availableModels, setAvailableModels] = useState<string[]>(currentProvider?.models || []);
+    const [selectedModel, setSelectedModel] = useState(currentProvider?.selectedModel || '');
+    const [customModel, setCustomModel] = useState('');
+
+    // when provider changes, seed fields from store
+    React.useEffect(() => {
+        const p = providers.find(p => p.id === selectedProviderId);
+        if (p) {
+            setBaseUrl(p.baseUrl);
+            setApiKey(p.apiKey);
+            setAvailableModels(p.models);
+            setSelectedModel(p.selectedModel);
+            setCustomModel('');
+        }
+    }, [selectedProviderId, providers]);
+
+    // if Ollama (or lmstudio) and baseUrl provided, try to fetch remote models
+    React.useEffect(() => {
+        const fetchModels = async (url: string) => {
+            try {
+                const cleanUrl = url.replace(/\/+$/g, '');
+                const res = await fetch(`${cleanUrl}/api/tags`);
+                if (res.ok) {
+                    const data = await res.json();
+                    // tags endpoint may return { tags: [...] } or { models: [...] } or raw array
+                    let list: string[] = [];
+                    if (Array.isArray(data)) {
+                        list = data;
+                    } else if (data.tags) {
+                        list = data.tags;
+                    } else if (data.models) {
+                        list = data.models.map((m: any) => m.name || m.model || m);
+                    }
+                    if (list.length) {
+                        setAvailableModels(list);
+                        if (!list.includes(selectedModel)) {
+                            setSelectedModel(list[0]);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to fetch models from', url, e);
+            }
+        };
+
+        if (currentProvider?.type === 'ollama' || currentProvider?.type === 'lmstudio') {
+            if (baseUrl) {
+                fetchModels(baseUrl);
+            }
+        }
+    }, [currentProvider, baseUrl]);
 
     const handleNext = () => {
         if (currentStep < STEPS.length - 1) {
@@ -43,11 +101,21 @@ export const OnboardingFlow: React.FC = () => {
             pin: formData.pin || null
         });
 
-        // Save AI Config if provided
-        if (formData.apiKey) {
-            // Logic to update the correct provider. Assuming OpenAI for simplicity or default active.
-            // For now, let's just leave AI config for the specific settings page to avoid complexity here
-            // or maybe set it for the first provider.
+        // Save AI config from onboarding
+        // Only update provider data if user actually interacted with this step
+        if (currentStep === STEPS.length - 1) {
+            const providerUpdates: any = {};
+            if (currentProvider) {
+                providerUpdates.baseUrl = baseUrl;
+                providerUpdates.apiKey = apiKey;
+                providerUpdates.selectedModel = customModel || selectedModel;
+                providerUpdates.models = availableModels;
+            }
+
+            if (currentProvider) {
+                updateProvider(currentProvider.id, providerUpdates);
+                updateAiConfig({ activeProviderId: currentProvider.id });
+            }
         }
     };
 
@@ -206,16 +274,74 @@ export const OnboardingFlow: React.FC = () => {
                                         <span className="text-[11px] font-bold uppercase tracking-wider">AI Integration</span>
                                     </div>
                                     <p className="text-[11px] text-zinc-400 leading-relaxed">
-                                        NeuroOS utilizes neural engines for automation. You can provide an API key now or connect to local Ollama later.
+                                        Choose a provider and configure its credentials. Ollama users can fetch available models or type a custom one.
                                     </p>
                                 </div>
-                                <input
-                                    type="password"
-                                    value={formData.apiKey}
-                                    onChange={e => setFormData({ ...formData, apiKey: e.target.value })}
-                                    className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all font-mono text-xs text-zinc-600 placeholder:text-zinc-200"
-                                    placeholder="sk-..."
-                                />
+
+                                {/* provider selection */}
+                                <div className="space-y-2">
+                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Provider</label>
+                                    <select
+                                        value={selectedProviderId}
+                                        onChange={e => setSelectedProviderId(e.target.value)}
+                                        className="w-full p-3 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700"
+                                    >
+                                        {providers.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* provider specific fields */}
+                                {(currentProvider && ['openai','anthropic','gemini','groq','mistral','custom'].includes(currentProvider.type)) && (
+                                    <div className="space-y-2">
+                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">API Key</label>
+                                        <input
+                                            type="password"
+                                            value={apiKey}
+                                            onChange={e => setApiKey(e.target.value)}
+                                            className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all font-mono text-xs text-zinc-600 placeholder:text-zinc-200"
+                                            placeholder="sk-..."
+                                        />
+                                    </div>
+                                )}
+
+                                {(currentProvider && ['ollama','lmstudio'].includes(currentProvider.type)) && (
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Base URL</label>
+                                            <input
+                                                value={baseUrl}
+                                                onChange={e => setBaseUrl(e.target.value)}
+                                                className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700"
+                                                placeholder="http://localhost:11434"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Model</label>
+                                            <div className="flex gap-2">
+                                                <select
+                                                    value={selectedModel}
+                                                    onChange={e => setSelectedModel(e.target.value)}
+                                                    className="flex-1 p-3 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700"
+                                                >
+                                                    {availableModels.map(m => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                                <input
+                                                    value={customModel}
+                                                    onChange={e => setCustomModel(e.target.value)}
+                                                    placeholder="custom..."
+                                                    className="flex-1 p-3 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700"
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-zinc-400">
+                                                select from available models or type your own
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

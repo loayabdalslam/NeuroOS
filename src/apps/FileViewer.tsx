@@ -95,6 +95,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
         setError('');
 
         try {
+            // ensure the file actually exists before trying to read it
+            const stat = await window.electron!.fileSystem.stat(filePath).catch(() => null);
+            if (!stat) {
+                throw new Error('not found');
+            }
+
             if (fileType === 'image' || fileType === 'video' || fileType === 'audio' || fileType === 'pdf') {
                 // Binary files — use file:// protocol in Electron
                 const fileUrl = filePath.startsWith('/') ? `file://${filePath}` : `file:///${filePath.replace(/\\/g, '/')}`;
@@ -105,7 +111,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                 setContent(text);
             }
         } catch (e: any) {
-            setError(`Failed to open file: ${e.message}`);
+            // more user-friendly message and keep original error logged
+            setError('Could not open file – it may have been moved or deleted.');
+            console.error('readFile error', e);
         } finally {
             setLoading(false);
         }
