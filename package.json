@@ -11,8 +11,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist dist-electron",
     "lint": "tsc --noEmit",
-    "electron": "tsc -p native-shell/tsconfig.json && wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 node scripts/start-electron.js",
-    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"rimraf neuro_os.db* --glob && npm run electron\"",
+    "electron": "tsc -p native-shell/tsconfig.json && wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 node scripts/start-electron.js",
+    "electron:dev": "npm run dev:preclean && concurrently -k \"cross-env BROWSER=none npm run dev\" \"rimraf neuro_os.db* --glob && npm run electron\"",
+    "dev:preclean": "node scripts/cleanup.js 5173",
     "electron:build": "vite build && tsc -p native-shell/tsconfig.json && electron-builder"
   },
   "build": {

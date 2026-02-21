@@ -34,14 +34,24 @@ const createWindow = () => {
     });
 
     // LOAD THE APP
-    if (process.env.VITE_DEV_SERVER_URL) {
-        mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-        mainWindow.webContents.openDevTools();
-    } else {
-        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-        // Start update check in production
-        autoUpdater.checkForUpdatesAndNotify();
-    }
+    const loadURL = async () => {
+        if (process.env.VITE_DEV_SERVER_URL) {
+            console.log('TRYING TO LOAD DEV URL:', process.env.VITE_DEV_SERVER_URL);
+            try {
+                await mainWindow!.loadURL(process.env.VITE_DEV_SERVER_URL!);
+                console.log('LOAD SUCCESS');
+            } catch (err) {
+                console.warn('LOAD FAILED, RETRYING IN 1s...', err);
+                setTimeout(loadURL, 1000);
+            }
+            mainWindow!.webContents.openDevTools();
+        } else {
+            mainWindow!.loadFile(path.join(__dirname, '../dist/index.html'));
+            autoUpdater.checkForUpdatesAndNotify();
+        }
+    };
+
+    loadURL();
 
     // Window Controls IPC
     ipcMain.on('window:minimize', () => mainWindow?.minimize());
@@ -227,6 +237,10 @@ app.on('ready', () => {
     const patchSession = (ses: any) => {
         // 1. Strip restrictive response headers (X-Frame-Options, CSP, etc.)
         ses.webRequest.onHeadersReceived((details: any, callback: any) => {
+            // Skip patching for local dev server to avoid issues
+            if (details.url.startsWith('http://localhost') || details.url.startsWith('http://127.0.0.1')) {
+                return callback({ cancel: false });
+            }
             const h = { ...details.responseHeaders };
             delete h['x-frame-options'];
             delete h['X-Frame-Options'];
