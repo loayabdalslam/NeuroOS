@@ -4,6 +4,7 @@ import { X, GripVertical, FileText, File, Folder, AppWindow, ImageIcon, FileCode
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';
 import { BoardCard as BoardCardType } from './types';
+import { fetchMetadata, LinkMetadata } from './utils';
 import { APPS_CONFIG } from '../../lib/apps';
 import { useFileSystem } from '../../hooks/useFileSystem';
 import { useOS } from '../../hooks/useOS';
@@ -18,9 +19,16 @@ interface CardProps {
 export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [previewContent, setPreviewContent] = useState<string | null>(null);
+    const [metadata, setMetadata] = useState<LinkMetadata | null>(null);
     const [previewType, setPreviewType] = useState<'text' | 'image' | 'video' | 'code' | 'markdown' | 'html' | 'none'>('none');
     const { readFile } = useFileSystem();
     const { openApp, sendAppAction, appWindows } = useOS();
+
+    useEffect(() => {
+        if (card.type === 'link' && card.metadata?.url) {
+            fetchMetadata(card.metadata.url).then(setMetadata);
+        }
+    }, [card.type, card.metadata?.url]);
 
     const handleOpenFile = () => {
         const path = card.metadata?.path || card.metadata?.url;
@@ -127,13 +135,37 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                         {(card.type === 'link' || !card.metadata?.isDirectory) && (
                             <div className="flex-1 bg-zinc-50/50 rounded-xl border border-zinc-100/50 overflow-hidden relative group/preview min-h-[160px]">
                                 {card.type === 'link' ? (
-                                    <div className="w-full h-full relative group-hover/preview:opacity-95 transition-opacity">
-                                        <iframe
-                                            src={card.metadata?.url}
-                                            className="w-full h-full border-0 pointer-events-none scale-[0.5] origin-top-left"
-                                            style={{ width: '200%', height: '200%' }}
-                                            title="Link Preview"
-                                        />
+                                    <div className="w-full h-full relative group-hover/preview:opacity-95 transition-all flex flex-col">
+                                        {metadata?.image ? (
+                                            <div className="w-full h-24 overflow-hidden bg-zinc-100">
+                                                <img
+                                                    src={metadata.image}
+                                                    className="w-full h-full object-cover"
+                                                    alt="link preview"
+                                                    onError={(e) => e.currentTarget.style.display = 'none'}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-24 bg-sky-50 flex items-center justify-center">
+                                                <Globe size={24} className="text-sky-200" />
+                                            </div>
+                                        )}
+                                        <div className="p-3 flex flex-col gap-1">
+                                            <span className="text-[11px] font-bold text-zinc-800 line-clamp-1">
+                                                {metadata?.title || card.content}
+                                            </span>
+                                            <p className="text-[10px] text-zinc-500 line-clamp-2 leading-tight">
+                                                {metadata?.description || "No description available"}
+                                            </p>
+                                            <div className="flex items-center gap-1 mt-1">
+                                                <div className="w-3 h-3 rounded-full bg-sky-100 flex items-center justify-center">
+                                                    <Globe size={8} className="text-sky-500" />
+                                                </div>
+                                                <span className="text-[8px] text-zinc-400 font-bold uppercase tracking-wider">
+                                                    {metadata?.siteName || metadata?.url.split('/')[2]?.replace('www.', '') || "Website"}
+                                                </span>
+                                            </div>
+                                        </div>
                                         <div className="absolute inset-0 z-10" />
                                     </div>
                                 ) : (card.type as string) === 'widget' ? (
