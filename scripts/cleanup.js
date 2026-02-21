@@ -1,47 +1,44 @@
 const { execSync } = require('child_process');
 
 const port = process.argv[2] || 5173;
-console.log(`[Cleanup] Checking port ${port}...`);
+console.log(`[Cleanup] Checking port ${port} and NeuroOS processes...`);
 
 try {
-    let cmd = '';
-    if (process.platform === 'win32') {
-        cmd = `netstat -ano | findstr :${port}`;
-    } else {
-        cmd = `lsof -i tcp:${port} | grep LISTEN`;
-    }
-
-    const output = execSync(cmd).toString();
-    const lines = output.trim().split('\n');
-
-    lines.forEach(line => {
-        const parts = line.trim().split(/\s+/);
-        const pid = process.platform === 'win32' ? parts[parts.length - 1] : parts[1];
-
-        if (pid && !isNaN(pid) && pid !== '0' && pid !== process.pid.toString()) {
-            console.log(`[Cleanup] Killing ghost process with PID: ${pid}`);
-            try {
-                process.kill(pid, 'SIGKILL');
-            } catch (e) {
-                // On Windows, process.kill might fail for foreign processes
-                if (process.platform === 'win32') {
-                    execSync(`taskkill /F /PID ${pid}`);
+    // 1. Kill by port
+    try {
+        let cmd = '';
+        if (process.platform === 'win32') {
+            cmd = `netstat -ano | findstr :${port}`;
+            const output = execSync(cmd).toString();
+            const lines = output.trim().split('\n');
+            lines.forEach(line => {
+                const parts = line.trim().split(/\s+/);
+                const pid = parts[parts.length - 1];
+                if (pid && !isNaN(pid) && pid !== '0') {
+                    console.log(`[Cleanup] Killing process on port ${port} (PID: ${pid})`);
+                    execSync(`taskkill /F /PID ${pid} /T`, { stdio: 'ignore' });
                 }
-            }
+            });
         }
-    });
-    // Kill projects by path/name using powerful PowerShell
+    } catch (e) { }
+
+    // 2. Aggressively kill by name and path (PowerShell)
     if (process.platform === 'win32') {
-        console.log(`[Cleanup] Aggressively killing all NeuroOS processes...`);
-        const psCommand = `Get-Process | Where-Object { $_.Path -like "*NeuroOS*" -or $_.Path -like "*Neuro OS*" -or $_.Name -like "*Neuro OS*" -or $_.Name -like "*NeuroOS*" } | Stop-Process -Force -ErrorAction SilentlyContinue`;
+        console.log(`[Cleanup] Searching for all NeuroOS/Electron windows and processes...`);
+        const psCommand = `Get-Process | Where-Object { $_.Path -like "*NeuroOS*" -or $_.Path -like "*Neuro OS*" -or $_.Name -like "*Neuro OS*" -or $_.Name -like "*NeuroOS*" -or $_.Name -like "*electron*" } | Stop-Process -Force -ErrorAction SilentlyContinue`;
         try {
-            execSync(`powershell -Command "${psCommand}"`, { stdio: 'inherit' });
-        } catch (e) {
-            console.log(`[Cleanup] PowerShell cleanup skipped or failed.`);
-        }
+            execSync(`powershell -Command "${psCommand}"`, { stdio: 'ignore' });
+        } catch (e) { }
     }
-    console.log(`[Cleanup] Port ${port} and file locks should be free.`);
+
+    // 3. CRITICAL: Wait for Windows to release file handles
+    console.log(`[Cleanup] Waiting 1.5s for OS to release file locks...`);
+    const start = Date.now();
+    while (Date.now() - start < 1500) {
+        // Synchronous busy-wait to ensure it blocks the next step
+    }
+
+    console.log(`[Cleanup] Done. Project is now fresh.`);
 } catch (error) {
-    // If netstat/lsof fails, it usually means no process is using the port
-    console.log(`[Cleanup] Port ${port} is clear or no process was found.`);
+    console.log(`[Cleanup] Finished with minor notes or no processes found.`);
 }

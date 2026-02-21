@@ -19,7 +19,6 @@ export default defineConfig(({ mode }) => {
     server: {
       hmr: true,
       port: 5173,
-      host: '127.0.0.1',
       strictPort: true,
       watch: {
         ignored: ['**/native-shell/**', '**/dist-electron/**'],
