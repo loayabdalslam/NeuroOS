@@ -200,7 +200,12 @@ app.on('ready', () => {
     ipcMain.handle('browser:scrape', async (_, url: string) => {
         try {
             const response = await fetch(url, {
-                headers: { 'User-Agent': 'NeuroOS/1.0' }
+                headers: {
+                    'User-Agent': CHROME_UA,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Referer': 'https://www.google.com/',
+                }
             });
             const html = await response.text();
             // Strip scripts and styles, extract text
@@ -337,7 +342,13 @@ app.on('ready', () => {
     // ─── Proxy Request for CORS bypassing ───────────────────────
     ipcMain.handle('proxy-request', async (_: any, url: string) => {
         try {
-            const response = await fetch(url, { headers: { 'User-Agent': CHROME_UA } });
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': CHROME_UA,
+                    'Accept': '*/*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                }
+            });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {

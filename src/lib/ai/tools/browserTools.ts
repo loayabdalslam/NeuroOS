@@ -136,6 +136,16 @@ function htmlToMarkdown(html: string, text: string, url: string): string {
     return lines.join('\n');
 }
 
+// simple heuristic to detect CAPTCHA presence in HTML/text
+function detectCaptcha(html: string, text: string): boolean {
+    const h = html.toLowerCase();
+    const t = text.toLowerCase();
+    if (h.includes('captcha') || t.includes('captcha')) return true;
+    if (h.includes('g-recaptcha') || h.includes('hcaptcha')) return true;
+    if (h.includes('please verify') || h.includes('are you human')) return true;
+    return false;
+}
+
 // ─── Tools ──────────────────────────────────────────────────────────────────
 
 // 1. NAVIGATE AND WAIT — opens page and waits for load
@@ -171,7 +181,7 @@ registerTool({
 // 2. SCRAPE PAGE — extract structured content from the loaded page
 registerTool({
     name: 'browser_scrape',
-    description: 'Extract structured text content from the currently loaded page in the browser. Navigate to the page first with browser_navigate.',
+    description: 'Extract structured text content from the currently loaded page in the browser. Navigate to the page first with browser_navigate. Returns `captcha: true` if a CAPTCHA is detected.',
     category: 'browser',
     parameters: {
         url: { type: 'string', description: 'Optional: navigate to this URL first, then scrape', required: false },
@@ -245,7 +255,7 @@ registerTool({
 // 4. SEARCH WEB — Google search and return result links
 registerTool({
     name: 'search_web',
-    description: 'Search Google and return the top result links. Use web_fetch or browser_navigate on a result URL to get its content.',
+    description: 'Search Google and return the top result links. Use web_fetch or browser_navigate on a result URL to get its content. If a CAPTCHA page is encountered, `captcha: true` will be included in the result.',
     category: 'browser',
     parameters: {
         query: { type: 'string', description: 'Search query', required: true },
@@ -264,15 +274,54 @@ registerTool({
         useAIStore.getState().addBrowserLog({ type: 'info', message: `Searching: ${query}` });
         try {
             const data = await ipcFetch(searchUrl);
-            const links = [...data.html.matchAll(/href="(https?:\/\/[^"&]+)"/g)]
-                .map(m => m[1])
-                .filter(h => !h.includes('google.com') && !h.includes('youtube.com/watch') && h.length > 20)
-                .slice(0, 10);
-            const unique = [...new Set(links)];
+            const captcha = detectCaptcha(data.html, data.text);
+            const noResults = data.text.includes('did not match any documents') ||
+                data.text.includes('No results found for') ||
+                (data.text.includes('Suggestions:') && data.text.includes('Make sure that all words are spelled correctly'));
+
+            const rawLinks = [...data.html.matchAll(/href="([^"]+)"/g)].map(m => m[1]);
+            const uniqueResults = new Set<string>();
+
+            for (let link of rawLinks) {
+                // Stop if we have enough
+                if (uniqueResults.size >= 10) break;
+
+                // Handle Google's redirect format: /url?q=https://example.com/path&sa=...
+                if (link.startsWith('/url?q=')) {
+                    link = link.split('/url?q=')[1].split('&')[0];
+                }
+
+                if (!link.startsWith('http')) continue;
+
+                try {
+                    const decoded = decodeURIComponent(link);
+                    const isGoogle = decoded.includes('google.com') || decoded.includes('gstatic.com');
+                    const isCommonInternal = decoded.includes('youtube.com/watch') || decoded.includes('accounts.google.com');
+
+                    if (!isGoogle && !isCommonInternal && decoded.length > 15) {
+                        uniqueResults.add(decoded);
+                    }
+                } catch (e) {
+                    // Ignore decoding errors
+                }
+            }
+
+            const results = [...uniqueResults];
+            let status = `🔍 "${query}" — ${results.length} results`;
+            if (captcha) status += ' (captcha detected)';
+            if (noResults && results.length === 0) status = `🔍 "${query}" — No results found.`;
+
             return {
                 success: true,
-                message: `🔍 "${query}" — ${unique.length} results`,
-                data: { query, searchUrl, resultLinks: unique, hint: 'Use web_fetch or browser_navigate on a result URL.' },
+                message: status,
+                data: {
+                    query,
+                    searchUrl,
+                    resultLinks: results,
+                    hint: results.length > 0 ? 'Use web_fetch or browser_navigate on a result URL.' : 'Try different keywords.',
+                    captcha,
+                    noResults: noResults && results.length === 0
+                },
             };
         } catch (e: any) {
             return { success: false, message: `Search failed: ${e.message}`, data: { searchUrl, query } };

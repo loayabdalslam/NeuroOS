@@ -41,15 +41,16 @@ interface BrowserProps {
 // Chrome 122 UA — matches main.ts spoofing to avoid webview detection
 const NEURO_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-const DEFAULT_HOME = 'https://www.bing.com'; // Bing works in webviews unlike Google
+// Google webview mode uses igu parameter to bypass blocking (works better than plain google.com)
+const DEFAULT_HOME = 'https://www.google.com/webhp?igu=1'; // default homepage is now Google
 
 const normalizeUrl = (input: string): string => {
     const trimmed = input.trim();
     if (!trimmed) return DEFAULT_HOME;
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
     if (trimmed.includes('.') && !trimmed.includes(' ')) return `https://${trimmed}`;
-    // Use Bing search — Google blocks webview via igu/webhp params
-    return `https://www.bing.com/search?q=${encodeURIComponent(trimmed)}`;
+    // Use Google search with igu parameter so it loads inside webview
+    return `https://www.google.com/search?igu=1&q=${encodeURIComponent(trimmed)}`;
 };
 
 const extractDomain = (url: string): string => {
@@ -558,7 +559,7 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
                                 src={tab.url}
                                 useragent={NEURO_USER_AGENT}
                                 allowpopups={true as any}
-                                webpreferences="allowRunningInsecureContent, javascript=yes, images=yes, plugins=yes"
+                                webpreferences="allowRunningInsecureContent, javascript=yes, images=yes, plugins=yes, nativeWindowOpen=yes"
                                 style={{ width: '100%', height: '100%', display: 'flex' }}
                             />
                         </div>
