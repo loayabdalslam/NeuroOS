@@ -222,21 +222,33 @@ export const BoardApp: React.FC<BoardProps> = ({ windowData }) => {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
+        // Check for group membership at drop position
+        const groupAtPos = board.groups.find(g => {
+            return (
+                x >= g.position.x - 20 &&
+                x <= g.position.x + 420 &&
+                y >= g.position.y - 20 &&
+                y <= g.position.y + 320
+            );
+        });
+
         // Check for file drop
         const fileData = e.dataTransfer.getData('neuro/file');
         if (fileData) {
             const file = JSON.parse(fileData);
             if (file.type === 'url') {
                 addCard('link', {
-                    content: file.url || file.path,
+                    content: file.name,
                     position: { x, y },
-                    metadata: { url: file.url || file.path }
+                    metadata: { url: file.url || file.path },
+                    groupId: groupAtPos?.id
                 });
             } else {
                 addCard('file', {
                     content: file.name,
                     position: { x, y },
-                    metadata: { path: file.path, isDirectory: file.isDirectory }
+                    metadata: { path: file.path, isDirectory: file.isDirectory },
+                    groupId: groupAtPos?.id
                 });
             }
             return;
@@ -249,7 +261,8 @@ export const BoardApp: React.FC<BoardProps> = ({ windowData }) => {
             addCard('app', {
                 content: app.name,
                 position: { x, y },
-                metadata: { appId: app.id }
+                metadata: { appId: app.id },
+                groupId: groupAtPos?.id
             });
             return;
         }

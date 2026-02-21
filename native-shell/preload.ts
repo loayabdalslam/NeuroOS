@@ -37,6 +37,33 @@ contextBridge.exposeInMainWorld('electron', {
     browser: {
         scrape: (url: string) => ipcRenderer.invoke('browser:scrape', url),
         openExternal: (url: string) => ipcRenderer.invoke('browser:openExternal', url),
+        onFrameNavigate: (callback: (url: string, title?: string) => void) => {
+            const listener = (_: any, url: string, titleFromMain?: string) => {
+                // Ignore the initial dev server URL and data URLs
+                if (url.startsWith('http://localhost:517') || url.startsWith('data:')) return;
+
+                // Clean up title from URL if not provided
+                let displayTitle = titleFromMain;
+                if (!displayTitle || displayTitle === 'Browser View' || displayTitle === 'Loading...') {
+                    const domain = url.split('/')[2]?.replace('www.', '') || '';
+                    displayTitle = domain
+                        ? domain.charAt(0).toUpperCase() + domain.slice(1)
+                        : undefined; // Fallback to undefined if no domain and no meaningful title
+                }
+                callback(url, displayTitle);
+            };
+            ipcRenderer.on('browser:frame-navigate', listener as any); // Cast to any to satisfy linting if needed
+            return () => ipcRenderer.removeListener('browser:frame-navigate', listener as any);
+        },
+        onTitleUpdated: (callback: (title: string) => void) => {
+            const listener = (_: any, title: string) => {
+                // Ignore generic/loading titles
+                if (title === 'Browser View' || title === 'Loading...' || !title) return;
+                callback(title);
+            };
+            ipcRenderer.on('browser:title-updated', listener);
+            return () => ipcRenderer.removeListener('browser:title-updated', listener);
+        }
     },
 
     // System Info & Notifications

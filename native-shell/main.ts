@@ -32,7 +32,29 @@ const createWindow = () => {
         },
     });
 
-    // Load the app
+    mainWindow.webContents.on('did-frame-navigate', async (event, url, httpResponseCode, httpStatusText, isMainFrame) => {
+        // Ignore the main app URL
+        if (url.startsWith('http://localhost:517') || url.startsWith('data:')) return;
+
+        // Try to get the title of the frame that navigated
+        let title = '';
+        try {
+            // We use a timeout to avoid hanging if the frame becomes unresponsive
+            title = await mainWindow.webContents.executeJavaScript(`document.title`, true);
+        } catch (e) {
+            // Fallback to domain if title extraction fails
+            title = url.split('/')[2]?.replace('www.', '') || 'Loading...';
+        }
+
+        mainWindow?.webContents.send('browser:frame-navigate', url, title);
+    });
+
+    mainWindow.webContents.on('page-title-updated', (event, title) => {
+        // Broadcast title updates to keep tabs in sync
+        mainWindow?.webContents.send('browser:title-updated', title);
+    });
+
+    // LOAD THE APP
     if (process.env.VITE_DEV_SERVER_URL) {
         mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
         mainWindow.webContents.openDevTools();

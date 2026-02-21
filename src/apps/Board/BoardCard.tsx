@@ -23,9 +23,14 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
     const { openApp, sendAppAction, appWindows } = useOS();
 
     const handleOpenFile = () => {
-        if (!card.metadata?.path) return;
-        const path = card.metadata.path;
+        const path = card.metadata?.path || card.metadata?.url;
+        if (!path) return;
         const name = card.content;
+
+        if (card.type === 'link') {
+            openApp('browser', path);
+            return;
+        }
 
         // Use viewer for "Read Full" as requested by user
         openApp('viewer', name);

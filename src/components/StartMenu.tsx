@@ -5,10 +5,6 @@ import {
   Terminal as TerminalIcon,
   Settings,
   Files,
-  Bot,
-  Cpu,
-  Workflow,
-  Database,
   Search,
   LogOut,
   User

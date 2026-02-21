@@ -64,6 +64,41 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
 
     // Handle incoming actions (automation)
     useEffect(() => {
+        const cleanup = (window as any).electron?.browser?.onFrameNavigate?.((url: string) => {
+            // Ignore the initial dev server URL and data URLs
+            if (url.startsWith('http://localhost:517') || url.startsWith('data:')) return;
+
+            // Clean up title from URL
+            const domain = url.split('/')[2]?.replace('www.', '') || '';
+            const displayTitle = domain
+                ? domain.charAt(0).toUpperCase() + domain.slice(1)
+                : activeTab.title;
+
+            // Update active tab URL and title
+            updateTab(activeTabId, {
+                url,
+                title: displayTitle,
+                // If it's a new navigation, add to history if it's not the same as current
+                history: activeTab.url !== url ? [...activeTab.history, url] : activeTab.history,
+                historyIndex: activeTab.url !== url ? activeTab.historyIndex + 1 : activeTab.historyIndex
+            });
+
+            // Sync the input value (address bar) immediately
+            setInputValue(url);
+
+            addBrowserLog({ type: 'info', message: `Iframe Navigated: ${url}`, tabId: activeTabId });
+        });
+        return () => cleanup?.();
+    }, [activeTabId, activeTab.url, activeTab.title]);
+
+    useEffect(() => {
+        const cleanup = (window as any).electron?.browser?.onTitleUpdated?.((title: string) => {
+            updateTab(activeTabId, { title });
+        });
+        return () => cleanup?.();
+    }, [activeTabId]);
+
+    useEffect(() => {
         if (windowData.lastAction) {
             const { type, payload } = windowData.lastAction;
             addBrowserLog({ type: 'action', message: `AI Triggered: ${type}`, tabId: activeTabId });
@@ -132,12 +167,17 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
         const newHistory = activeTab.history.slice(0, activeTab.historyIndex + 1);
         newHistory.push(finalUrl);
 
+        const domain = finalUrl.split('/')[2]?.replace('www.', '') || '';
+        const displayTitle = domain
+            ? domain.charAt(0).toUpperCase() + domain.slice(1)
+            : 'New Tab';
+
         updateTab(activeTabId, {
             url: finalUrl,
             history: newHistory,
             historyIndex: newHistory.length - 1,
             isLoading: true,
-            title: finalUrl.split('/')[2] || 'Loading...'
+            title: displayTitle
         });
 
         addBrowserLog({ type: 'info', message: `Navigating to: ${finalUrl}`, tabId: activeTabId });
@@ -175,8 +215,19 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
 
     const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
 
-    const onTabDragStart = (id: string) => {
+    const onTabDragStart = (e: React.DragEvent, id: string) => {
         setDraggedTabId(id);
+        const tab = tabs.find(t => t.id === id);
+        if (tab) {
+            e.dataTransfer.setData('neuro/file', JSON.stringify({
+                name: tab.title,
+                path: tab.url,
+                isDirectory: false,
+                type: 'url',
+                url: tab.url
+            }));
+            e.dataTransfer.effectAllowed = 'copyMove';
+        }
     };
 
     const onTabDragOver = (id: string) => {
@@ -211,7 +262,7 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
                         key={tab.id}
                         layout
                         draggable
-                        onDragStart={() => onTabDragStart(tab.id)}
+                        onDragStart={(e: any) => onTabDragStart(e, tab.id)}
                         onDragOver={(e) => {
                             e.preventDefault();
                             onTabDragOver(tab.id);
@@ -326,7 +377,7 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
                             <iframe
                                 src={tab.url}
                                 className="w-full h-full border-0"
-                                onLoad={() => updateTab(tab.id, { isLoading: false, title: iframeRef.current?.title || tab.title })}
+                                onLoad={() => updateTab(tab.id, { isLoading: false })}
                                 title="Browser View"
                                 sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                             />
