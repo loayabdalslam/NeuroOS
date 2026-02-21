@@ -217,6 +217,20 @@ app.on('ready', () => {
         return false;
     });
 
+    // ─── Header Stripping for Iframe Support ────────────────
+    const { session } = require('electron');
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        const responseHeaders = { ...details.responseHeaders };
+
+        // Remove restrictive headers
+        delete responseHeaders['x-frame-options'];
+        delete responseHeaders['X-Frame-Options'];
+        delete responseHeaders['content-security-policy'];
+        delete responseHeaders['Content-Security-Policy'];
+
+        callback({ cancel: false, responseHeaders });
+    });
+
     // Proxy Request for CORS bypassing
     ipcMain.handle('proxy-request', async (_, url) => {
         try {

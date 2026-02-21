@@ -142,17 +142,17 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                                         )}
                                     </div>
                                 ) : previewType === 'markdown' ? (
-                                    <div className="p-5 text-[13px] prose prose-zinc lg:prose-base max-w-none text-zinc-700 font-sans leading-relaxed text-left h-full overflow-y-auto scrollbar-hide md-preview">
+                                    <div className="p-4 pt-2 text-[12px] prose prose-zinc lg:prose-base max-w-none text-zinc-600 font-sans leading-snug text-left max-h-[150px] overflow-hidden md-preview relative">
                                         <ReactMarkdown
                                             components={{
-                                                h1: ({ node, ...props }) => <h1 className="text-lg font-bold mb-2 text-zinc-900 border-b border-zinc-100 pb-1" {...props} />,
-                                                h2: ({ node, ...props }) => <h2 className="text-base font-bold mb-2 text-zinc-800" {...props} />,
-                                                h3: ({ node, ...props }) => <h3 className="text-sm font-bold mb-1 text-zinc-800" {...props} />,
-                                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                                                ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
-                                                ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
+                                                h1: ({ node, ...props }) => <h1 className="text-sm font-bold mb-1 text-zinc-900 border-b border-zinc-100 pb-0.5" {...props} />,
+                                                h2: ({ node, ...props }) => <h2 className="text-[13px] font-bold mb-1 text-zinc-800" {...props} />,
+                                                h3: ({ node, ...props }) => <h3 className="text-[12px] font-bold mb-0.5 text-zinc-800" {...props} />,
+                                                p: ({ node, ...props }) => <p className="mb-1.5 last:mb-0 line-clamp-2" {...props} />,
+                                                ul: ({ node, ...props }) => <ul className="list-disc pl-3 mb-1.5 space-y-0.5" {...props} />,
+                                                ol: ({ node, ...props }) => <ol className="list-decimal pl-3 mb-1.5 space-y-0.5" {...props} />,
                                                 li: ({ node, ...props }) => <li className="mb-0.5" {...props} />,
-                                                strong: ({ node, ...props }) => <strong className="font-black text-zinc-900" {...props} />,
+                                                strong: ({ node, ...props }) => <strong className="font-bold text-zinc-800" {...props} />,
                                             }}
                                         >
                                             {previewContent || ''}
@@ -170,7 +170,7 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                                     </div>
                                 ) : previewType === 'text' || previewType === 'code' ? (
                                     <div className={cn(
-                                        "p-4 text-[10px] leading-relaxed text-zinc-500 whitespace-pre-wrap line-clamp-[12] break-words",
+                                        "p-4 text-[10px] leading-relaxed text-zinc-500 whitespace-pre-wrap line-clamp-6 break-words",
                                         previewType === 'code' ? "font-mono text-blue-600/70" : "font-sans"
                                     )}>
                                         {previewContent?.slice(0, 1000) || "Loading preview..."}

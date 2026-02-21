@@ -173,7 +173,26 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
         setTimeout(() => updateTab(activeTabId, { url: currentUrl }), 10);
     };
 
-    const handleDragStart = (e: React.DragEvent) => {
+    const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+
+    const onTabDragStart = (id: string) => {
+        setDraggedTabId(id);
+    };
+
+    const onTabDragOver = (id: string) => {
+        if (!draggedTabId || draggedTabId === id) return;
+
+        const oldIndex = tabs.findIndex(t => t.id === draggedTabId);
+        const newIndex = tabs.findIndex(t => t.id === id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newTabs = [...tabs];
+        const [draggedItem] = newTabs.splice(oldIndex, 1);
+        newTabs.splice(newIndex, 0, draggedItem);
+        setTabs(newTabs);
+    };
+
+    const handleAddressBarDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData('neuro/file', JSON.stringify({
             name: activeTab.title,
             path: activeTab.url,
@@ -190,7 +209,14 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
                 {tabs.map(tab => (
                     <motion.div
                         key={tab.id}
-                        layoutId={tab.id}
+                        layout
+                        draggable
+                        onDragStart={() => onTabDragStart(tab.id)}
+                        onDragOver={(e) => {
+                            e.preventDefault();
+                            onTabDragOver(tab.id);
+                        }}
+                        onDragEnd={() => setDraggedTabId(null)}
                         onClick={() => setActiveTabId(tab.id)}
                         className={cn(
                             "group relative flex items-center gap-2 px-3 py-1.5 min-w-[140px] max-w-[200px] rounded-t-xl cursor-pointer transition-all border-x border-t border-transparent",
@@ -240,7 +266,11 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
                 </div>
 
                 {/* Address Bar */}
-                <div className="flex-1 flex items-center gap-2 px-4 py-1.5 bg-zinc-100/80 rounded-2xl border border-zinc-200/50 group focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500/30 transition-all relative">
+                <div
+                    draggable
+                    onDragStart={handleAddressBarDragStart}
+                    className="flex-1 flex items-center gap-2 px-4 py-1.5 bg-zinc-100/80 rounded-2xl border border-zinc-200/50 group focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500/30 transition-all relative"
+                >
                     <div className="flex items-center gap-1.5 text-emerald-600">
                         {activeTab.url.startsWith('https') ? <Lock size={12} strokeWidth={2.5} /> : <Globe size={12} />}
                     </div>
@@ -256,7 +286,7 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
                     </form>
 
                     <div className="flex items-center gap-1">
-                        <div draggable onDragStart={handleDragStart} className="p-1 px-2 hover:bg-zinc-200/50 rounded-md text-zinc-400 hover:text-sky-500 transition-all cursor-grab active:cursor-grabbing flex items-center gap-1 group/dnd" title="Drag to Board">
+                        <div draggable onDragStart={handleAddressBarDragStart} className="p-1 px-2 hover:bg-zinc-200/50 rounded-md text-zinc-400 hover:text-sky-500 transition-all cursor-grab active:cursor-grabbing flex items-center gap-1 group/dnd" title="Drag to Board">
                             <LinkIcon size={12} className="group-hover/dnd:rotate-45 transition-transform" />
                         </div>
                     </div>
