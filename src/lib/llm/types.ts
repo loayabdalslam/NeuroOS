@@ -1,6 +1,8 @@
+export type MessageContent = string | { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
+
 export interface LLMMessage {
     role: 'system' | 'user' | 'assistant';
-    content: string;
+    content: string | MessageContent[];
 }
 
 export interface LLMResponse {
@@ -16,7 +18,55 @@ export interface LLMProvider {
     id: string;
     name: string;
     description: string;
+    supportsVision?: boolean;
+    visionModels?: string[];
     chat(messages: LLMMessage[]): Promise<LLMResponse>;
     stream(messages: LLMMessage[], onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void>;
     validateConfig?(): Promise<boolean>;
+}
+
+export const VISION_MODELS = {
+    openai: ['gpt-4-vision', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4'],
+    anthropic: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku', 'claude-3-5-sonnet', 'claude-3-5-haiku'],
+    google: ['gemini-pro-vision', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro-002', 'gemini-2.0-flash-exp'],
+    openrouter: ['openai/gpt-4o', 'openai/gpt-4o-mini', 'anthropic/claude-3-opus', 'anthropic/claude-3-sonnet', 'google/gemini-pro-vision'],
+    ollama: ['llava', 'llava-llama3', 'llava-phi3', 'bakllava', 'moondream', 'qwen-vl', 'minicpm-v'],
+};
+
+export function hasImageContent(messages: LLMMessage[]): boolean {
+    for (const msg of messages) {
+        if (Array.isArray(msg.content)) {
+            for (const part of msg.content) {
+                if (typeof part === 'object' && part.type === 'image_url') {
+                    return true;
+                }
+            }
+        } else if (typeof msg.content === 'string') {
+            if (msg.content.includes('data:image/') || msg.content.includes('base64')) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+export function extractImagesFromContent(content: string | MessageContent[]): string[] {
+    const images: string[] = [];
+    
+    if (Array.isArray(content)) {
+        for (const part of content) {
+            if (typeof part === 'object' && part.type === 'image_url') {
+                if (part.image_url?.url) {
+                    images.push(part.image_url.url);
+                }
+            }
+        }
+    } else if (typeof content === 'string') {
+        const base64Matches = content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g);
+        if (base64Matches) {
+            images.push(...base64Matches);
+        }
+    }
+    
+    return images;
 }

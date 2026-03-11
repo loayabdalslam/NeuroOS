@@ -45,6 +45,24 @@ registerTool({
 });
 
 // ─── Read File ───────────────────────────────────────────────────
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp', 'tiff'];
+const BINARY_EXTENSIONS = ['exe', 'dll', 'so', 'bin', 'dat', 'zip', 'rar', '7z', 'tar', 'gz', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'mp3', 'mp4', 'wav', 'avi', 'mov', 'mkv'];
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+function getFileSizeString(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 registerTool({
     name: 'read_file',
     description: 'Reads and returns the full content of a file. The content is available in the result data for use in subsequent tool calls.',
@@ -58,11 +76,49 @@ registerTool({
         }
         const filePath = buildPath(ctx.workspacePath, args.filename);
         try {
-            const content = await ctx.readFile(filePath);
+            const content: any = await ctx.readFile(filePath);
+            
+            const ext = args.filename.split('.').pop()?.toLowerCase() || '';
+            const isArrayBuffer = content && typeof content === 'object' && 'byteLength' in content;
+            const contentLength = isArrayBuffer ? (content as ArrayBuffer).byteLength : (content as string).length;
+            
+            if (IMAGE_EXTENSIONS.includes(ext)) {
+                const base64 = isArrayBuffer ? arrayBufferToBase64(content as ArrayBuffer) : btoa(content.slice(-(content.length % 3 ? 3 - content.length % 3 : 0)));
+                const mimeType = ext === 'svg' ? 'image/svg+xml' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+                return {
+                    success: true,
+                    message: `🖼️ Image file: **${args.filename}** (${getFileSizeString(contentLength)})\n\nThis is an image file (${ext.toUpperCase()}). Use the Media Viewer to view it, or describe it using AI vision capabilities.`,
+                    data: { 
+                        path: filePath, 
+                        filename: args.filename, 
+                        size: contentLength,
+                        isImage: true,
+                        mimeType,
+                        dataUrl: isArrayBuffer ? `data:${mimeType};base64,${arrayBufferToBase64(content as ArrayBuffer)}` : `data:${mimeType};base64,${base64}`
+                    }
+                };
+            }
+            
+            if (BINARY_EXTENSIONS.includes(ext)) {
+                return {
+                    success: true,
+                    message: `📦 Binary file: **${args.filename}** (${getFileSizeString(contentLength)})\n\nThis is a binary file (${ext.toUpperCase()}) that cannot be displayed as text.`,
+                    data: { path: filePath, filename: args.filename, size: contentLength, isBinary: true }
+                };
+            }
+            
+            let textContent: string;
+            if (isArrayBuffer) {
+                const decoder = new TextDecoder('utf-8', { fatal: false });
+                textContent = decoder.decode(content as ArrayBuffer);
+            } else {
+                textContent = content as string;
+            }
+            
             return {
                 success: true,
-                message: `📄 Content of **${args.filename}** (${content.length} chars):\n\`\`\`\n${content.slice(0, 4000)}${content.length > 4000 ? '\n...(truncated)' : ''}\n\`\`\``,
-                data: { content, path: filePath, filename: args.filename, size: content.length }
+                message: `📄 Content of **${args.filename}** (${textContent.length} chars):\n\`\`\`\n${textContent.slice(0, 4000)}${textContent.length > 4000 ? '\n...(truncated)' : ''}\n\`\`\``,
+                data: { content: textContent, path: filePath, filename: args.filename, size: textContent.length }
             };
         } catch (e: any) {
             return { success: false, message: `❌ Failed to read "${args.filename}": ${e.message}` };

@@ -1,4 +1,4 @@
-import { LLMProvider, LLMMessage, LLMResponse } from './types';
+import { LLMProvider, LLMMessage, LLMResponse, VISION_MODELS, hasImageContent } from './types';
 
 export class AnthropicProvider implements LLMProvider {
     id = 'anthropic';
@@ -14,11 +14,48 @@ export class AnthropicProvider implements LLMProvider {
         this.model = model;
     }
 
+    get supportsVision(): boolean {
+        const visionModels = VISION_MODELS.anthropic || [];
+        return visionModels.some(v => this.model.toLowerCase().includes(v.toLowerCase()));
+    }
+
     private buildBody(messages: LLMMessage[], stream: boolean): { body: any; systemMessage: string | undefined } {
-        const systemMessage = messages.find(m => m.role === 'system')?.content;
+        const systemMessageRaw = messages.find(m => m.role === 'system')?.content;
+        const systemMessage = typeof systemMessageRaw === 'string' ? systemMessageRaw : undefined;
+        
         const conversationMessages = messages
             .filter(m => m.role !== 'system')
-            .map(m => ({ role: m.role, content: m.content }));
+            .map(m => {
+                let content: any = m.content;
+                
+                if (Array.isArray(m.content)) {
+                    content = m.content.map(part => {
+                        if (typeof part === 'object' && part.type === 'image_url') {
+                            const url = part.image_url?.url || '';
+                            if (url.startsWith('data:')) {
+                                return {
+                                    type: 'image',
+                                    source: {
+                                        type: 'base64',
+                                        media_type: url.match(/data:([^;]+);/)?.[1] || 'image/png',
+                                        data: url.split(',')[1]
+                                    }
+                                };
+                            }
+                            return {
+                                type: 'image',
+                                source: {
+                                    type: 'url',
+                                    url: url
+                                }
+                            };
+                        }
+                        return part;
+                    });
+                }
+                
+                return { role: m.role, content };
+            });
 
         const body: any = {
             model: this.model,
@@ -32,6 +69,10 @@ export class AnthropicProvider implements LLMProvider {
     }
 
     async chat(messages: LLMMessage[]): Promise<LLMResponse> {
+        if (hasImageContent(messages) && !this.supportsVision) {
+            throw new Error('This model does not support image input. Please use Claude 3 Opus, Sonnet, or Haiku for vision support. Or switch to OpenAI GPT-4 or Google Gemini.');
+        }
+
         try {
             const { body } = this.buildBody(messages, false);
             const response = await fetch(`${this.baseUrl}/messages`, {
@@ -66,6 +107,10 @@ export class AnthropicProvider implements LLMProvider {
     }
 
     async stream(messages: LLMMessage[], onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void> {
+        if (hasImageContent(messages) && !this.supportsVision) {
+            throw new Error('This model does not support image input. Please use Claude 3 Opus, Sonnet, or Haiku for vision support. Or switch to OpenAI GPT-4 or Google Gemini.');
+        }
+
         const { body } = this.buildBody(messages, true);
         const response = await fetch(`${this.baseUrl}/messages`, {
             method: 'POST',

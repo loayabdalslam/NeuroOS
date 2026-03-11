@@ -1,4 +1,4 @@
-import { LLMProvider, LLMMessage, LLMResponse } from './types';
+import { LLMProvider, LLMMessage, LLMResponse, VISION_MODELS, hasImageContent } from './types';
 
 export class OpenAIProvider implements LLMProvider {
     id = 'openai';
@@ -14,14 +14,45 @@ export class OpenAIProvider implements LLMProvider {
         this.model = model;
     }
 
-    async chat(messages: LLMMessage[]): Promise<LLMResponse> {
-        try {
-            // Adjust endpoint based on whether the baseUrl already includes /v1 or /chat/completions
-            // Common convention: baseUrl is "https://api.openai.com/v1"
-            let endpoint = `${this.baseUrl}/chat/completions`;
+    get supportsVision(): boolean {
+        const visionModels = [
+            ...(VISION_MODELS.openai || []),
+            ...(VISION_MODELS.google || []),
+            ...(VISION_MODELS.openrouter || [])
+        ];
+        return visionModels.some(v => this.model.toLowerCase().includes(v.toLowerCase()));
+    }
 
-            // Some users might put the full path in baseUrl, handle that gracefully if needed
-            // But for now assume standard base URL
+    private formatMessages(messages: LLMMessage[]): any[] {
+        return messages.map(msg => {
+            if (Array.isArray(msg.content)) {
+                return {
+                    role: msg.role,
+                    content: msg.content.map(part => {
+                        if (typeof part === 'string') {
+                            return { type: 'text', text: part };
+                        }
+                        if (typeof part === 'object' && part.type === 'text') {
+                            return part;
+                        }
+                        if (typeof part === 'object' && part.type === 'image_url') {
+                            return { type: 'image_url', image_url: part.image_url };
+                        }
+                        return { type: 'text', text: String(part) };
+                    })
+                };
+            }
+            return { role: msg.role, content: msg.content };
+        });
+    }
+
+    async chat(messages: LLMMessage[]): Promise<LLMResponse> {
+        if (hasImageContent(messages) && !this.supportsVision) {
+            throw new Error('This model does not support image input. Please use GPT-4o, GPT-4-turbo, Claude 3, or Gemini for vision support.');
+        }
+
+        try {
+            let endpoint = `${this.baseUrl}/chat/completions`;
 
             const response = await fetch(endpoint, {
                 method: 'POST',
@@ -31,10 +62,7 @@ export class OpenAIProvider implements LLMProvider {
                 },
                 body: JSON.stringify({
                     model: this.model,
-                    messages: messages.map(m => ({
-                        role: m.role,
-                        content: m.content
-                    })),
+                    messages: this.formatMessages(messages),
                     stream: false
                 }),
             });
@@ -60,6 +88,10 @@ export class OpenAIProvider implements LLMProvider {
     }
 
     async stream(messages: LLMMessage[], onChunk: (chunk: string) => void, signal?: AbortSignal): Promise<void> {
+        if (hasImageContent(messages) && !this.supportsVision) {
+            throw new Error('This model does not support image input. Please use GPT-4o, GPT-4-turbo, Claude 3, or Gemini for vision support.');
+        }
+
         const endpoint = `${this.baseUrl}/chat/completions`;
 
         const response = await fetch(endpoint, {
@@ -70,13 +102,10 @@ export class OpenAIProvider implements LLMProvider {
             },
             body: JSON.stringify({
                 model: this.model,
-                messages: messages.map(m => ({
-                    role: m.role,
-                    content: m.content
-                })),
+                messages: this.formatMessages(messages),
                 stream: true
             }),
-            signal, // Pass AbortSignal to cancel mid-stream
+            signal,
         });
 
         if (!response.ok) {
