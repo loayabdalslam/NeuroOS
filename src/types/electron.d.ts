@@ -57,6 +57,8 @@ declare global {
                     nodeVersion: string;
                 }>;
                 notification: (title: string, body: string) => Promise<boolean>;
+                getAutoLaunch: () => Promise<boolean>;
+                setAutoLaunch: (enable: boolean) => Promise<boolean>;
             };
             updates: {
                 check: () => Promise<void>;

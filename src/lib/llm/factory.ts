@@ -21,6 +21,7 @@ export const getLLMProvider = (): LLMProvider => {
         case 'openai':
         case 'groq':
         case 'mistral':
+        case 'openrouter':
         case 'gemini':
         case 'custom':
             return new OpenAIProvider(activeProvider.baseUrl, activeProvider.apiKey, activeProvider.selectedModel);

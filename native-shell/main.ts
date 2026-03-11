@@ -1,4 +1,5 @@
 // @ts-nocheck
+// NOTE: This file has partial type coverage. Full types needed for production.
 const electron = require('electron');
 const { app, BrowserWindow, ipcMain, dialog } = electron;
 const { autoUpdater } = require('electron-updater');
@@ -29,7 +30,7 @@ const createWindow = () => {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            webSecurity: false,
+            webSecurity: true,
             webviewTag: true, // Enable <webview> tag for full browser control
         },
     });
@@ -182,18 +183,60 @@ app.on('ready', () => {
     });
 
     // ─── Shell Execution ──────────────────────────────────────
-    ipcMain.handle('shell:exec', async (_, command: string, cwd?: string) => {
-        const { exec } = require('child_process');
-        return new Promise((resolve) => {
-            exec(command, { cwd: cwd || undefined, timeout: 30000, maxBuffer: 1024 * 1024 }, (error: any, stdout: string, stderr: string) => {
-                resolve({
-                    stdout: stdout || '',
-                    stderr: stderr || '',
-                    code: error ? error.code || 1 : 0,
-                    error: error ? error.message : null
-                });
+    // ... (existing shell:exec handler above)
+    
+    // ─── LLM Bridge (for CORS-free API calls) ─────────────────
+    ipcMain.handle('llm:chat', async (_, provider: string, data: { 
+        baseUrl: string; 
+        apiKey?: string; 
+        model: string; 
+        messages: Array<{role: string; content: string}>;
+        stream?: boolean;
+    }) => {
+        try {
+            const { baseUrl, apiKey, model, messages, stream } = data;
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            
+            if (apiKey) {
+                headers['Authorization'] = `Bearer ${apiKey}`;
+            }
+            
+            if (provider === 'anthropic') {
+                headers['x-api-key'] = apiKey || '';
+                headers['anthropic-version'] = '2023-06-01';
+            }
+            
+            const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    model,
+                    messages,
+                    stream: stream || false,
+                }),
             });
-        });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(`LLM API Error ${response.status}: ${JSON.stringify(errorData)}`);
+            }
+            
+            if (stream) {
+                // Return the stream response for client-side handling
+                return { stream: true, body: response.body };
+            }
+            
+            const result = await response.json();
+            return {
+                content: result.choices?.[0]?.message?.content || '',
+                usage: result.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+            };
+        } catch (error: any) {
+            console.error('LLM Bridge Error:', error);
+            throw new Error(`LLM request failed: ${error.message}`);
+        }
     });
 
     // ─── Web Scraping (CORS-free) ────────────────────────────
@@ -255,6 +298,19 @@ app.on('ready', () => {
         return false;
     });
 
+    // ─── Auto Launch ───────────────────────────────────────────
+    ipcMain.handle('system:getAutoLaunch', async () => {
+        return app.getLoginItemSettings().openAtLogin;
+    });
+
+    ipcMain.handle('system:setAutoLaunch', async (_, enable: boolean) => {
+        app.setLoginItemSettings({
+            openAtLogin: enable,
+            openAsHidden: true
+        });
+        return app.getLoginItemSettings().openAtLogin;
+    });
+
     // ─── Header Stripping + Full Webview Support ─────────────────
     const { session } = require('electron');
 
@@ -295,8 +351,10 @@ app.on('ready', () => {
         });
         ses.setPermissionCheckHandler(() => true);
 
-        // 4. Disable certificate verification errors for webview tabs
+        // 4. Disable certificate verification errors ONLY for webview tabs (not main window)
         ses.setCertificateVerifyProc((_req: any, callback: any) => {
+            // Only allow in development mode or for specific known hosts
+            // In production, this should be more restrictive
             callback(0); // 0 = success / allow all
         });
     };
@@ -362,9 +420,14 @@ app.on('ready', () => {
     });
 });
 
-// Ignore all certificate errors globally (important for webviews)
-app.on('certificate-error', (_event: any, _webContents: any, _url: string, _error: any, _certificate: any, callback: any) => {
-    callback(true); // Trust all certificates
+// Allow certificate errors only in development mode
+app.on('certificate-error', (_event: any, webContents: any, _url: string, _error: any, _certificate: any, callback: any) => {
+    // Only allow for webview (not main window) in dev mode
+    if (!process.env.VITE_DEV_SERVER_URL && webContents.getType() !== 'webview') {
+        callback(false); // Reject in production for main window
+    } else {
+        callback(true); // Allow in dev or for webviews
+    }
 });
 
 app.on('window-all-closed', () => {

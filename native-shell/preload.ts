@@ -70,6 +70,8 @@ contextBridge.exposeInMainWorld('electron', {
     system: {
         info: () => ipcRenderer.invoke('system:info'),
         notification: (title: string, body: string) => ipcRenderer.invoke('system:notification', title, body),
+        getAutoLaunch: () => ipcRenderer.invoke('system:getAutoLaunch'),
+        setAutoLaunch: (enable: boolean) => ipcRenderer.invoke('system:setAutoLaunch', enable),
     },
 
     // Proxy Request

@@ -18,3 +18,18 @@ export {
     getToolsForPrompt
 } from './toolEngine';
 export type { ToolContext, ToolResult, ParsedToolCall, ToolDefinition } from './toolEngine';
+
+// Re-export Crew AI system
+export { 
+    NeuroOSCrew, 
+    createCrew, 
+    DEFAULT_CREW_AGENTS 
+} from './crew';
+export type { 
+    Agent, 
+    AgentRole, 
+    Task, 
+    CrewMember, 
+    CrewConfig, 
+    CrewExecutionResult 
+} from './crew';

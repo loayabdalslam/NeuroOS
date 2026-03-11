@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { Settings as SettingsIcon, Shield, Palette, Globe, Key, Bell, Info, Bot, Zap, Database, Monitor, Brain, Check, RefreshCw, Download, ArrowUpCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Palette, Globe, Key, Bell, Info, Bot, Zap, Database, Monitor, Brain, Check, RefreshCw, Download, ArrowUpCircle, Rocket, Power } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { OSAppWindow } from '../hooks/useOS';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -11,8 +11,9 @@ interface SettingsProps {
 }
 
 export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
-  const [activeTab, setActiveTab] = useState('appearance');
+  const [activeTab, setActiveTab] = useState('general');
   const [theme, setTheme] = useState('Light');
+  const [launchOnStartup, setLaunchOnStartup] = useState(false);
 
   const { aiConfig, updateAiConfig, updateProvider } = useSettingsStore();
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
@@ -52,6 +53,26 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
     await window.electron?.updates.install();
   };
 
+  const toggleLaunchOnStartup = useCallback(async () => {
+    const newValue = !launchOnStartup;
+    setLaunchOnStartup(newValue);
+    // @ts-ignore
+    if (window.electron?.system?.setAutoLaunch) {
+      // @ts-ignore
+      await window.electron.system.setAutoLaunch(newValue);
+    }
+  }, [launchOnStartup]);
+
+  useEffect(() => {
+    // @ts-ignore
+    if (window.electron?.system?.getAutoLaunch) {
+      // @ts-ignore
+      window.electron.system.getAutoLaunch().then((enabled: boolean) => {
+        setLaunchOnStartup(enabled);
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (windowData?.lastAction && windowData.lastAction.type === 'set_theme') {
       const newTheme = windowData.lastAction.payload;
@@ -63,6 +84,7 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
   }, [windowData?.lastAction]);
 
   const TABS = [
+    { id: 'general', name: 'General', icon: SettingsIcon },
     { id: 'appearance', name: 'Appearance', icon: Palette },
     { id: 'ai', name: 'AI Models', icon: Bot },
     { id: 'security', name: 'Security', icon: Shield },
@@ -102,6 +124,58 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
             <h1 className="text-2xl font-bold mb-2 tracking-tight text-zinc-900">{TABS.find(t => t.id === activeTab)?.name}</h1>
             <p className="text-zinc-500 text-sm">Configure your system preferences.</p>
           </div>
+
+          {activeTab === 'general' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="space-y-6">
+                <div className="p-5 border border-zinc-200 rounded-2xl bg-zinc-50/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <Rocket size={24} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-zinc-900">Launch on Startup</h3>
+                        <p className="text-xs text-zinc-500 mt-0.5">Automatically start Neuro OS when you log in</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={toggleLaunchOnStartup}
+                      className={`
+                        relative w-14 h-7 rounded-full transition-all duration-300 outline-none focus:ring-2 focus:ring-blue-500/20
+                        ${launchOnStartup ? 'bg-blue-600' : 'bg-zinc-200'}
+                      `}
+                    >
+                      <div
+                        className={`
+                          absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300
+                          ${launchOnStartup ? 'translate-x-8' : 'translate-x-1'}
+                        `}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-5 border border-zinc-200 rounded-2xl bg-zinc-50/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                        <Power size={24} className="text-emerald-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-zinc-900">System Status</h3>
+                        <p className="text-xs text-zinc-500 mt-0.5">Neuro OS is running normally</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-xs font-medium text-emerald-600">Online</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'appearance' && (
             <div className="space-y-6">

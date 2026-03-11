@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { useOS } from './hooks/useOS';
 import { Taskbar } from './components/Taskbar';
 import { StartMenu } from './components/StartMenu';
 import { Desktop } from './components/Desktop';

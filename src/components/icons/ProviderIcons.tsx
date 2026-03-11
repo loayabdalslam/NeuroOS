@@ -53,6 +53,21 @@ export const ProviderLogos: Record<string, React.FC<{ className?: string, size?:
             <path d="M7 14L10 9L13 14L17 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     ),
+    openrouter: ({ className, size = 24 }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
+            {/* OpenRouter logo - connected nodes/router symbol */}
+            <circle cx="12" cy="12" r="3" />
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="19" r="2" />
+            <circle cx="5" cy="12" r="2" />
+            <circle cx="19" cy="12" r="2" />
+            <circle cx="6.5" cy="6.5" r="1.5" />
+            <circle cx="17.5" cy="6.5" r="1.5" />
+            <circle cx="6.5" cy="17.5" r="1.5" />
+            <circle cx="17.5" cy="17.5" r="1.5" />
+            <path d="M12 9V5M12 19V15M9 12H5M19 12H15M9.5 9L6.5 6.5M14.5 14L17.5 17.5M14.5 10L17.5 6.5M9.5 14L6.5 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    ),
     custom: ({ className, size = 24 }) => (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
             <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
