@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Taskbar } from './components/Taskbar';
 import { StartMenu } from './components/StartMenu';
 import { Desktop } from './components/Desktop';
@@ -6,16 +6,22 @@ import { WindowManager } from './components/WindowManager';
 import { LockScreen } from './components/LockScreen';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { SystemAssistant } from './components/SystemAssistant';
+import { ComposioOnboarding } from './components/ComposioOnboarding';
+import { ToolPermissionDialog } from './components/ToolPermissionDialog';
 import { ContextMenuProvider } from './components/ContextMenu';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from './stores/authStore';
 import { useWorkspaceStore } from './stores/workspaceStore';
 import { useSettingsStore } from './stores/settingsStore';
+import { useComposioStore } from './stores/composioStore';
+import { applyThemeToDOM } from './lib/designSystem/themes';
 
 export default function App() {
   const { users, isAddingUser, isAuthenticated, hasHydrated } = useAuthStore();
   const { workspacePath, setWorkspace } = useWorkspaceStore();
   const { theme } = useSettingsStore();
+  const { isOnboarding } = useComposioStore();
+  const [toolPermission, setToolPermission] = useState<{ toolId: string; toolName: string; appId: string } | null>(null);
 
   // if the persisted workspace path disappears (moved/deleted), clear it
   useEffect(() => {
@@ -28,14 +34,7 @@ export default function App() {
 
   // Apply theme to document
   useEffect(() => {
-    const htmlElement = document.documentElement;
-    const isDarkMode = theme === 'Dark' || (theme === 'System' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-    if (isDarkMode) {
-      htmlElement.classList.add('dark');
-    } else {
-      htmlElement.classList.remove('dark');
-    }
+    applyThemeToDOM(theme as any);
   }, [theme]);
 
   if (!hasHydrated) {
@@ -68,6 +67,34 @@ export default function App() {
   return (
     <ContextMenuProvider>
       <div className="h-screen w-screen bg-zinc-50 overflow-hidden relative font-sans text-zinc-900 selection:bg-zinc-900 selection:text-white">
+
+        {/* Composio Onboarding */}
+        <AnimatePresence>
+          {isAuthenticated && isOnboarding && (
+            <ComposioOnboarding
+              key="composio-onboarding"
+              onComplete={() => {
+                // Onboarding dialog will close automatically
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Tool Permission Dialog */}
+        <AnimatePresence>
+          {isAuthenticated && toolPermission && (
+            <ToolPermissionDialog
+              key="tool-permission"
+              toolId={toolPermission.toolId}
+              toolName={toolPermission.toolName}
+              appId={toolPermission.appId}
+              onClose={() => setToolPermission(null)}
+              onAuthorize={() => {
+                // Permission granted
+              }}
+            />
+          )}
+        </AnimatePresence>
 
         {/* Security Layer */}
         <AnimatePresence mode="wait">

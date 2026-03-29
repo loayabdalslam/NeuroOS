@@ -1,14 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { ThemeVariant } from '../lib/designSystem/themes';
+
 interface SettingsState {
     wallpaper: string;
     customWallpapers: string[];
-    theme: 'Light' | 'Dark' | 'System';
+    theme: ThemeVariant;
     p2pServerUrl: string;
+    notificationsEnabled: boolean;
+    soundEnabled: boolean;
+    desktopBadgesEnabled: boolean;
     setWallpaper: (url: string) => void;
-    setTheme: (theme: 'Light' | 'Dark' | 'System') => void;
+    setTheme: (theme: ThemeVariant) => void;
     setP2PServerUrl: (url: string) => void;
+    setNotifications: (enabled: boolean) => void;
+    setSound: (enabled: boolean) => void;
+    setDesktopBadges: (enabled: boolean) => void;
     addCustomWallpaper: (url: string) => void;
     removeCustomWallpaper: (url: string) => void;
     aiConfig: {
@@ -32,11 +40,17 @@ export const useSettingsStore = create<SettingsState>()(
         (set) => ({
             wallpaper: '',
             customWallpapers: [],
-            theme: 'System',
+            theme: 'system' as ThemeVariant,
             p2pServerUrl: 'wss://neuro-p2p-signaling.fly.dev',
+            notificationsEnabled: true,
+            soundEnabled: true,
+            desktopBadgesEnabled: true,
             setWallpaper: (url) => set({ wallpaper: url }),
-            setTheme: (theme) => set({ theme }),
+            setTheme: (theme: ThemeVariant) => set({ theme }),
             setP2PServerUrl: (url) => set({ p2pServerUrl: url }),
+            setNotifications: (enabled) => set({ notificationsEnabled: enabled }),
+            setSound: (enabled) => set({ soundEnabled: enabled }),
+            setDesktopBadges: (enabled) => set({ desktopBadgesEnabled: enabled }),
             addCustomWallpaper: (url) => set((state) => ({
                 customWallpapers: state.customWallpapers.includes(url) 
                     ? state.customWallpapers 

@@ -179,29 +179,58 @@ export class NeuroOSCrew {
 
     private async executeAgentTask(member: CrewMember, context: ToolContext): Promise<string> {
         const llm = getLLMProvider();
-        
+
         const systemPrompt = this.buildAgentSystemPrompt(member);
         const taskContext = this.buildTaskContext(member);
-        
-        const messages = [
-            { role: 'system' as const, content: systemPrompt },
-            { role: 'user' as const, content: taskContext }
+
+        const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: taskContext }
         ];
 
         try {
             let fullResponse = '';
-            
-            await llm.stream(messages, (chunk) => {
-                fullResponse += chunk;
-            });
+            let iterationCount = 0;
+            const maxIterations = 5;
 
-            const toolCalls = parseToolCalls(fullResponse);
-            
-            if (toolCalls.length > 0) {
+            while (iterationCount < maxIterations) {
+                iterationCount++;
+                fullResponse = '';
+
+                // Get LLM response (streaming)
+                await llm.stream(messages, (chunk) => {
+                    fullResponse += chunk;
+                });
+
+                // Parse tool calls from the response
+                const toolCalls = parseToolCalls(fullResponse);
+
+                // If no tool calls, we're done
+                if (toolCalls.length === 0) {
+                    this.log(`Agent ${member.agent.name} completed task (no tool calls)`);
+                    return fullResponse;
+                }
+
+                // Add assistant's response to messages for context
+                messages.push({ role: 'assistant', content: fullResponse });
+
+                // Execute all tools and collect results
+                const toolResults: string[] = [];
                 for (const toolCall of toolCalls) {
                     this.log(`Agent ${member.agent.name} executing tool: ${toolCall.tool}`);
                     const result = await executeTool(toolCall, context);
-                    fullResponse += `\n\n[Tool Result: ${result.message}]`;
+                    const resultText = `Tool: ${toolCall.tool}\nResult: ${result.message}`;
+                    toolResults.push(resultText);
+                }
+
+                // Send tool results back to LLM for synthesis
+                const toolResultsText = toolResults.join('\n\n');
+                messages.push({ role: 'user', content: `Tool results:\n\n${toolResultsText}\n\nPlease analyze these results and provide your response. If you have more work to do, you can call more tools.` });
+
+                // If this is the last iteration, break and return the final response
+                if (iterationCount === maxIterations) {
+                    this.log(`Agent ${member.agent.name} reached max iterations`);
+                    return fullResponse + `\n\n[Tool Results Summary]\n${toolResultsText}`;
                 }
             }
 

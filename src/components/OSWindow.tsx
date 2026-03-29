@@ -15,7 +15,9 @@ interface OSWindowProps {
 export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children }) => {
   const { closeWindow, focusWindow, updateWindow, minimizeWindow } = useOS();
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState<string | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const resizeStartState = useRef({ pos: { x: 0, y: 0 }, size: { width: 0, height: 0 }, mousePos: { x: 0, y: 0 } });
 
   const handleMouseDown = (e: React.MouseEvent) => {
     focusWindow(windowData.id);
@@ -28,22 +30,68 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
     };
   };
 
+  const handleResizeStart = (direction: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    focusWindow(windowData.id);
+    if (windowData.state === 'maximized') return;
+
+    setIsResizing(direction);
+    resizeStartState.current = {
+      pos: { ...windowData.position },
+      size: { ...windowData.size },
+      mousePos: { x: e.clientX, y: e.clientY },
+    };
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      updateWindow(windowData.id, {
-        position: {
-          x: e.clientX - dragStartPos.current.x,
-          y: e.clientY - dragStartPos.current.y,
-        },
-      });
+      if (isDragging) {
+        updateWindow(windowData.id, {
+          position: {
+            x: e.clientX - dragStartPos.current.x,
+            y: e.clientY - dragStartPos.current.y,
+          },
+        });
+      }
+
+      if (isResizing && resizeStartState.current) {
+        const deltaX = e.clientX - resizeStartState.current.mousePos.x;
+        const deltaY = e.clientY - resizeStartState.current.mousePos.y;
+        const newSize = { ...resizeStartState.current.size };
+        const newPos = { ...resizeStartState.current.pos };
+        const minWidth = 300;
+        const minHeight = 200;
+
+        if (isResizing.includes('right')) {
+          newSize.width = Math.max(minWidth, newSize.width + deltaX);
+        }
+        if (isResizing.includes('left')) {
+          newSize.width = Math.max(minWidth, newSize.width - deltaX);
+          if (newSize.width > resizeStartState.current.size.width || newSize.width === minWidth) {
+            newPos.x = resizeStartState.current.pos.x + deltaX;
+          }
+        }
+        if (isResizing.includes('bottom')) {
+          newSize.height = Math.max(minHeight, newSize.height + deltaY);
+        }
+        if (isResizing.includes('top')) {
+          newSize.height = Math.max(minHeight, newSize.height - deltaY);
+          if (newSize.height > resizeStartState.current.size.height || newSize.height === minHeight) {
+            newPos.y = resizeStartState.current.pos.y + deltaY;
+          }
+        }
+
+        updateWindow(windowData.id, { size: newSize, position: newPos });
+      }
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      setIsResizing(null);
     };
 
-    if (isDragging) {
+    if (isDragging || isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -52,7 +100,7 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, windowData.id, updateWindow]);
+  }, [isDragging, isResizing, windowData.id, updateWindow]);
 
   const isMaximized = windowData.state === 'maximized';
   const isChatApp = windowData.component === 'chat';
@@ -132,6 +180,54 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
       <div className="flex-1 overflow-auto bg-white scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
         {children}
       </div>
+
+      {/* Resize Handles - Only show when not maximized */}
+      {windowData.state !== 'maximized' && (
+        <>
+          {/* Corners */}
+          <div
+            onMouseDown={handleResizeStart('top-left')}
+            className="absolute top-0 left-0 w-2 h-2 cursor-nwse-resize"
+            style={{ zIndex: 1000 }}
+          />
+          <div
+            onMouseDown={handleResizeStart('top-right')}
+            className="absolute top-0 right-0 w-2 h-2 cursor-nesw-resize"
+            style={{ zIndex: 1000 }}
+          />
+          <div
+            onMouseDown={handleResizeStart('bottom-left')}
+            className="absolute bottom-0 left-0 w-2 h-2 cursor-nesw-resize"
+            style={{ zIndex: 1000 }}
+          />
+          <div
+            onMouseDown={handleResizeStart('bottom-right')}
+            className="absolute bottom-0 right-0 w-2 h-2 cursor-nwse-resize"
+            style={{ zIndex: 1000 }}
+          />
+          {/* Edges */}
+          <div
+            onMouseDown={handleResizeStart('top')}
+            className="absolute top-0 left-2 right-2 h-1 cursor-ns-resize"
+            style={{ zIndex: 1000 }}
+          />
+          <div
+            onMouseDown={handleResizeStart('bottom')}
+            className="absolute bottom-0 left-2 right-2 h-1 cursor-ns-resize"
+            style={{ zIndex: 1000 }}
+          />
+          <div
+            onMouseDown={handleResizeStart('left')}
+            className="absolute top-2 bottom-2 left-0 w-1 cursor-ew-resize"
+            style={{ zIndex: 1000 }}
+          />
+          <div
+            onMouseDown={handleResizeStart('right')}
+            className="absolute top-2 bottom-2 right-0 w-1 cursor-ew-resize"
+            style={{ zIndex: 1000 }}
+          />
+        </>
+      )}
     </motion.div>
   );
 };

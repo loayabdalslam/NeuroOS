@@ -21,6 +21,7 @@ export interface AppConfig {
     name: string;
     icon: LucideIcon;
     color: string;
+    description?: string;
 }
 
 export const APPS_CONFIG: Record<string, AppConfig> = {

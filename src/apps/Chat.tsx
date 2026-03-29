@@ -3,11 +3,12 @@ import {
     Send, BrainCircuit, User, Eraser, Loader2, Sparkles, X, Pause, Play,
     ChevronDown, ChevronUp, Trash2, Copy, Check, FileText, Image as ImageIcon,
     Wifi, WifiOff, Users, MessageCircle, Hash, Volume2, VolumeX, SkipBack, SkipForward,
-    AlertCircle, AlertTriangle
+    AlertCircle, AlertTriangle, Lock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { showContextMenu } from '../components/ContextMenu';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useComposioStore } from '../stores/composioStore';
 import { getLLMProvider } from '../lib/llm/factory';
 import { useOS, OSAppWindow } from '../hooks/useOS';
 import Markdown from 'react-markdown';
@@ -74,6 +75,7 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
     const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
     const [errorModal, setErrorModal] = useState<{ show: boolean; title: string; message: string } | null>(null);
     const [confirmationPending, setConfirmationPending] = useState<{ toolName: string; args: Record<string, any>; resolve: (confirmed: boolean) => void } | null>(null);
+    const [permissionPending, setPermissionPending] = useState<{ toolId: string; toolName: string; appId: string; resolve: (authorized: boolean) => void } | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -293,6 +295,29 @@ Otherwise, provide your response directly.`;
                     while (retryCount <= maxRetries) {
                         try {
                             toolResult = await executeTool(toolCall, getToolContext(), confirmToolExecution);
+
+                            // Check if tool requires permission (Composio)
+                            if (!toolResult.success && toolResult.data?.requiresPermission) {
+                                addStep('info', `Tool requires authorization`, `"${toolResult.data.toolName}" needs permission to use ${toolResult.data.appId}`);
+
+                                // Show permission dialog
+                                const permissionGranted = await new Promise<boolean>((resolve) => {
+                                    setPermissionPending({
+                                        toolId: toolResult.data.toolId,
+                                        toolName: toolResult.data.toolName,
+                                        appId: toolResult.data.appId,
+                                        resolve
+                                    });
+                                });
+
+                                if (permissionGranted) {
+                                    addStep('tool-call', `Retrying ${toolCall.tool} with permission...`);
+                                    continue; // Retry the tool
+                                } else {
+                                    toolResult = { success: false, message: `Tool authorization cancelled by user` };
+                                    break;
+                                }
+                            }
 
                             if (toolResult.success) {
                                 addStep('tool-result', `${toolCall.tool} completed`, toolResult.message.substring(0, 500));
@@ -533,6 +558,62 @@ Otherwise, provide your response directly.`;
                                     className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800"
                                 >
                                     Confirm
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Tool Permission Modal */}
+            <AnimatePresence>
+                {permissionPending && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+                        >
+                            <div className="flex items-start gap-4 mb-4">
+                                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                                    <Lock size={24} className="text-blue-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-bold text-zinc-900">Authorize Tool</h3>
+                                    <p className="text-sm text-zinc-600 mt-1">
+                                        <span className="font-semibold text-zinc-900">"{permissionPending.toolName}"</span> requires authorization
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                <p className="text-sm text-blue-900">
+                                    This tool needs permission to access {permissionPending.appId}. You'll be taken to authorize this connection.
+                                </p>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={() => {
+                                        permissionPending?.resolve(false);
+                                        setPermissionPending(null);
+                                    }}
+                                    className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded-lg text-sm font-medium hover:bg-zinc-300"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        permissionPending?.resolve(true);
+                                        setPermissionPending(null);
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                                >
+                                    Authorize
                                 </button>
                             </div>
                         </motion.div>
