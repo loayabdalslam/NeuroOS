@@ -730,3 +730,45 @@ registerTool({
         return { success: true, message: `✅ Tab: ${args.action}`, data: result.data };
     },
 });
+
+
+// Navigation aliases for convenience
+registerTool({
+    name: "browser_back",
+    description: "Go back in browser history",
+    category: "browser",
+    parameters: {},
+    handler: async (_): Promise<ToolResult> => {
+        ensureBrowserOpen();
+        const result = await sendBrowserAction("back", {});
+        if (!result.success) return { success: false, message: `Back failed: ${result.error}` };
+        return { success: true, message: `✅ Went back`, data: result.data };
+    },
+});
+
+registerTool({
+    name: "browser_forward",
+    description: "Go forward in browser history",
+    category: "browser",
+    parameters: {},
+    handler: async (_): Promise<ToolResult> => {
+        ensureBrowserOpen();
+        const result = await sendBrowserAction("forward", {});
+        if (!result.success) return { success: false, message: `Forward failed: ${result.error}` };
+        return { success: true, message: `✅ Went forward`, data: result.data };
+    },
+});
+
+registerTool({
+    name: "browser_refresh",
+    description: "Refresh the current page",
+    category: "browser",
+    parameters: {},
+    handler: async (_): Promise<ToolResult> => {
+        ensureBrowserOpen();
+        const result = await sendBrowserAction("refresh", {});
+        if (!result.success) return { success: false, message: `Refresh failed: ${result.error}` };
+        return { success: true, message: `✅ Page refreshed`, data: result.data };
+    },
+});
+

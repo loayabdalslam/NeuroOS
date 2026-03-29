@@ -399,8 +399,14 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
                 <h3 className="text-sm font-semibold text-zinc-900">P2P Chat Server</h3>
                 <div className="p-4 border border-zinc-200 rounded-2xl space-y-2">
                   <label className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">Server URL</label>
-                  <input type="text" placeholder="ws://localhost:8000" className="w-full p-3 bg-white border border-zinc-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" defaultValue="ws://localhost:8000" />
-                  <p className="text-[10px] text-zinc-400 mt-2">Configure your P2P chat server endpoint</p>
+                  <input
+                    type="text"
+                    placeholder="wss://example.com"
+                    className="w-full p-3 bg-white border border-zinc-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    value={useSettingsStore().p2pServerUrl}
+                    onChange={(e) => useSettingsStore().setP2PServerUrl(e.target.value)}
+                  />
+                  <p className="text-[10px] text-zinc-400 mt-2">Configure your P2P chat server endpoint (wss:// for secure)</p>
                 </div>
               </div>
             </div>

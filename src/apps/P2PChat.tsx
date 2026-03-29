@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { v4 as uuidv4 } from 'uuid';
+import { useSettingsStore } from '../stores/settingsStore';
 
 interface Peer {
     id: string;
@@ -37,6 +38,7 @@ interface P2PChatAppProps {
 }
 
 export const P2PChatApp: React.FC<P2PChatAppProps> = ({ windowData }) => {
+    const { p2pServerUrl } = useSettingsStore();
     const [myId] = useState(() => localStorage.getItem('neuro-p2p-id') || uuidv4());
     const [myName, setMyName] = useState(() => localStorage.getItem('neuro-p2p-name') || 'User');
     const [peers, setPeers] = useState<Peer[]>([]);
@@ -52,7 +54,7 @@ export const P2PChatApp: React.FC<P2PChatAppProps> = ({ windowData }) => {
     const [newChatName, setNewChatName] = useState('');
     const [editingName, setEditingName] = useState(false);
     const [tempName, setTempName] = useState(myName);
-    
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const wsRef = useRef<WebSocket | null>(null);
 
@@ -70,7 +72,8 @@ export const P2PChatApp: React.FC<P2PChatAppProps> = ({ windowData }) => {
 
     const connectToNetwork = useCallback(() => {
         try {
-            const ws = new WebSocket(`wss://neuro-p2p-signaling.fly.dev/?id=${myId}&name=${myName}`);
+            const serverUrl = p2pServerUrl || 'wss://neuro-p2p-signaling.fly.dev';
+            const ws = new WebSocket(`${serverUrl}/?id=${myId}&name=${myName}`);
             
             ws.onopen = () => {
                 setIsOnline(true);

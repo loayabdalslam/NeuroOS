@@ -5,8 +5,10 @@ interface SettingsState {
     wallpaper: string;
     customWallpapers: string[];
     theme: 'Light' | 'Dark' | 'System';
+    p2pServerUrl: string;
     setWallpaper: (url: string) => void;
     setTheme: (theme: 'Light' | 'Dark' | 'System') => void;
+    setP2PServerUrl: (url: string) => void;
     addCustomWallpaper: (url: string) => void;
     removeCustomWallpaper: (url: string) => void;
     aiConfig: {
@@ -31,8 +33,10 @@ export const useSettingsStore = create<SettingsState>()(
             wallpaper: '',
             customWallpapers: [],
             theme: 'System',
+            p2pServerUrl: 'wss://neuro-p2p-signaling.fly.dev',
             setWallpaper: (url) => set({ wallpaper: url }),
             setTheme: (theme) => set({ theme }),
+            setP2PServerUrl: (url) => set({ p2pServerUrl: url }),
             addCustomWallpaper: (url) => set((state) => ({
                 customWallpapers: state.customWallpapers.includes(url) 
                     ? state.customWallpapers 

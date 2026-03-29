@@ -238,3 +238,22 @@ registerTool({
     }
 });
 
+// ─── Get App Windows (Alias for list_running_apps) ──────────────
+registerTool({
+    name: 'get_app_windows',
+    description: 'Gets a list of all open application windows. Same as list_running_apps.',
+    category: 'os',
+    parameters: {},
+    handler: async (_, ctx): Promise<ToolResult> => {
+        const windows = ctx.getAppWindows();
+        const windowList = windows
+            .map(w => `• **${w.title}** (${w.component}) - State: ${w.state}`)
+            .join('\n');
+
+        return {
+            success: true,
+            message: `🪟 **${windows.length}** window(s) open:\n${windowList}`,
+            data: { windows, count: windows.length }
+        };
+    }
+});

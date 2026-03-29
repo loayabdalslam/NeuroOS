@@ -103,19 +103,32 @@ export class OllamaProvider implements LLMProvider {
     private formatMessages(messages: LLMMessage[]): any[] {
         return messages.map(msg => {
             if (Array.isArray(msg.content)) {
-                const parts = msg.content.map(part => {
+                let textContent = '';
+                const images: string[] = [];
+
+                msg.content.forEach(part => {
                     if (typeof part === 'string') {
-                        return { type: 'text', text: part };
+                        textContent += part;
+                    } else if (typeof part === 'object' && part.type === 'text') {
+                        textContent += part.text || '';
+                    } else if (typeof part === 'object' && part.type === 'image_url') {
+                        const imageUrl = part.image_url?.url || '';
+                        // Extract base64 data from data URL or use URL directly
+                        if (imageUrl.startsWith('data:')) {
+                            const base64Data = imageUrl.split(',')[1];
+                            if (base64Data) images.push(base64Data);
+                        } else {
+                            // For external URLs, keep as is (Ollama may support via URL)
+                            images.push(imageUrl);
+                        }
                     }
-                    if (typeof part === 'object' && part.type === 'text') {
-                        return part;
-                    }
-                    if (typeof part === 'object' && part.type === 'image_url') {
-                        return { type: 'image_url', image_url: part.image_url };
-                    }
-                    return { type: 'text', text: String(part) };
                 });
-                return { role: msg.role, content: parts };
+
+                return {
+                    role: msg.role,
+                    content: textContent,
+                    images: images.length > 0 ? images : undefined
+                };
             }
             return { role: msg.role, content: msg.content };
         });
