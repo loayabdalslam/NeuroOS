@@ -2,6 +2,7 @@ import { LLMProvider } from './types';
 import { OllamaProvider } from './OllamaProvider';
 import { OpenAIProvider } from './OpenAIProvider';
 import { AnthropicProvider } from './AnthropicProvider';
+import { GeminiProvider } from './GeminiProvider';
 import { useSettingsStore } from '../../stores/settingsStore';
 
 export const getLLMProvider = (): LLMProvider => {
@@ -17,14 +18,15 @@ export const getLLMProvider = (): LLMProvider => {
         case 'ollama':
             return new OllamaProvider(activeProvider.baseUrl, activeProvider.selectedModel);
         case 'lmstudio':
-            return new OpenAIProvider(activeProvider.baseUrl || 'http://localhost:1234/v1', 'lm-studio', activeProvider.selectedModel);
+            return new OpenAIProvider(activeProvider.baseUrl || 'http://localhost:1234/v1', '', activeProvider.selectedModel);
         case 'openai':
         case 'groq':
         case 'mistral':
         case 'openrouter':
-        case 'gemini':
         case 'custom':
             return new OpenAIProvider(activeProvider.baseUrl, activeProvider.apiKey, activeProvider.selectedModel);
+        case 'gemini':
+            return new GeminiProvider('https://generativelanguage.googleapis.com', activeProvider.apiKey, activeProvider.selectedModel);
         case 'anthropic':
              return new AnthropicProvider(activeProvider.baseUrl, activeProvider.apiKey, activeProvider.selectedModel);
         default:

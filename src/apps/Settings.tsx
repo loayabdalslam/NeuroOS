@@ -12,10 +12,9 @@ interface SettingsProps {
 
 export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
   const [activeTab, setActiveTab] = useState('general');
-  const [theme, setTheme] = useState('Light');
   const [launchOnStartup, setLaunchOnStartup] = useState(false);
 
-  const { aiConfig, updateAiConfig, updateProvider } = useSettingsStore();
+  const { aiConfig, updateAiConfig, updateProvider, theme, setTheme } = useSettingsStore();
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
 
   // Update State
@@ -185,7 +184,7 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
                   {['Light', 'Dark', 'System'].map(mode => (
                     <button
                       key={mode}
-                      onClick={() => setTheme(mode)}
+                      onClick={() => setTheme(mode as 'Light' | 'Dark' | 'System')}
                       className={cn(
                         "p-4 border rounded-2xl flex flex-col items-center gap-3 transition-all duration-200 outline-none focus:ring-2 focus:ring-blue-500/20",
                         theme === mode ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50/50" : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
@@ -335,6 +334,106 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
             </div>
           )}
 
+          {activeTab === 'security' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+                  <Shield size={18} className="text-blue-500" />
+                  PIN Management
+                </h3>
+                <div className="p-4 border border-zinc-200 rounded-2xl space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">Current PIN</label>
+                    <input type="password" placeholder="Enter current PIN" className="w-full p-3 bg-white border border-zinc-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">New PIN</label>
+                    <input type="password" placeholder="Enter new PIN" className="w-full p-3 bg-white border border-zinc-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                  </div>
+                  <button className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+                    Update PIN
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <h3 className="text-sm font-semibold text-zinc-900">Session & Security</h3>
+                <div className="p-4 border border-zinc-200 rounded-2xl space-y-2 bg-zinc-50/50">
+                  <p className="text-xs text-zinc-600"><span className="font-medium text-zinc-900">Failed Attempts:</span> 0 / 5</p>
+                  <p className="text-xs text-zinc-600"><span className="font-medium text-zinc-900">Last Login:</span> Just now</p>
+                  <button className="w-full mt-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium transition-colors border border-red-200">
+                    Sign Out All Sessions
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'network' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+                  <Globe size={18} className="text-blue-500" />
+                  Network Status
+                </h3>
+                <div className="p-4 border border-zinc-200 rounded-2xl space-y-3 bg-zinc-50/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-600"><span className="font-medium text-zinc-900">Connection:</span></span>
+                    <span className="text-xs font-medium text-emerald-600 flex items-center gap-1">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                      Online
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-600"><span className="font-medium text-zinc-900">Connection Type:</span></span>
+                    <span className="text-xs font-medium text-zinc-900">{navigator.onLine ? 'WiFi' : 'Offline'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-600"><span className="font-medium text-zinc-900">Download Speed:</span></span>
+                    <span className="text-xs font-medium text-zinc-900">100 Mbps</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <h3 className="text-sm font-semibold text-zinc-900">P2P Chat Server</h3>
+                <div className="p-4 border border-zinc-200 rounded-2xl space-y-2">
+                  <label className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">Server URL</label>
+                  <input type="text" placeholder="ws://localhost:8000" className="w-full p-3 bg-white border border-zinc-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" defaultValue="ws://localhost:8000" />
+                  <p className="text-[10px] text-zinc-400 mt-2">Configure your P2P chat server endpoint</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'notifications' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-zinc-900">Notification Preferences</h3>
+                {[
+                  { label: 'System Alerts', key: 'alerts' },
+                  { label: 'Chat Messages', key: 'chat' },
+                  { label: 'Tool Completions', key: 'tools' },
+                  { label: 'Updates Available', key: 'updates' }
+                ].map(notif => (
+                  <div key={notif.key} className="p-4 border border-zinc-200 rounded-2xl flex items-center justify-between">
+                    <span className="text-sm font-medium text-zinc-900">{notif.label}</span>
+                    <button className="relative w-12 h-6 rounded-full bg-blue-600 transition-all" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-zinc-100">
+                <h3 className="text-sm font-semibold text-zinc-900">Permission Status</h3>
+                <div className="space-y-2 p-4 border border-zinc-200 rounded-2xl bg-zinc-50/50">
+                  <p className="text-xs"><span className="font-medium text-zinc-900">Notifications:</span> <span className="text-emerald-600">Allowed</span></p>
+                  <p className="text-xs"><span className="font-medium text-zinc-900">Sound:</span> <span className="text-emerald-600">Enabled</span></p>
+                  <p className="text-xs"><span className="font-medium text-zinc-900">Desktop Badges:</span> <span className="text-emerald-600">Enabled</span></p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'updates' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="p-6 border border-zinc-100 rounded-2xl bg-zinc-50/30 flex items-start gap-4">
@@ -422,7 +521,7 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
                 Neuro OS<span className="align-top text-[12px] ml-1 font-bold">TM</span>
               </h1>
               <p className="text-zinc-400 text-sm mt-2">Experimental Neural Operating Environment</p>
-              <div className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.4em] mt-8">Version 1.0.0 Alpha</div>
+              <div className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.4em] mt-8">Version __APP_VERSION__</div>
             </div>
           )}
 

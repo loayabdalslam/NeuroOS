@@ -42,7 +42,14 @@ export function hasImageContent(messages: LLMMessage[]): boolean {
                 }
             }
         } else if (typeof msg.content === 'string') {
-            if (msg.content.includes('data:image/') || msg.content.includes('base64')) {
+            // Only match actual base64 image data URLs, not text containing these words
+            // Match patterns like: data:image/png;base64, data:image/jpeg;base64
+            // Must have the full data URL format with comma and substantial data
+            if (msg.content.match(/data:image\/[a-zA-Z0-9]+;base64,[A-Za-z0-9+/=]{20,}/)) {
+                return true;
+            }
+            // Also check for explicit image_url objects in string format
+            if (msg.content.includes('"image_url"') || msg.content.includes('"type":"image_url"')) {
                 return true;
             }
         }

@@ -28,10 +28,11 @@ export const LockScreen: React.FC = () => {
         if (activeUserId) setSelectedUserId(activeUserId);
     }, [activeUserId]);
 
-    const handleUnlock = () => {
+    const handleUnlock = async () => {
         if (!selectedUserId) return;
 
-        if (login(selectedUserId, pin)) {
+        const success = await login(selectedUserId, pin);
+        if (success) {
             // Success handled by store update (isAuthenticated -> true)
         } else {
             setError(true);

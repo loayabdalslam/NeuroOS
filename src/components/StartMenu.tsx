@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useOS } from '../hooks/useOS';
 import {
@@ -19,6 +19,18 @@ export const StartMenu: React.FC = () => {
   const { isStartMenuOpen, toggleStartMenu, openApp } = useOS();
   const { logout, users, activeUserId } = useAuthStore();
   const user = users.find(u => u.id === activeUserId);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredApps = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return Object.values(APPS_CONFIG);
+    }
+    const query = searchQuery.toLowerCase();
+    return Object.values(APPS_CONFIG).filter(app =>
+      app.name.toLowerCase().includes(query) ||
+      app.description?.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
 
   const handleLogout = () => {
     toggleStartMenu(false);
@@ -50,6 +62,8 @@ export const StartMenu: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search apps, files, agents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 rounded-xl border border-transparent focus:bg-white focus:border-zinc-200 focus:ring-4 focus:ring-zinc-50 transition-all text-sm outline-none placeholder:text-zinc-400"
                   autoFocus
                 />
@@ -58,9 +72,16 @@ export const StartMenu: React.FC = () => {
 
             {/* Apps Grid */}
             <div className="flex-1 p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-200/50 hover:scrollbar-thumb-zinc-300">
-              <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-4 pl-1">Pinned Apps</h3>
-              <div className="grid grid-cols-5 gap-y-6 gap-x-2">
-                {Object.values(APPS_CONFIG).map(app => (
+              <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-4 pl-1">
+                {searchQuery ? 'Search Results' : 'Pinned Apps'}
+              </h3>
+              {filteredApps.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-center">
+                  <p className="text-sm text-zinc-400">No apps found matching "{searchQuery}"</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-5 gap-y-6 gap-x-2">
+                  {filteredApps.map(app => (
                   <button
                     key={app.id}
                     draggable={true}
@@ -87,8 +108,9 @@ export const StartMenu: React.FC = () => {
                     </div>
                     <span className="text-[11px] font-medium text-zinc-600 group-hover:text-zinc-900">{app.name}</span>
                   </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* User Profile */}

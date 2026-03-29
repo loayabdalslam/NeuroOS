@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
     Send, BrainCircuit, User, Eraser, Loader2, Sparkles, X, Pause, Play,
     ChevronDown, ChevronUp, Trash2, Copy, Check, FileText, Image as ImageIcon,
-    Wifi, WifiOff, Users, MessageCircle, Hash, Volume2, VolumeX, SkipBack, SkipForward
+    Wifi, WifiOff, Users, MessageCircle, Hash, Volume2, VolumeX, SkipBack, SkipForward,
+    AlertCircle, AlertTriangle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { showContextMenu } from '../components/ContextMenu';
@@ -40,6 +41,7 @@ interface Message {
     timestamp: number;
     isStreaming?: boolean;
     steps?: StepLog[];
+    error?: string;
 }
 
 const MAX_ITER = 12;
@@ -70,7 +72,9 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
     const [abortController, setAbortController] = useState<AbortController | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
-    
+    const [errorModal, setErrorModal] = useState<{ show: boolean; title: string; message: string } | null>(null);
+    const [confirmationPending, setConfirmationPending] = useState<{ toolName: string; args: Record<string, any>; resolve: (confirmed: boolean) => void } | null>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { workspacePath } = useWorkspaceStore();
@@ -148,6 +152,12 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
             useAIStore.getState().updateMemory(key, value);
         }
     }), [openApp, closeWindow, sendAppAction, getAppWindows, appWindows, workspacePath]);
+
+    const confirmToolExecution = useCallback((toolName: string, args: Record<string, any>): Promise<boolean> => {
+        return new Promise((resolve) => {
+            setConfirmationPending({ toolName, args, resolve });
+        });
+    }, []);
 
     const addStep = useCallback((kind: StepKind, text: string, detail?: string, tool?: string) => {
         const step: StepLog = {
@@ -239,6 +249,25 @@ Otherwise, provide your response directly.`;
             }, controller.signal);
 
             setThinkingPreview('');
+            
+            // Check if we got any response
+            if (!fullResponse.trim()) {
+                const errorMsg = 'No response received from AI. Please try again.';
+                setErrorModal({
+                    show: true,
+                    title: 'No Response',
+                    message: errorMsg
+                });
+                addStep('error', 'No response', errorMsg);
+                setMessages(prev => prev.map(m => 
+                    m.id === assistantMessage.id 
+                        ? { ...m, content: errorMsg, isStreaming: false }
+                        : m
+                ));
+                setIsStreaming(false);
+                return;
+            }
+            
             addStep('success', 'Response complete');
 
             const toolCalls = parseToolCalls(fullResponse);
@@ -256,29 +285,82 @@ Otherwise, provide your response directly.`;
                     currentStepId++;
                     addStep('tool-call', `Running: ${toolCall.tool}`, JSON.stringify(toolCall.args), toolCall.tool);
                     
-                    try {
-                        const result = await executeTool(toolCall, getToolContext());
-                        
-                        if (result.success) {
-                            addStep('tool-result', `${toolCall.tool} completed`, result.message.substring(0, 500));
-                        } else {
-                            addStep('tool-error', `${toolCall.tool} failed`, result.message);
-                        }
+                    let retryCount = 0;
+                    const maxRetries = 2;
+                    let toolResult: any = null;
+                    
+                    // Retry mechanism for failed tools
+                    while (retryCount <= maxRetries) {
+                        try {
+                            toolResult = await executeTool(toolCall, getToolContext(), confirmToolExecution);
 
-                        fullResponse += `\n\n[${toolCall.tool}: ${result.message}]`;
+                            if (toolResult.success) {
+                                addStep('tool-result', `${toolCall.tool} completed`, toolResult.message.substring(0, 500));
+                                break; // Success, exit retry loop
+                            } else {
+                                retryCount++;
+                                if (retryCount <= maxRetries) {
+                                    addStep('tool-call', `${toolCall.tool} failed, retrying... (${retryCount}/${maxRetries})`, toolResult.message);
+                                    await new Promise(r => setTimeout(r, 1000)); // Wait before retry
+                                }
+                            }
+                        } catch (error: any) {
+                            retryCount++;
+                            if (retryCount <= maxRetries) {
+                                addStep('tool-call', `${toolCall.tool} error, retrying... (${retryCount}/${maxRetries})`, error.message);
+                                await new Promise(r => setTimeout(r, 1000));
+                            } else {
+                                toolResult = { success: false, message: `Tool failed after ${maxRetries} retries: ${error.message}` };
+                            }
+                        }
+                    }
+                    
+                    if (toolResult) {
+                        fullResponse += `\n\n[${toolCall.tool}: ${toolResult.message}]`;
                         
                         const toolResultMessage: Message = {
                             id: `tool-${Date.now()}-${Math.random()}`,
                             role: 'assistant',
-                            content: `\n\n**Tool: ${toolCall.tool}**\n${result.message}`,
+                            content: `\n\n**Tool: ${toolCall.tool}**\n${toolResult.message}`,
                             timestamp: Date.now()
                         };
                         setMessages(prev => [...prev, toolResultMessage]);
-
-                    } catch (error: any) {
-                        addStep('tool-error', `Error in ${toolCall.tool}`, error.message);
                     }
                 }
+            } else {
+                // No tool calls found, but we have response content
+                addStep('info', 'Response ready', fullResponse.slice(0, 200));
+            }
+
+            // Check if the response contains error messages from the AI
+            const errorPatterns: RegExp[] = [
+                /cannot read.*image/i,
+                /does not support image/i,
+                /image.*input/i,
+                /vision.*not supported/i,
+                /error.*tool/i,
+                /tool.*failed/i
+            ];
+            
+            const containsError = errorPatterns.some(pattern => pattern.test(fullResponse) && fullResponse.length < 500);
+            
+            // Final check - if message is still empty
+            if (!fullResponse.trim()) {
+                const errorMsg = 'The AI returned an empty response. This might be due to a configuration issue or the model not responding properly.';
+                setErrorModal({
+                    show: true,
+                    title: 'Empty Response',
+                    message: errorMsg
+                });
+                addStep('error', 'Empty response', errorMsg);
+            } else if (containsError) {
+                // AI responded with an error message - show it in modal
+                setErrorModal({
+                    show: true,
+                    title: 'AI Response',
+                    message: fullResponse.trim()
+                });
+                addStep('error', 'AI Error', fullResponse.slice(0, 300));
             }
 
             setMessages(prev => prev.map(m => 
@@ -288,6 +370,8 @@ Otherwise, provide your response directly.`;
             ));
 
         } catch (error: any) {
+            console.error('Chat Error:', error);
+            
             if (error.name === 'AbortError') {
                 setMessages(prev => prev.map(m => 
                     m.id === assistantMessage.id 
@@ -296,12 +380,21 @@ Otherwise, provide your response directly.`;
                 ));
                 addStep('info', 'Generation stopped by user');
             } else {
+                const errorMessage = error.message || 'An unknown error occurred';
+                
+                // Show error modal
+                setErrorModal({
+                    show: true,
+                    title: 'Error',
+                    message: errorMessage
+                });
+                
                 setMessages(prev => prev.map(m => 
                     m.id === assistantMessage.id 
-                        ? { ...m, content: `Error: ${error.message}`, isStreaming: false }
+                        ? { ...m, content: `❌ Error: ${errorMessage}`, isStreaming: false, error: errorMessage }
                         : m
                 ));
-                addStep('error', 'Error', error.message);
+                addStep('error', 'Error', errorMessage);
             }
         } finally {
             setIsStreaming(false);
@@ -349,6 +442,104 @@ Otherwise, provide your response directly.`;
 
     return (
         <div className="flex flex-col h-full bg-white text-zinc-900 font-mono">
+            {/* Error Modal */}
+            <AnimatePresence>
+                {errorModal?.show && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                        onClick={() => setErrorModal(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                                    <AlertCircle size={24} className="text-red-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-bold text-zinc-900 mb-2">{errorModal.title}</h3>
+                                    <p className="text-sm text-zinc-600 mb-4">{errorModal.message}</p>
+                                    <div className="flex gap-2 justify-end">
+                                        <button
+                                            onClick={() => setErrorModal(null)}
+                                            className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Tool Confirmation Modal */}
+            <AnimatePresence>
+                {confirmationPending && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+                        >
+                            <div className="flex items-start gap-4 mb-4">
+                                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center shrink-0">
+                                    <AlertTriangle size={24} className="text-yellow-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-bold text-zinc-900">Confirm Tool Execution</h3>
+                                    <p className="text-sm text-zinc-600 mt-1">
+                                        The AI wants to run: <span className="font-semibold text-zinc-900">{confirmationPending.toolName}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            {Object.keys(confirmationPending.args).length > 0 && (
+                                <div className="bg-zinc-50 rounded-lg p-3 mb-4 max-h-24 overflow-auto">
+                                    <p className="text-xs font-medium text-zinc-700 mb-2">Arguments:</p>
+                                    <pre className="text-xs text-zinc-600 whitespace-pre-wrap break-words">
+                                        {JSON.stringify(confirmationPending.args, null, 2)}
+                                    </pre>
+                                </div>
+                            )}
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={() => {
+                                        confirmationPending?.resolve(false);
+                                        setConfirmationPending(null);
+                                    }}
+                                    className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded-lg text-sm font-medium hover:bg-zinc-300"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        confirmationPending?.resolve(true);
+                                        setConfirmationPending(null);
+                                    }}
+                                    className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-zinc-50">
                 <div className="flex items-center gap-3">

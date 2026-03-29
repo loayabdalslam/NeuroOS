@@ -94,7 +94,18 @@ export const useOS = create<OSState>((set, get) => ({
   },
 
   focusWindow: (id) => {
-    const { nextZIndex } = get();
+    let { nextZIndex, appWindows } = get();
+
+    // Renormalize z-indexes if they exceed 1000
+    if (nextZIndex > 1000) {
+      const sortedWindows = appWindows.map((w, idx) => ({ ...w, zIndex: 10 + idx }));
+      nextZIndex = 10 + sortedWindows.length + 1;
+      set(state => ({
+        appWindows: sortedWindows,
+        nextZIndex
+      }));
+    }
+
     set(state => ({
       appWindows: state.appWindows.map(windowData => ({
         ...windowData,

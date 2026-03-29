@@ -105,9 +105,47 @@ async function ipcFetch(url: string): Promise<{ html: string; text: string }> {
         return electron.browser.scrape(url);
     }
     // pure renderer fallback (may fail on CORS)
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const res = await fetch(url, { 
+        headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+        } 
+    });
     const html = await res.text();
     return { html, text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() };
+}
+
+/** Alternative search using DuckDuckGo HTML (more reliable) */
+async function duckDuckGoSearch(query: string): Promise<{ results: string[]; html: string }> {
+    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const data = await ipcFetch(url);
+    
+    const results: string[] = [];
+    // Extract result links from DuckDuckGo HTML
+    const linkMatches = data.html.match(/href="(https?:\/\/[^"]+)"/g) || [];
+    const seen = new Set<string>();
+    
+    for (const match of linkMatches) {
+        const urlMatch = match.match(/href="(https?:\/\/[^"]+)"/);
+        if (urlMatch) {
+            const url = urlMatch[1];
+            // Filter out DuckDuckGo internal links
+            if (!url.includes('duckduckgo.com') && 
+                !url.includes('google.com') && 
+                !url.includes('yahoo.com') &&
+                !url.includes('bing.com') &&
+                url.length > 20 &&
+                !seen.has(url)) {
+                seen.add(url);
+                results.push(url);
+                if (results.length >= 10) break;
+            }
+        }
+    }
+    
+    return { results, html: data.html };
 }
 
 /** Convert raw HTML/text to clean markdown */
@@ -252,79 +290,156 @@ registerTool({
     },
 });
 
-// 4. SEARCH WEB — Google search and return result links
+// 4. SEARCH WEB — Real web search using multiple sources
 registerTool({
     name: 'search_web',
-    description: 'Search Google and return the top result links. Use web_fetch or browser_navigate on a result URL to get its content. If a CAPTCHA page is encountered, `captcha: true` will be included in the result.',
+    description: 'Search the web and get real results. Uses multiple search engines for reliability. Returns actual URLs and titles you can visit.',
     category: 'browser',
     parameters: {
-        query: { type: 'string', description: 'Search query', required: true },
-        open_browser: { type: 'boolean', description: 'Open the search in the browser window (default: false)', required: false },
+        query: { type: 'string', description: 'What to search for', required: true },
+        open_browser: { type: 'boolean', description: 'Open results in browser', required: false },
     },
     handler: async (args): Promise<ToolResult> => {
         const query = String(args.query ?? '').trim();
         if (!query) return { success: false, message: 'Search query is required' };
 
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-        if (args.open_browser) {
-            ensureBrowserOpen(searchUrl);
-            await sendBrowserAction('navigate_and_wait', { url: searchUrl, timeout: 12000 }, 15000);
-        }
-
-        useAIStore.getState().addBrowserLog({ type: 'info', message: `Searching: ${query}` });
+        useAIStore.getState().addBrowserLog({ type: 'info', message: `🔍 Searching for: "${query}"` });
+        
+        const results: Array<{title: string; url: string}> = [];
+        
         try {
-            const data = await ipcFetch(searchUrl);
-            const captcha = detectCaptcha(data.html, data.text);
-            const noResults = data.text.includes('did not match any documents') ||
-                data.text.includes('No results found for') ||
-                (data.text.includes('Suggestions:') && data.text.includes('Make sure that all words are spelled correctly'));
-
-            const rawLinks = [...data.html.matchAll(/href="([^"]+)"/g)].map(m => m[1]);
-            const uniqueResults = new Set<string>();
-
-            for (let link of rawLinks) {
-                // Stop if we have enough
-                if (uniqueResults.size >= 10) break;
-
-                // Handle Google's redirect format: /url?q=https://example.com/path&sa=...
-                if (link.startsWith('/url?q=')) {
-                    link = link.split('/url?q=')[1].split('&')[0];
+            // Try DuckDuckGo first
+            try {
+                const ddgUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&ia=web`;
+                const ddgRes = await fetch(ddgUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'text/html',
+                    }
+                });
+                const ddgHtml = await ddgRes.text();
+                
+                // Parse DuckDuckGo results
+                const ddgMatches = ddgHtml.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g);
+                for (const match of ddgMatches) {
+                    let url = match[1];
+                    const title = match[2].replace(/<[^>]+>/g, '').trim();
+                    
+                    // Clean DuckDuckGo redirect
+                    if (url.includes('uddg=')) {
+                        url = decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
+                    }
+                    
+                    if (url.startsWith('http') && title && !url.includes('duckduckgo.com')) {
+                        results.push({ title, url });
+                    }
+                    if (results.length >= 10) break;
                 }
-
-                if (!link.startsWith('http')) continue;
-
+            } catch (e) {
+                useAIStore.getState().addBrowserLog({ type: 'error', message: `DuckDuckGo failed: ${e}` });
+            }
+            
+            // If no results, try Bing
+            if (results.length === 0) {
                 try {
-                    const decoded = decodeURIComponent(link);
-                    const isGoogle = decoded.includes('google.com') || decoded.includes('gstatic.com');
-                    const isCommonInternal = decoded.includes('youtube.com/watch') || decoded.includes('accounts.google.com');
-
-                    if (!isGoogle && !isCommonInternal && decoded.length > 15) {
-                        uniqueResults.add(decoded);
+                    const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+                    const bingRes = await fetch(bingUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        }
+                    });
+                    const bingHtml = await bingRes.text();
+                    
+                    const bingMatches = bingHtml.matchAll(/<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*>([^<]+)<\/a>/g);
+                    for (const match of bingMatches) {
+                        const url = match[1];
+                        let title = match[2].replace(/<[^>]+>/g, '').trim();
+                        
+                        if (url && !url.includes('bing.com') && !url.includes('microsoft.com') && title.length > 5) {
+                            results.push({ title: title.slice(0, 100), url });
+                        }
+                        if (results.length >= 10) break;
                     }
                 } catch (e) {
-                    // Ignore decoding errors
+                    useAIStore.getState().addBrowserLog({ type: 'error', message: `Bing failed: ${e}` });
+                }
+            }
+            
+            // If still no results, try a direct approach
+            if (results.length === 0) {
+                // Try scraping Google cached version
+                try {
+                    const googleUrl = `https://r.jina.ai/http://www.google.com/search?q=${encodeURIComponent(query)}`;
+                    const jinaRes = await fetch(googleUrl);
+                    const jinaText = await jinaRes.text();
+                    
+                    if (jinaText && jinaText.length > 100) {
+                        // Extract URLs from Jina AI summary
+                        const urlMatches = jinaText.matchAll(/(https?:\/\/[^\s]+)/g);
+                        for (const match of urlMatches) {
+                            const url = match[1];
+                            if (!url.includes('google.com') && !url.includes('gstatic.com') && url.length > 20) {
+                                results.push({ title: url.slice(0, 50), url });
+                            }
+                            if (results.length >= 10) break;
+                        }
+                    }
+                } catch (e) {
+                    useAIStore.getState().addBrowserLog({ type: 'error', message: `Jina AI failed: ${e}` });
                 }
             }
 
-            const results = [...uniqueResults];
-            let status = `🔍 "${query}" — ${results.length} results`;
-            if (captcha) status += ' (captcha detected)';
-            if (noResults && results.length === 0) status = `🔍 "${query}" — No results found.`;
-
+            // If we have results, return them
+            if (results.length > 0) {
+                const uniqueResults = results.filter((v, i, a) => a.findIndex(t => t.url === v.url) === i);
+                
+                let message = `🔍 **Search Results for "${query}":**\n\n`;
+                uniqueResults.slice(0, 8).forEach((r, i) => {
+                    message += `${i + 1}. **${r.title}**\n   ${r.url}\n\n`;
+                });
+                message += `💡 Use **web_fetch** tool with any URL above to get full content.`;
+                
+                useAIStore.getState().addBrowserLog({ type: 'info', message: `Found ${uniqueResults.length} results` });
+                
+                return {
+                    success: true,
+                    message,
+                    data: {
+                        query,
+                        resultLinks: uniqueResults.map(r => r.url),
+                        count: uniqueResults.length
+                    }
+                };
+            }
+            
+            // Last resort - try opening browser
+            if (args.open_browser) {
+                const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                ensureBrowserOpen(googleUrl);
+                await sendBrowserAction('navigate_and_wait', { url: googleUrl, timeout: 10000 }, 15000);
+                
+                return {
+                    success: true,
+                    message: `🔍 Opened browser for search: "${query}"\n\nPlease check the browser window for results.`,
+                    data: { query, browserOpened: true }
+                };
+            }
+            
             return {
-                success: true,
-                message: status,
-                data: {
-                    query,
-                    searchUrl,
-                    resultLinks: results,
-                    hint: results.length > 0 ? 'Use web_fetch or browser_navigate on a result URL.' : 'Try different keywords.',
-                    captcha,
-                    noResults: noResults && results.length === 0
-                },
+                success: false,
+                message: `❌ Could not find any search results for "${query}". Try being more specific or using different keywords.`,
+                data: { query }
             };
+            
         } catch (e: any) {
-            return { success: false, message: `Search failed: ${e.message}`, data: { searchUrl, query } };
+            const errorMsg = e.message || 'Unknown error';
+            useAIStore.getState().addBrowserLog({ type: 'error', message: `Search error: ${errorMsg}` });
+            
+            return {
+                success: false,
+                message: `❌ Search failed: ${errorMsg}. Try using web_fetch with a specific URL instead.`,
+                data: { query, error: errorMsg }
+            };
         }
     },
 });

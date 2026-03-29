@@ -9,6 +9,13 @@ import { ChatApp } from '../apps/Chat';
 import { FileViewer } from '../apps/FileViewer';
 import { BoardApp } from '../apps/Board';
 import { BrowserApp } from '../apps/Browser';
+import { AgentStudio } from '../apps/AgentStudio';
+import { AutomationEngine } from '../apps/AutomationEngine';
+import { P2PChatApp } from '../apps/P2PChat';
+import { LLMManager } from '../apps/LLMManager';
+import { MCPConnectors } from '../apps/MCPConnectors';
+import { MusicApp } from '../apps/Music';
+import { MediaViewer } from '../apps/MediaViewer';
 
 // Component Registry
 const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
@@ -19,6 +26,13 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
     viewer: FileViewer,
     board: BoardApp,
     browser: BrowserApp,
+    agents: AgentStudio,
+    automation: AutomationEngine,
+    p2pchat: P2PChatApp,
+    llmmanager: LLMManager,
+    mcp: MCPConnectors,
+    music: MusicApp,
+    media: MediaViewer,
 };
 
 const AppNotFound: React.FC<{ windowData?: any }> = () => (

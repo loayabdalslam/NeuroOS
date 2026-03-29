@@ -10,10 +10,12 @@ import { ContextMenuProvider } from './components/ContextMenu';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from './stores/authStore';
 import { useWorkspaceStore } from './stores/workspaceStore';
+import { useSettingsStore } from './stores/settingsStore';
 
 export default function App() {
   const { users, isAddingUser, isAuthenticated, hasHydrated } = useAuthStore();
   const { workspacePath, setWorkspace } = useWorkspaceStore();
+  const { theme } = useSettingsStore();
 
   // if the persisted workspace path disappears (moved/deleted), clear it
   useEffect(() => {
@@ -23,6 +25,18 @@ export default function App() {
         .catch(() => setWorkspace(null));
     }
   }, [workspacePath, setWorkspace]);
+
+  // Apply theme to document
+  useEffect(() => {
+    const htmlElement = document.documentElement;
+    const isDarkMode = theme === 'Dark' || (theme === 'System' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    if (isDarkMode) {
+      htmlElement.classList.add('dark');
+    } else {
+      htmlElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   if (!hasHydrated) {
     return (

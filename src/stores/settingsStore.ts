@@ -4,7 +4,9 @@ import { persist } from 'zustand/middleware';
 interface SettingsState {
     wallpaper: string;
     customWallpapers: string[];
+    theme: 'Light' | 'Dark' | 'System';
     setWallpaper: (url: string) => void;
+    setTheme: (theme: 'Light' | 'Dark' | 'System') => void;
     addCustomWallpaper: (url: string) => void;
     removeCustomWallpaper: (url: string) => void;
     aiConfig: {
@@ -28,7 +30,9 @@ export const useSettingsStore = create<SettingsState>()(
         (set) => ({
             wallpaper: '',
             customWallpapers: [],
+            theme: 'System',
             setWallpaper: (url) => set({ wallpaper: url }),
+            setTheme: (theme) => set({ theme }),
             addCustomWallpaper: (url) => set((state) => ({
                 customWallpapers: state.customWallpapers.includes(url) 
                     ? state.customWallpapers 

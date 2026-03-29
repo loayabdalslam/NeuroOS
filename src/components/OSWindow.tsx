@@ -107,18 +107,21 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
           <button
             onClick={(e) => { e.stopPropagation(); minimizeWindow(windowData.id); }}
             className="w-6 h-6 flex items-center justify-center hover:bg-zinc-100 rounded-full transition-colors text-zinc-400 hover:text-zinc-700"
+            aria-label="Minimize window"
           >
             <Minus size={14} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); updateWindow(windowData.id, { state: isMaximized ? 'normal' : 'maximized' }); }}
             className="w-6 h-6 flex items-center justify-center hover:bg-zinc-100 rounded-full transition-colors text-zinc-400 hover:text-zinc-700"
+            aria-label={isMaximized ? "Restore window" : "Maximize window"}
           >
             <Maximize2 size={12} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); closeWindow(windowData.id); }}
             className="w-6 h-6 flex items-center justify-center hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-full transition-colors"
+            aria-label="Close window"
           >
             <X size={14} />
           </button>

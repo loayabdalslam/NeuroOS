@@ -18,6 +18,38 @@ autoUpdater.autoDownload = false; // We want to control when to download
 autoUpdater.allowPrerelease = false;
 
 let mainWindow: BrowserWindow | null = null;
+let appTray: any = null;
+
+// ─── Single Instance Lock ──────────────────────────────────────────
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
+}
+
+// ─── Path Validation Utility ───────────────────────────────────────
+const isPathSafe = (userPath: string): boolean => {
+    try {
+        const resolvedPath = path.resolve(userPath);
+        const homeDir = os.homedir();
+
+        // Allow paths within home directory
+        if (resolvedPath.startsWith(homeDir)) {
+            return true;
+        }
+
+        // Reject everything else
+        return false;
+    } catch (error) {
+        return false;
+    }
+};
 
 const createWindow = () => {
     mainWindow = new BrowserWindow({
@@ -83,6 +115,43 @@ const createWindow = () => {
         else mainWindow?.maximize();
     });
     ipcMain.on('window:close', () => mainWindow?.close());
+
+    // ─── System Tray ───────────────────────────────────────────────
+    const { Tray, Menu } = require('electron');
+    appTray = new Tray(path.join(__dirname, '../build/icon.ico'));
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Show',
+            click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+            }
+        },
+        {
+            label: 'Hide',
+            click: () => {
+                mainWindow?.hide();
+            }
+        },
+        {
+            type: 'separator'
+        },
+        {
+            label: 'Quit',
+            click: () => {
+                app.quit();
+            }
+        }
+    ]);
+    appTray.setContextMenu(contextMenu);
+    appTray.on('double-click', () => {
+        if (mainWindow?.isVisible()) {
+            mainWindow?.hide();
+        } else {
+            mainWindow?.show();
+            mainWindow?.focus();
+        }
+    });
 };
 
 app.on('ready', () => {
@@ -123,6 +192,9 @@ app.on('ready', () => {
 
     ipcMain.handle('file:list', async (_, dirPath) => {
         try {
+            if (!isPathSafe(dirPath)) {
+                throw new Error('Access denied: path is outside home directory');
+            }
             const dirents = await fs.readdir(dirPath, { withFileTypes: true });
             return dirents.map(dirent => ({
                 name: dirent.name,
@@ -136,10 +208,16 @@ app.on('ready', () => {
     });
 
     ipcMain.handle('file:read', async (_, filePath) => {
+        if (!isPathSafe(filePath)) {
+            throw new Error('Access denied: path is outside home directory');
+        }
         return await fs.readFile(filePath, 'utf-8');
     });
 
     ipcMain.handle('file:write', async (_, filePath, content) => {
+        if (!isPathSafe(filePath)) {
+            throw new Error('Access denied: path is outside home directory');
+        }
         return await fs.writeFile(filePath, content, 'utf-8');
     });
 
@@ -151,18 +229,30 @@ app.on('ready', () => {
     });
 
     ipcMain.handle('file:createDir', async (_, dirPath) => {
+        if (!isPathSafe(dirPath)) {
+            throw new Error('Access denied: path is outside home directory');
+        }
         await fs.mkdir(dirPath, { recursive: true });
     });
 
     ipcMain.handle('file:delete', async (_, filePath) => {
+        if (!isPathSafe(filePath)) {
+            throw new Error('Access denied: path is outside home directory');
+        }
         await fs.rm(filePath, { recursive: true, force: true });
     });
 
     ipcMain.handle('file:rename', async (_, oldPath, newPath) => {
+        if (!isPathSafe(oldPath) || !isPathSafe(newPath)) {
+            throw new Error('Access denied: path is outside home directory');
+        }
         await fs.rename(oldPath, newPath);
     });
 
     ipcMain.handle('file:copy', async (_, src, dest) => {
+        if (!isPathSafe(src) || !isPathSafe(dest)) {
+            throw new Error('Access denied: path is outside home directory');
+        }
         await fs.copyFile(src, dest);
     });
 
@@ -174,6 +264,9 @@ app.on('ready', () => {
     });
 
     ipcMain.handle('file:stat', async (_, filePath) => {
+        if (!isPathSafe(filePath)) {
+            throw new Error('Access denied: path is outside home directory');
+        }
         const stat = await fs.stat(filePath);
         return {
             size: stat.size,
@@ -183,7 +276,55 @@ app.on('ready', () => {
     });
 
     // ─── Shell Execution ──────────────────────────────────────
-    // ... (existing shell:exec handler above)
+    ipcMain.handle('shell:exec', async (_, command: string) => {
+        return new Promise((resolve) => {
+            const { spawn } = require('child_process');
+            const proc = spawn(process.platform === 'win32' ? 'cmd.exe' : 'sh',
+                [process.platform === 'win32' ? '/c' : '-c', command],
+                { cwd: os.homedir(), maxBuffer: 64 * 1024 }
+            );
+
+            let stdout = '';
+            let stderr = '';
+
+            proc.stdout?.on('data', (data: Buffer) => {
+                stdout += data.toString();
+            });
+
+            proc.stderr?.on('data', (data: Buffer) => {
+                stderr += data.toString();
+            });
+
+            const timeout = setTimeout(() => {
+                proc.kill();
+                resolve({
+                    stdout: stdout.slice(0, 64000) + '\n... (output truncated)',
+                    stderr: stderr.slice(0, 4000),
+                    code: -1,
+                    error: 'Command timeout (30s)'
+                });
+            }, 30000);
+
+            proc.on('close', (code: number) => {
+                clearTimeout(timeout);
+                resolve({
+                    stdout: stdout.slice(0, 64000),
+                    stderr: stderr.slice(0, 4000),
+                    code
+                });
+            });
+
+            proc.on('error', (err: Error) => {
+                clearTimeout(timeout);
+                resolve({
+                    stdout,
+                    stderr: err.message,
+                    code: -1,
+                    error: err.message
+                });
+            });
+        });
+    });
     
     // ─── LLM Bridge (for CORS-free API calls) ─────────────────
     ipcMain.handle('llm:chat', async (_, provider: string, data: { 
@@ -345,18 +486,23 @@ app.on('ready', () => {
             callback({ cancel: false, requestHeaders: h });
         });
 
-        // 3. Grant all permission requests (media, geolocation, notifications, etc.)
-        ses.setPermissionRequestHandler((_wc: any, _permission: string, callback: any) => {
-            callback(true);
+        // 3. Handle permission requests with explicit allow list
+        ses.setPermissionRequestHandler((_wc: any, permission: string, callback: any) => {
+            // Allow camera, microphone, and geolocation in webview
+            const allowedPermissions = ['media', 'camera', 'microphone', 'geolocation'];
+            if (allowedPermissions.includes(permission)) {
+                callback(true);
+            } else {
+                callback(false);
+            }
         });
-        ses.setPermissionCheckHandler(() => true);
+        ses.setPermissionCheckHandler((wc: any, permission: string) => {
+            const allowedPermissions = ['media', 'camera', 'microphone', 'geolocation'];
+            return allowedPermissions.includes(permission);
+        });
 
-        // 4. Disable certificate verification errors ONLY for webview tabs (not main window)
-        ses.setCertificateVerifyProc((_req: any, callback: any) => {
-            // Only allow in development mode or for specific known hosts
-            // In production, this should be more restrictive
-            callback(0); // 0 = success / allow all
-        });
+        // 4. Do NOT disable certificate verification — enforce TLS checks
+        // Certificate errors will be handled by the 'certificate-error' event below
     };
 
     // Patch the default session (main window) - ONLY in production to avoid interfering with Vite HMR

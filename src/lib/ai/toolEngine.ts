@@ -139,10 +139,13 @@ export function parseToolCalls(text: string): ParsedToolCall[] {
 function tryParseToolCall(jsonStr: string): { tool: string; args: Record<string, any> } | null {
     try {
         // Clean up common issues
-        const cleaned = jsonStr
+        let cleaned = jsonStr
             .replace(/,\s*}/g, '}')   // trailing commas
-            .replace(/,\s*]/g, ']')   // trailing commas in arrays
-            .replace(/'/g, '"');       // single quotes to double
+            .replace(/,\s*]/g, ']');   // trailing commas in arrays
+
+        // Fix single-quote property names only (not apostrophes in values)
+        // Replace 'propertyName': with "propertyName":
+        cleaned = cleaned.replace(/'([a-zA-Z_][a-zA-Z0-9_]*)'(\s*:)/g, '"$1"$2');
 
         const obj = JSON.parse(cleaned);
         if (obj && typeof obj.tool === 'string') {
@@ -196,7 +199,8 @@ function extractBalancedJson(text: string, startIdx: number): string | null {
 // ─── Tool Executor ───────────────────────────────────────────────
 export async function executeTool(
     toolCall: ParsedToolCall,
-    context: ToolContext
+    context: ToolContext,
+    confirmCallback?: (toolName: string, args: Record<string, any>) => Promise<boolean>
 ): Promise<ToolResult> {
     const tool = getTool(toolCall.tool);
 
@@ -205,6 +209,17 @@ export async function executeTool(
             success: false,
             message: `Unknown tool "${toolCall.tool}". Available tools: ${getAllTools().map(t => t.name).join(', ')}`
         };
+    }
+
+    // Check if tool requires confirmation
+    if (tool.requiresConfirmation && confirmCallback) {
+        const confirmed = await confirmCallback(toolCall.tool, toolCall.args);
+        if (!confirmed) {
+            return {
+                success: false,
+                message: `Tool execution cancelled by user`
+            };
+        }
     }
 
     try {
