@@ -9,7 +9,7 @@ import { NeuroIcon } from './icons/NeuroIcon';
 const PINNED_APPS = ['chat', 'browser', 'board', 'files', 'terminal', 'settings'];
 
 export const Taskbar: React.FC = () => {
-  const { appWindows, openApp, toggleStartMenu, isStartMenuOpen, focusWindow } = useOS();
+  const { appWindows, openApp, toggleStartMenu, isStartMenuOpen, focusWindow, minimizeWindow } = useOS();
   const [time, setTime] = React.useState(new Date());
 
   React.useEffect(() => {
@@ -47,7 +47,12 @@ export const Taskbar: React.FC = () => {
 
   const handleAppClick = (app: any) => {
     if (app.instance) {
-      focusWindow(app.instance.id);
+      // If already focused and visible, minimize it; otherwise focus it
+      if (app.instance.isFocused && app.instance.state !== 'minimized') {
+        minimizeWindow(app.instance.id);
+      } else {
+        focusWindow(app.instance.id);
+      }
     } else {
       openApp(app.id, app.config?.name);
     }

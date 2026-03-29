@@ -83,18 +83,24 @@ registerTool({
             const contentLength = isArrayBuffer ? (content as ArrayBuffer).byteLength : (content as string).length;
             
             if (IMAGE_EXTENSIONS.includes(ext)) {
-                const base64 = isArrayBuffer ? arrayBufferToBase64(content as ArrayBuffer) : btoa(content.slice(-(content.length % 3 ? 3 - content.length % 3 : 0)));
+                let base64: string;
+                if (isArrayBuffer) {
+                    base64 = arrayBufferToBase64(content as ArrayBuffer);
+                } else {
+                    // Properly encode UTF-8 string to base64
+                    base64 = btoa(unescape(encodeURIComponent(content as string)));
+                }
                 const mimeType = ext === 'svg' ? 'image/svg+xml' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
                 return {
                     success: true,
                     message: `🖼️ Image file: **${args.filename}** (${getFileSizeString(contentLength)})\n\nThis is an image file (${ext.toUpperCase()}). Use the Media Viewer to view it, or describe it using AI vision capabilities.`,
-                    data: { 
-                        path: filePath, 
-                        filename: args.filename, 
+                    data: {
+                        path: filePath,
+                        filename: args.filename,
                         size: contentLength,
                         isImage: true,
                         mimeType,
-                        dataUrl: isArrayBuffer ? `data:${mimeType};base64,${arrayBufferToBase64(content as ArrayBuffer)}` : `data:${mimeType};base64,${base64}`
+                        dataUrl: `data:${mimeType};base64,${base64}`
                     }
                 };
             }
@@ -268,6 +274,125 @@ registerTool({
             return { success: true, message: `🗑️ Deleted **${args.filename}**`, data: { path: filePath, filename: args.filename } };
         } catch (e: any) {
             return { success: false, message: `❌ Failed to delete: ${e.message}` };
+        }
+    }
+});
+
+// ─── Copy File ───────────────────────────────────────────────────
+registerTool({
+    name: 'copy_file',
+    description: 'Copies a file from source to destination path within or outside the workspace.',
+    category: 'file',
+    parameters: {
+        source: { type: 'string', description: 'Source file path (relative to workspace or absolute)', required: true },
+        destination: { type: 'string', description: 'Destination file path (relative to workspace or absolute)', required: true }
+    },
+    handler: async (args, ctx): Promise<ToolResult> => {
+        if (!ctx.workspacePath) {
+            return { success: false, message: '❌ No workspace set.' };
+        }
+        const sourcePath = buildPath(ctx.workspacePath, args.source);
+        const destPath = buildPath(ctx.workspacePath, args.destination);
+        try {
+            // Read source and write to destination
+            const content = await ctx.readFile(sourcePath);
+            await ctx.writeFile(destPath, content);
+            return {
+                success: true,
+                message: `📋 Copied **${args.source}** to **${args.destination}**`,
+                data: { source: sourcePath, destination: destPath }
+            };
+        } catch (e: any) {
+            return { success: false, message: `❌ Failed to copy: ${e.message}` };
+        }
+    }
+});
+
+// ─── Move File (via rename) ──────────────────────────────────────
+registerTool({
+    name: 'move_file',
+    description: 'Moves (renames) a file or folder from one location to another.',
+    category: 'file',
+    parameters: {
+        source: { type: 'string', description: 'Current file path (relative to workspace or absolute)', required: true },
+        destination: { type: 'string', description: 'New file path (relative to workspace or absolute)', required: true }
+    },
+    handler: async (args, ctx): Promise<ToolResult> => {
+        if (!ctx.workspacePath) {
+            return { success: false, message: '❌ No workspace set.' };
+        }
+        const sourcePath = buildPath(ctx.workspacePath, args.source);
+        const destPath = buildPath(ctx.workspacePath, args.destination);
+        try {
+            // Read source, write to destination, then delete source
+            const content = await ctx.readFile(sourcePath);
+            await ctx.writeFile(destPath, content);
+            await ctx.deleteFile(sourcePath);
+            return {
+                success: true,
+                message: `➡️ Moved **${args.source}** to **${args.destination}**`,
+                data: { source: sourcePath, destination: destPath }
+            };
+        } catch (e: any) {
+            return { success: false, message: `❌ Failed to move: ${e.message}` };
+        }
+    }
+});
+
+// ─── Search in Files ─────────────────────────────────────────────
+registerTool({
+    name: 'search_in_files',
+    description: 'Searches for text patterns in files within the workspace. Returns matching files and line counts.',
+    category: 'file',
+    parameters: {
+        pattern: { type: 'string', description: 'Text or regex pattern to search for', required: true },
+        extension: { type: 'string', description: 'File extension to limit search (e.g., ".js", ".py", optional)', required: false }
+    },
+    handler: async (args, ctx): Promise<ToolResult> => {
+        if (!ctx.workspacePath) {
+            return { success: false, message: '❌ No workspace set.' };
+        }
+        try {
+            // List all files
+            const entries = await ctx.listFiles(ctx.workspacePath);
+            const pattern = new RegExp(args.pattern, 'gi');
+            const results: any[] = [];
+
+            for (const entry of entries) {
+                if (entry.isDirectory) continue;
+                if (args.extension && !entry.name.endsWith(args.extension)) continue;
+
+                try {
+                    const content = await ctx.readFile(`${ctx.workspacePath}/${entry.name}`);
+                    const matches = content.match(pattern);
+                    if (matches && matches.length > 0) {
+                        results.push({
+                            file: entry.name,
+                            matches: matches.length,
+                            preview: content.substring(0, 200)
+                        });
+                    }
+                } catch {
+                    // Skip files that can't be read
+                }
+            }
+
+            if (results.length === 0) {
+                return {
+                    success: true,
+                    message: `🔍 No matches found for pattern: \`${args.pattern}\``,
+                    data: { matches: [] }
+                };
+            }
+
+            const summary = results.map(r => `📄 **${r.file}** — ${r.matches} match${r.matches > 1 ? 'es' : ''}`).join('\n');
+            return {
+                success: true,
+                message: `🔍 Found in **${results.length}** file(s):\n${summary}`,
+                data: { results, count: results.length }
+            };
+        } catch (e: any) {
+            return { success: false, message: `❌ Search failed: ${e.message}` };
         }
     }
 });
