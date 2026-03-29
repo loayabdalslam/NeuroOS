@@ -365,14 +365,34 @@ registerTool({
                 }
             }
             
-            // If still no results, try a direct approach
+            // If still no results, try Wikipedia
             if (results.length === 0) {
-                // Try scraping Google cached version
                 try {
-                    const googleUrl = `https://r.jina.ai/http://www.google.com/search?q=${encodeURIComponent(query)}`;
-                    const jinaRes = await fetch(googleUrl);
+                    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json`;
+                    const wikiRes = await fetch(wikiUrl);
+                    const wikiData = await wikiRes.json() as any;
+
+                    if (wikiData.query?.search && wikiData.query.search.length > 0) {
+                        for (const result of wikiData.query.search) {
+                            results.push({
+                                title: result.title,
+                                url: `https://en.wikipedia.org/wiki/${encodeURIComponent(result.title)}`
+                            });
+                            if (results.length >= 10) break;
+                        }
+                    }
+                } catch (e) {
+                    useAIStore.getState().addBrowserLog({ type: 'error', message: `Wikipedia search failed: ${e}` });
+                }
+            }
+
+            // Try Jina AI reader as last resort
+            if (results.length === 0) {
+                try {
+                    const jinaUrl = `https://r.jina.ai/http://www.google.com/search?q=${encodeURIComponent(query)}`;
+                    const jinaRes = await fetch(jinaUrl);
                     const jinaText = await jinaRes.text();
-                    
+
                     if (jinaText && jinaText.length > 100) {
                         // Extract URLs from Jina AI summary
                         const urlMatches = jinaText.matchAll(/(https?:\/\/[^\s]+)/g);
@@ -427,7 +447,13 @@ registerTool({
             
             return {
                 success: false,
-                message: `❌ Could not find any search results for "${query}". Try being more specific or using different keywords.`,
+                message: `❌ Could not find search results for "${query}".
+
+💡 Suggestions:
+- Try a more specific search (e.g., "loaii abdalslam github" or "loaii abdalslam linkedin")
+- Search for related terms or topics
+- Use **web_fetch** if you know a specific URL
+- Try **browser_navigate** to open a search in the browser manually`,
                 data: { query }
             };
             

@@ -680,6 +680,45 @@ Otherwise, provide your response directly.`;
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Thinking Display */}
+                <AnimatePresence>
+                    {isStreaming && thinkingPreview && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="max-w-full"
+                        >
+                            <div className="flex gap-2">
+                                <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-[10px] bg-blue-100 text-blue-600">
+                                    <Sparkles size={12} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="inline-block max-w-full px-4 py-3 rounded-xl text-sm leading-relaxed text-left bg-blue-50 text-blue-900 border border-blue-200">
+                                        <div className="text-xs font-semibold text-blue-700 mb-2">🧠 Thinking...</div>
+                                        <div>
+                                            <Markdown
+                                                components={{
+                                                    code: ({ className, children, ...props }) => (
+                                                        <code className="bg-blue-200 px-1 py-0.5 rounded text-xs" {...props}>{children}</code>
+                                                    )
+                                                }}
+                                            >
+                                                {(thinkingPreview.slice(0, 500) + (thinkingPreview.length > 500 ? '...' : ''))}
+                                            </Markdown>
+                                            <motion.span
+                                                animate={{ opacity: [1, 0.5, 1] }}
+                                                transition={{ duration: 0.8, repeat: Infinity }}
+                                                className="inline-block w-1 h-4 bg-blue-600 ml-1 align-text-top"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {messages.map(message => (
                     <div key={message.id} className={cn(
                         "group",
@@ -707,22 +746,31 @@ Otherwise, provide your response directly.`;
                                         : "bg-zinc-50 text-zinc-900 border border-zinc-200"
                                 )}>
                                     {message.role === 'assistant' ? (
-                                        <Markdown
-                                            components={{
-                                                code: ({ className, children, ...props }) => {
-                                                    const match = /language-(\w+)/.exec(className || '');
-                                                    return match ? (
-                                                        <pre className="bg-zinc-900 text-zinc-100 p-3 rounded-lg overflow-x-auto text-xs my-2">
-                                                            <code {...props}>{children}</code>
-                                                        </pre>
-                                                    ) : (
-                                                        <code className="bg-zinc-200 px-1 py-0.5 rounded text-xs" {...props}>{children}</code>
-                                                    );
-                                                }
-                                            }}
-                                        >
-                                            {message.content || (message.isStreaming ? '...' : '')}
-                                        </Markdown>
+                                        <>
+                                            <Markdown
+                                                components={{
+                                                    code: ({ className, children, ...props }) => {
+                                                        const match = /language-(\w+)/.exec(className || '');
+                                                        return match ? (
+                                                            <pre className="bg-zinc-900 text-zinc-100 p-3 rounded-lg overflow-x-auto text-xs my-2">
+                                                                <code {...props}>{children}</code>
+                                                            </pre>
+                                                        ) : (
+                                                            <code className="bg-zinc-200 px-1 py-0.5 rounded text-xs" {...props}>{children}</code>
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                {message.content || (message.isStreaming ? '' : '')}
+                                            </Markdown>
+                                            {message.isStreaming && (
+                                                <motion.span
+                                                    animate={{ opacity: [1, 0.5, 1] }}
+                                                    transition={{ duration: 0.8, repeat: Infinity }}
+                                                    className="inline-block w-1 h-4 bg-zinc-600 ml-1"
+                                                />
+                                            )}
+                                        </>
                                     ) : (
                                         <p className="whitespace-pre-wrap">{message.content}</p>
                                     )}
