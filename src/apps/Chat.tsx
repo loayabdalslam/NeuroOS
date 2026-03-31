@@ -20,6 +20,8 @@ import {
     parseToolCalls, executeTool, stripToolCalls,
     ToolContext, ToolResult, getAllTools, getToolsForPrompt
 } from '../lib/ai';
+import { getUserFriendlyError } from '../lib/llm/errors';
+
 
 interface ChatAppProps { windowData: OSAppWindow; }
 
@@ -405,7 +407,8 @@ Otherwise, provide your response directly.`;
                 ));
                 addStep('info', 'Generation stopped by user');
             } else {
-                const errorMessage = error.message || 'An unknown error occurred';
+                const errorMessage = getUserFriendlyError(error);
+
                 
                 // Show error modal
                 setErrorModal({

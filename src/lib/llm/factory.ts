@@ -5,25 +5,36 @@ import { AnthropicProvider } from './AnthropicProvider';
 import { GeminiProvider } from './GeminiProvider';
 import { useSettingsStore } from '../../stores/settingsStore';
 
+/**
+ * Factory function to instantiate the appropriate LLMProvider based on the 
+ * active configuration in the settings store.
+ * 
+ * @returns An instance of a class implementing the LLMProvider interface.
+ * Defaults to OllamaProvider if no active provider is found or configured.
+ */
 export const getLLMProvider = (): LLMProvider => {
     const { aiConfig } = useSettingsStore.getState();
     const activeProvider = aiConfig.providers.find(p => p.id === aiConfig.activeProviderId);
 
+    // Initial fallback if configuration is missing
     if (!activeProvider) {
         console.warn('No active provider found, falling back to Ollama default');
         return new OllamaProvider();
     }
 
+    // Map provider types to their respective implementation classes
     switch (activeProvider.type) {
         case 'ollama':
             return new OllamaProvider(activeProvider.baseUrl, activeProvider.selectedModel);
         case 'lmstudio':
+            // LMStudio uses the OpenAI-compatible API format
             return new OpenAIProvider(activeProvider.baseUrl || 'http://localhost:1234/v1', '', activeProvider.selectedModel);
         case 'openai':
         case 'groq':
         case 'mistral':
         case 'openrouter':
         case 'custom':
+            // These all use the standard OpenAI/Vercel AI SDK compatible format
             return new OpenAIProvider(activeProvider.baseUrl, activeProvider.apiKey, activeProvider.selectedModel);
         case 'gemini':
             return new GeminiProvider('https://generativelanguage.googleapis.com', activeProvider.apiKey, activeProvider.selectedModel);
