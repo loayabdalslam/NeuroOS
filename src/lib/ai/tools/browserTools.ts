@@ -335,188 +335,160 @@ registerTool({
     },
 });
 
-// 4. SEARCH WEB — Real web search using multiple sources
+// 4. SEARCH WEB — Smart web search with auto-content extraction
 registerTool({
     name: 'search_web',
-    description: 'Search the web and get real results. Uses multiple search engines for reliability. Returns actual URLs and titles you can visit.',
+    description: 'Search the web and get real results. Automatically fetches content from top results to provide detailed information.',
     category: 'browser',
     parameters: {
         query: { type: 'string', description: 'What to search for', required: true },
-        open_browser: { type: 'boolean', description: 'Open results in browser', required: false },
+        fetch_content: { type: 'boolean', description: 'Auto-fetch content from top result (default: true)', required: false },
     },
     handler: async (args): Promise<ToolResult> => {
         const query = String(args.query ?? '').trim();
         if (!query) return { success: false, message: 'Search query is required' };
 
-        useAIStore.getState().addBrowserLog({ type: 'info', message: `🔍 Searching for: "${query}"` });
+        useAIStore.getState().addBrowserLog({ type: 'info', message: `Searching: "${query}"` });
         
-        const results: Array<{title: string; url: string}> = [];
+        const results: Array<{title: string; url: string; snippet?: string}> = [];
+        let contentFromTopResult = '';
         
         try {
-            // Try DuckDuckGo first
+            // Strategy 1: DuckDuckGo Instant Answer API
             try {
-                const ddgUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&ia=web`;
-                const ddgRes = await fetch(ddgUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        'Accept': 'text/html',
-                    }
-                });
-                const ddgHtml = await ddgRes.text();
+                const ddgApiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+                const ddgRes = await fetch(ddgApiUrl);
+                const ddgData = await ddgRes.json() as any;
                 
-                // Check for CAPTCHA in search results
-                if (detectCaptcha(ddgHtml, ddgHtml)) {
-                    await notifyCaptchaNeeded('DuckDuckGo Search');
-                    useAIStore.getState().addBrowserLog({ type: 'error', message: 'CAPTCHA detected on DuckDuckGo - switching to alternative' });
-                } else {
-                    // Parse DuckDuckGo results
-                    const ddgMatches = ddgHtml.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g);
-                    for (const match of ddgMatches) {
-                        let url = match[1];
-                        const title = match[2].replace(/<[^>]+>/g, '').trim();
-                        
-                        // Clean DuckDuckGo redirect
-                        if (url.includes('uddg=')) {
-                            url = decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
-                        }
-                        
-                        if (url.startsWith('http') && title && !url.includes('duckduckgo.com')) {
-                            results.push({ title, url });
-                        }
-                        if (results.length >= 10) break;
+                // Get abstract if available
+                if (ddgData.AbstractText) {
+                    contentFromTopResult = ddgData.AbstractText;
+                    if (ddgData.AbstractSource) {
+                        results.push({ title: ddgData.Heading || query, url: ddgData.AbstractURL, snippet: ddgData.AbstractText });
                     }
                 }
-            } catch (e) {
-                useAIStore.getState().addBrowserLog({ type: 'error', message: `DuckDuckGo failed: ${e}` });
-            }
-            
-            // If no results, try Bing
-            if (results.length === 0) {
-                try {
-                    const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
-                    const bingRes = await fetch(bingUrl, {
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        }
-                    });
-                    const bingHtml = await bingRes.text();
-                    
-                    const bingMatches = bingHtml.matchAll(/<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*>([^<]+)<\/a>/g);
-                    for (const match of bingMatches) {
-                        const url = match[1];
-                        let title = match[2].replace(/<[^>]+>/g, '').trim();
-                        
-                        if (url && !url.includes('bing.com') && !url.includes('microsoft.com') && title.length > 5) {
-                            results.push({ title: title.slice(0, 100), url });
-                        }
-                        if (results.length >= 10) break;
-                    }
-                } catch (e) {
-                    useAIStore.getState().addBrowserLog({ type: 'error', message: `Bing failed: ${e}` });
-                }
-            }
-            
-            // If still no results, try Wikipedia
-            if (results.length === 0) {
-                try {
-                    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json`;
-                    const wikiRes = await fetch(wikiUrl);
-                    const wikiData = await wikiRes.json() as any;
-
-                    if (wikiData.query?.search && wikiData.query.search.length > 0) {
-                        for (const result of wikiData.query.search) {
+                
+                // Get related topics
+                if (ddgData.RelatedTopics && ddgData.RelatedTopics.length > 0) {
+                    for (const topic of ddgData.RelatedTopics.slice(0, 5)) {
+                        if (topic.Text && topic.FirstURL) {
                             results.push({
-                                title: result.title,
-                                url: `https://en.wikipedia.org/wiki/${encodeURIComponent(result.title)}`
+                                title: topic.Text.split(' - ')[0] || topic.Text.slice(0, 60),
+                                url: topic.FirstURL,
+                                snippet: topic.Text
                             });
-                            if (results.length >= 10) break;
                         }
                     }
-                } catch (e) {
-                    useAIStore.getState().addBrowserLog({ type: 'error', message: `Wikipedia search failed: ${e}` });
                 }
-            }
+            } catch (e) {}
 
-            // Try Jina AI reader as last resort
-            if (results.length === 0) {
-                try {
-                    const jinaUrl = `https://r.jina.ai/http://www.google.com/search?q=${encodeURIComponent(query)}`;
-                    const jinaRes = await fetch(jinaUrl);
-                    const jinaText = await jinaRes.text();
+            // Strategy 2: Wikipedia for factual info
+            try {
+                const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&utf8=1&srlimit=5`;
+                const wikiRes = await fetch(wikiUrl);
+                const wikiData = await wikiRes.json() as any;
 
-                    if (jinaText && jinaText.length > 100) {
-                        // Extract URLs from Jina AI summary
-                        const urlMatches = jinaText.matchAll(/(https?:\/\/[^\s]+)/g);
-                        for (const match of urlMatches) {
-                            const url = match[1];
-                            if (!url.includes('google.com') && !url.includes('gstatic.com') && url.length > 20) {
-                                results.push({ title: url.slice(0, 50), url });
+                if (wikiData.query?.search && wikiData.query.search.length > 0) {
+                    for (const r of wikiData.query.search.slice(0, 3)) {
+                        const title = r.title;
+                        const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+                        // Clean snippet from HTML tags
+                        const snippet = r.snippet?.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&') || '';
+                        results.push({ title, url, snippet });
+                    }
+                    
+                    // Fetch first Wikipedia article content
+                    if (!contentFromTopResult && wikiData.query.search[0]) {
+                        const pageTitle = wikiData.query.search[0].title;
+                        const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts&exintro=1&explaintext=1&format=json`;
+                        try {
+                            const contentRes = await fetch(contentUrl);
+                            const contentData = await contentRes.json() as any;
+                            const pages = contentData.query?.pages;
+                            if (pages) {
+                                const page = Object.values(pages)[0] as any;
+                                if (page?.extract) {
+                                    contentFromTopResult = page.extract.slice(0, 1500);
+                                }
                             }
-                            if (results.length >= 10) break;
-                        }
+                        } catch {}
                     }
-                } catch (e) {
-                    useAIStore.getState().addBrowserLog({ type: 'error', message: `Jina AI failed: ${e}` });
+                }
+            } catch (e) {}
+
+            // Strategy 3: Try direct fetch of known sites for the query
+            if (results.length < 3) {
+                const directUrls = [
+                    `https://www.britannica.com/search?query=${encodeURIComponent(query)}`,
+                    `https://stackoverflow.com/search?q=${encodeURIComponent(query)}`,
+                    `https://github.com/search?q=${encodeURIComponent(query)}`,
+                ];
+                for (const url of directUrls) {
+                    if (results.length >= 5) break;
+                    try {
+                        const res = await fetch(url, { 
+                            headers: { 'User-Agent': 'Mozilla/5.0' },
+                            signal: AbortSignal.timeout(5000)
+                        });
+                        if (res.ok) {
+                            const html = await res.text();
+                            const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+                            if (titleMatch) {
+                                results.push({
+                                    title: titleMatch[1].replace(/ - .*/, '').trim(),
+                                    url,
+                                    snippet: `Direct source for "${query}"`
+                                });
+                            }
+                        }
+                    } catch {}
                 }
             }
 
-            // If we have results, return them
-            if (results.length > 0) {
+            // If we have results
+            if (results.length > 0 || contentFromTopResult) {
                 const uniqueResults = results.filter((v, i, a) => a.findIndex(t => t.url === v.url) === i);
                 
-                let message = `Search Results for "${query}":\n\n`;
-                uniqueResults.slice(0, 8).forEach((r, i) => {
-                    message += `${i + 1}. [${r.title}](${r.url})\n`;
-                });
-                message += `\nClick any link to open it in the browser, or use web_fetch to get full content.`;
+                let message = '';
                 
-                useAIStore.getState().addBrowserLog({ type: 'info', message: `Found ${uniqueResults.length} results` });
+                // If we got content from top result, include it
+                if (contentFromTopResult) {
+                    message += `**Information about "${query}":**\n\n${contentFromTopResult}\n\n`;
+                }
+                
+                // List sources
+                if (uniqueResults.length > 0) {
+                    message += `**Sources:**\n`;
+                    uniqueResults.slice(0, 5).forEach((r, i) => {
+                        message += `${i + 1}. [${r.title}](${r.url})`;
+                        if (r.snippet) {
+                            message += `\n   ${r.snippet.slice(0, 120)}`;
+                        }
+                        message += '\n';
+                    });
+                }
                 
                 return {
                     success: true,
-                    message,
+                    message: message.trim(),
                     data: {
                         query,
-                        results: uniqueResults.slice(0, 8),
-                        resultLinks: uniqueResults.map(r => r.url),
+                        results: uniqueResults.slice(0, 5),
+                        content: contentFromTopResult,
                         count: uniqueResults.length
                     }
                 };
             }
             
-            // Last resort - try opening browser
-            if (args.open_browser) {
-                const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-                ensureBrowserOpen(googleUrl);
-                await sendBrowserAction('navigate_and_wait', { url: googleUrl, timeout: 10000 }, 15000);
-                
-                return {
-                    success: true,
-                    message: `🔍 Opened browser for search: "${query}"\n\nPlease check the browser window for results.`,
-                    data: { query, browserOpened: true }
-                };
-            }
-            
             return {
                 success: false,
-                message: `❌ Could not find search results for "${query}".
-
-💡 Suggestions:
-- Try a more specific search (e.g., "loaii abdalslam github" or "loaii abdalslam linkedin")
-- Search for related terms or topics
-- Use **web_fetch** if you know a specific URL
-- Try **browser_navigate** to open a search in the browser manually`,
-                data: { query }
+                message: `Could not find results for "${query}". Try a different search term.`
             };
             
         } catch (e: any) {
-            const errorMsg = e.message || 'Unknown error';
-            useAIStore.getState().addBrowserLog({ type: 'error', message: `Search error: ${errorMsg}` });
-            
             return {
                 success: false,
-                message: `❌ Search failed: ${errorMsg}. Try using web_fetch with a specific URL instead.`,
-                data: { query, error: errorMsg }
+                message: `Search failed: ${e.message}`
             };
         }
     },
