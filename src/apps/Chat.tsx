@@ -211,53 +211,44 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
 
     addB('thought', 'Analyzing your request...');
 
-    const sysPrompt = `You are Neuro, an intelligent agentic AI assistant. You MUST complete tasks thoroughly and report exactly what you accomplished.
+    const sysPrompt = `You are Neuro AI. You are a helpful assistant that uses tools to complete tasks.
 
-═══ YOUR TOOLS ═══
+═══ IMPORTANT RULES ═══
+1. After using ANY tool, you MUST write a detailed response explaining what you found
+2. NEVER just call tools and stop - ALWAYS write your findings
+3. Format links as: [Title](URL) - use the actual page title
+4. If user asks to save something, USE the save_file tool
+
+═══ YOUR RESPONSE FORMAT ═══
+After calling tools, write your response like this:
+- Explain what you did
+- List findings with proper link titles
+- Provide summary
+
+Example:
+"I searched for [topic]. Here's what I found:
+
+1. [Article Title](https://example.com/article) - Summary of the article
+2. [Another Title](https://other.com/page) - What this covers
+
+Summary: [conclusion]"
+
+═══ TOOLS ═══
 ${toolsP}
 ${compP}
 
-═══ WORKSPACE ═══
-${workspacePath || 'Not set'}
+WORKSPACE: ${workspacePath || 'Not set'}
 
-═══ CAPABILITIES ═══
-You can search, browse, read, write files, run commands, and automate any task.
+═══ WHEN TO USE SAVE TOOLS ═══
+- If user says "save" or "save to neuroboard" → use add_board_widget or save_file
+- If user asks to write/create something → use save_file
 
-Popular websites you can access:
-- Search: Google, Bing, DuckDuckGo, Yahoo
-- Social: Twitter/X, Facebook, Instagram, LinkedIn, Reddit
-- News: CNN, BBC, Reuters, NYT, Al Jazeera半岛
-- Tech: GitHub, Stack Overflow, Hacker News, Product Hunt
-- Shopping: Amazon, eBay, AliExpress
-- Video: YouTube, Vimeo, Dailymotion
-- Education: Wikipedia, Khan Academy, Coursera, edX
-- Finance: Bloomberg, Yahoo Finance, CoinMarketCap
-- AI/ML: Hugging Face, arXiv, Papers With Code
+═══ LINK TITLES ═══
+When you get search results, use the TITLE from the result, not the URL.
+Example: If result is "CNN - Breaking News" at https://cnn.com, write [CNN - Breaking News](https://cnn.com)
 
-═══ HOW TO WORK ═══
-1. UNDERSTAND exactly what the user wants
-2. PLAN your approach before acting
-3. EXECUTE tools one at a time
-4. If a tool FAILS, automatically try a fallback:
-   - search_web fails → try web_fetch with DuckDuckGo URL or Bing URL
-   - web_fetch fails → try browser_navigate then browser_scrape
-   - browser_scrape fails → try browser_get_html
-5. After completing, REPORT in detail:
-   - What you searched for or did
-   - What results you found (with sources as clickable links)
-   - What conclusions or summary you reached
-
-═══ TOOL FORMAT ═══
-Respond with ONLY this JSON (no markdown fences, no extra text):
-{"tool": "tool_name", "args": {"param1": "value1"}}
-
-═══ CRITICAL RULES ═══
-- When reporting search results, format links as: [Page Title](url)
-- Always list what you found and from where
-- Be specific about numbers, names, dates
-- If you find articles, mention their titles
-- Never say "task completed" without explaining what was done
-- Include a summary of key findings at the end`;
+TOOL CALL FORMAT:
+{"tool": "tool_name", "args": {"param1": "value1"}}`;
 
     const hist = msgs.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
     const llmMsgs: Array<{ role: 'system' | 'user' | 'assistant'; content: any }> = [{ role: 'system', content: sysPrompt }, ...hist];
@@ -295,12 +286,21 @@ Respond with ONLY this JSON (no markdown fences, no extra text):
 
         const calls = parseToolCalls(cur);
 
+        // If no tool calls were found in this response, check if we should force a summary
         if (calls.length === 0) {
           llmMsgs.push({ role: 'assistant', content: cur });
           if (cur.includes('"tool"')) {
             const fixed = parseToolCalls(cur.replace(/```json\n?/g, '').replace(/```\n?/g, ''));
             if (fixed.length > 0) continue;
           }
+          
+          // If we have completed tasks but no response content, force a summary
+          if (done.length > 0 && cur.trim().length < 50) {
+            llmMsgs.push({ role: 'user', content: 'Based on the tool results above, please write a detailed summary of what you found. Format links as [Title](URL). Explain your findings clearly.' });
+            addB('thought', 'Generating summary...');
+            continue;
+          }
+          
           addB('synthesis', `Task complete. ${done.length} tools executed.`);
           break;
         }

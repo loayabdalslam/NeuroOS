@@ -210,6 +210,44 @@ registerTool({
     }
 });
 
+// ─── Save to NeuroBoard ─────────────────────────────────────────
+registerTool({
+    name: 'save_to_board',
+    description: 'Saves a note, text, or content card to the NeuroBoard. Use this when user says "save to board" or "save to neuroboard".',
+    category: 'os',
+    parameters: {
+        title: { type: 'string', description: 'Title for the card', required: true },
+        content: { type: 'string', description: 'Content to save on the board', required: true },
+        color: { type: 'string', description: 'Card color: blue, green, yellow, red, purple', required: false }
+    },
+    handler: async (args): Promise<ToolResult> => {
+        try {
+            const os = useOS.getState();
+            let boardWin = os.appWindows.find(w => w.component === 'board');
+
+            if (!boardWin) {
+                os.openApp('board', 'NeuroBoard');
+                await new Promise(r => setTimeout(r, 500));
+                boardWin = os.appWindows.find(w => w.component === 'board');
+            }
+
+            if (boardWin) {
+                os.sendAppAction(boardWin.id, 'add_card', {
+                    type: 'note',
+                    title: args.title || 'Note',
+                    content: args.content || '',
+                    color: args.color || 'blue'
+                });
+                os.focusWindow(boardWin.id);
+            }
+
+            return { success: true, message: `Saved "${args.title}" to NeuroBoard.`, data: { title: args.title } };
+        } catch (e: any) {
+            return { success: false, message: `Failed to save to board: ${e.message}` };
+        }
+    }
+});
+
 // ─── Update Memory ────────────────────────────────────────────────
 registerTool({
     name: 'update_memory',
