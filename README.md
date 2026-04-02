@@ -1,6 +1,6 @@
 
 <p align="center">
-<img src="https://github.com/user-attachments/assets/8a648fee-6ecf-4751-8f83-9f603fc4cb2c" alt="NeuroOS Logo" width="80" height="80">
+<img width="1393" height="957" alt="Screenshot 2026-04-02 230242" src="https://github.com/user-attachments/assets/85ba894b-fea7-4dae-b47b-776e19fe639c" />
 
 </p>
 
