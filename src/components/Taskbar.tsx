@@ -96,7 +96,7 @@ export const Taskbar: React.FC = () => {
                   "transition-all duration-300",
                   isFocused ? "scale-110" : "group-hover:scale-110"
                 )}>
-                  {Icon ? <Icon size={20} strokeWidth={2.5} /> : <span className="text-xs font-bold">{app.config?.name.charAt(0)}</span>}
+                  {Icon ? <Icon size={20} /> : <span className="text-xs font-bold">{app.config?.name.charAt(0)}</span>}
                 </div>
 
                 {/* Running indicator dot */}
