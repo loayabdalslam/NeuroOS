@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Send, X, Copy, Check, Sparkles, Wrench, ChevronDown, StopCircle, Brain, Clock, Trash2, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Send, X, Copy, Check, Sparkles, Wrench, ChevronDown, StopCircle, Brain, Clock, Trash2, MessageSquare, ChevronLeft, ChevronRight, Bot } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useComposioStore } from '../stores/composioStore';
 import { useSessionStore, ChatMessage } from '../stores/sessionStore';
@@ -110,13 +110,14 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
   const [showAll, setShowAll] = useState(false);
   const [imgInput, setImgInput] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showModelSelector, setShowModelSelector] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { workspacePath } = useWorkspaceStore();
   const { openApp, appWindows, closeWindow, sendAppAction } = useOS();
   const { isAuthenticated: isComp } = useComposioStore();
-  const { theme, aiConfig } = useSettingsStore();
+  const { theme, aiConfig, updateProvider, updateAiConfig } = useSettingsStore();
   const { sessions, activeSessionId, createSession, setActiveSession, updateSessionMessages, deleteSession, saveSessionToWorkspace } = useSessionStore();
 
   const allTools = useMemo(() => getAllTools(), []);
@@ -441,6 +442,63 @@ TOOL CALL FORMAT:
           <span className={cn("text-[9px] uppercase tracking-wider", dark ? "text-zinc-600" : "text-zinc-400")}>crew-agentic</span>
         </div>
         <div className="flex items-center gap-1">
+          {/* Model Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setShowModelSelector(!showModelSelector)}
+              className={cn("text-[11px] px-2 py-1 rounded-md transition-colors flex items-center gap-1.5", dark ? "text-zinc-400 hover:text-zinc-300 hover:bg-white/[0.05]" : "text-zinc-500 hover:text-zinc-600 hover:bg-black/[0.03]")}
+            >
+              <Bot size={12} />
+              <span className="max-w-[100px] truncate">{currentModel}</span>
+              <ChevronDown size={10} className={cn("transition-transform", showModelSelector && "rotate-180")} />
+            </button>
+            
+            <AnimatePresence>
+              {showModelSelector && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className={cn("absolute top-full right-0 mt-1 w-64 rounded-xl border shadow-lg z-50 overflow-hidden", dark ? "bg-zinc-900 border-white/[0.1]" : "bg-white border-zinc-200")}
+                >
+                  <div className="p-2 space-y-1 max-h-80 overflow-y-auto">
+                    {aiConfig.providers.map(provider => (
+                      <div key={provider.id}>
+                        <div className={cn("px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider", dark ? "text-zinc-500" : "text-zinc-400")}>
+                          {provider.name}
+                          {provider.type === 'opencode' && <span className="ml-1 text-emerald-500">(Free)</span>}
+                        </div>
+                        {provider.models.map(model => (
+                          <button
+                            key={`${provider.id}-${model}`}
+                            onClick={() => {
+                              updateProvider(provider.id, { selectedModel: model });
+                              updateAiConfig({ activeProviderId: provider.id });
+                              setShowModelSelector(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-1.5 rounded-lg text-[11px] transition-colors",
+                              provider.id === aiConfig.activeProviderId && model === currentModel
+                                ? (dark ? "bg-white/[0.08] text-white" : "bg-black/[0.05] text-zinc-900 font-medium")
+                                : (dark ? "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200" : "text-zinc-600 hover:bg-black/[0.03] hover:text-zinc-900")
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="truncate">{model}</span>
+                              {provider.id === aiConfig.activeProviderId && model === currentModel && (
+                                <Check size={10} className="shrink-0 opacity-60" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <button onClick={() => setShowHistory(!showHistory)}
             className={cn("text-[11px] px-2 py-1 rounded-md transition-colors flex items-center gap-1", dark ? "text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.05]" : "text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.03]")}>
             <Clock size={12} />
