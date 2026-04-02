@@ -27,10 +27,14 @@ export interface LLMProvider {
 
 export const VISION_MODELS = {
     openai: ['gpt-4-vision', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4'],
-    anthropic: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku', 'claude-3-5-sonnet', 'claude-3-5-haiku'],
-    google: ['gemini-pro-vision', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro-002', 'gemini-2.0-flash-exp'],
-    openrouter: ['openai/gpt-4o', 'openai/gpt-4o-mini', 'anthropic/claude-3-opus', 'anthropic/claude-3-sonnet', 'google/gemini-pro-vision'],
+    anthropic: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku', 'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-sonnet-4', 'claude-opus-4'],
+    google: ['gemini-pro-vision', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro-002', 'gemini-2.0-flash', 'gemini-2.0-flash-exp'],
+    openrouter: ['openai/gpt-4o', 'openai/gpt-4o-mini', 'anthropic/claude-3-opus', 'anthropic/claude-3-sonnet', 'google/gemini-pro-vision', 'google/gemini-flash-1.5'],
     ollama: ['llava', 'llava-llama3', 'llava-phi3', 'bakllava', 'moondream', 'qwen-vl', 'minicpm-v'],
+    opencode: ['opencode-vision'],
+    lmstudio: [],
+    groq: ['llava', 'llama-3.2-11b-vision', 'llama-3.2-90b-vision'],
+    mistral: ['pixtral'],
 };
 
 export function hasImageContent(messages: LLMMessage[]): boolean {

@@ -298,7 +298,9 @@ TOOL FORMAT (respond with ONLY this JSON, no markdown):
         if (image && checkVisionSupport()) {
             messagesForLLM.push({ role: 'user', content: [{ type: 'text', text: userInput }, { type: 'image_url', image_url: { url: image } }] });
         } else if (image) {
-            messagesForLLM.push({ role: 'user', content: `${userInput}\n\n[Image attached - vision may not be supported by this model]` });
+            // Model doesn't support vision - send text only with a note
+            addBlock('tool_error', 'Image attached but this model does not support vision analysis. Sending text only.');
+            messagesForLLM.push({ role: 'user', content: `${userInput}\n\n[Note: An image was attached but this model (${useSettingsStore.getState().aiConfig.providers.find(p => p.id === useSettingsStore.getState().aiConfig.activeProviderId)?.selectedModel || 'unknown'}) does not support vision. Please inform the user to switch to a vision-capable model like gpt-4o, gemini-2.0-flash, or opencode-vision to analyze images.]` });
         } else {
             messagesForLLM.push({ role: 'user', content: userInput });
         }

@@ -76,15 +76,24 @@ registerTool({
     },
     handler: async (args): Promise<ToolResult> => {
         try {
+            const title = args.title || 'Neuro OS';
+            const body = args.body || '';
+            const icon = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🤖</text></svg>';
+
             if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(args.title, { body: args.body });
+                new Notification(`Neuro OS — ${title}`, { body, icon });
             } else if ('Notification' in window) {
                 const perm = await Notification.requestPermission();
                 if (perm === 'granted') {
-                    new Notification(args.title, { body: args.body });
+                    new Notification(`Neuro OS — ${title}`, { body, icon });
                 }
             }
-            return { success: true, message: `🔔 Notification sent: **${args.title}**`, data: { title: args.title, body: args.body } };
+            // Also try electron native notification
+            try {
+                await (window as any).electron?.system?.notification?.(`Neuro OS — ${title}`, body);
+            } catch {}
+
+            return { success: true, message: `Notification sent: ${title}`, data: { title, body } };
         } catch (e: any) {
             return { success: false, message: `Failed to send notification: ${e.message}` };
         }
