@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { Settings as SettingsIcon, Shield, Palette, Key, Bell, Info, Bot, Check, RefreshCw, Download, ArrowUpCircle, Rocket, Power, Globe, Server, X } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Palette, Key, Bell, Info, Bot, Check, RefreshCw, Download, ArrowUpCircle, Rocket, Power, Globe, Server, X, ChevronDown, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { OSAppWindow } from '../hooks/useOS';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -182,14 +182,34 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Model</label>
-                      <input type="text" value={provider.selectedModel} onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })} placeholder="e.g. gpt-4o" className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200" />
+                      {provider.models && provider.models.length > 0 ? (
+                        <div className="relative">
+                          <select
+                            value={provider.selectedModel}
+                            onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })}
+                            className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 appearance-none cursor-pointer pr-8"
+                          >
+                            {provider.models.map(m => (
+                              <option key={m} value={m}>{m}</option>
+                            ))}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                        </div>
+                      ) : (
+                        <input type="text" value={provider.selectedModel} onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })} placeholder="e.g. gpt-4o" className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200" />
+                      )}
+                      {provider.type === 'opencode' && (
+                        <p className="text-[10px] text-emerald-500 flex items-center gap-1">
+                          <Sparkles size={10} /> All models are free — no API key required
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Endpoint URL</label>
                       <input value={provider.baseUrl} onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })} placeholder="https://api.example.com/v1" className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200" />
                     </div>
                   </div>
-                  {provider.type !== 'ollama' && provider.type !== 'lmstudio' && (
+                  {provider.type !== 'ollama' && provider.type !== 'lmstudio' && provider.type !== 'opencode' && (
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">API Key</label>
                       <input type="password" placeholder={provider.apiKey ? "••••••••" : "Enter API Key"} value={provider.apiKey} onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })} className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 placeholder:text-zinc-300" />

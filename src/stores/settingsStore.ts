@@ -46,7 +46,16 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.opencode.ai/v1',
         apiKey: '',
         selectedModel: 'opencode-mini',
-        models: ['opencode-mini', 'opencode-fast', 'opencode-smart', 'opencode-vision']
+        models: [
+            'opencode-mini',
+            'opencode-fast',
+            'opencode-smart',
+            'opencode-vision',
+            'opencode-coder',
+            'opencode-writer',
+            'opencode-reasoning',
+            'opencode-lite'
+        ]
     },
     {
         id: 'ollama',
@@ -55,7 +64,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'http://localhost:11434',
         apiKey: '',
         selectedModel: 'llama3',
-        models: ['llama3', 'mistral', 'neural-chat']
+        models: ['llama3', 'mistral', 'neural-chat', 'codellama', 'phi3', 'gemma2']
     },
     {
         id: 'openrouter',
@@ -64,7 +73,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://openrouter.ai/api/v1',
         apiKey: '',
         selectedModel: 'openai/gpt-4o-mini',
-        models: ['openai/gpt-4o-mini', 'openai/gpt-4o', 'anthropic/claude-3.5-sonnet', 'google/gemini-flash-1.5']
+        models: ['openai/gpt-4o-mini', 'openai/gpt-4o', 'anthropic/claude-3.5-sonnet', 'google/gemini-flash-1.5', 'meta-llama/llama-3.1-70b-instruct']
     },
     {
         id: 'gemini',

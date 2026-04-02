@@ -258,13 +258,38 @@ export const OnboardingFlow: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* API Key */}
-                                {currentProvider && !['ollama', 'lmstudio'].includes(currentProvider.type) && (
+                                {/* API Key - hidden for opencode */}
+                                {currentProvider && !['ollama', 'lmstudio', 'opencode'].includes(currentProvider.type) && (
                                     <div className="space-y-2">
-                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">
-                                            {currentProvider.type === 'opencode' ? 'API Key (Optional)' : 'API Key'}
-                                        </label>
-                                        <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all font-mono text-xs text-zinc-600 placeholder:text-zinc-200" placeholder={currentProvider.type === 'opencode' ? 'Leave empty for free tier' : 'sk-...'} />
+                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">API Key</label>
+                                        <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all font-mono text-xs text-zinc-600 placeholder:text-zinc-200" placeholder="sk-..." />
+                                    </div>
+                                )}
+
+                                {/* OpenCode free tier info */}
+                                {currentProvider?.type === 'opencode' && (
+                                    <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                                        <p className="text-[11px] text-emerald-700 font-medium">Free tier — no API key needed</p>
+                                        <p className="text-[10px] text-emerald-500 mt-0.5">All OpenCode models are free to use</p>
+                                    </div>
+                                )}
+
+                                {/* Model selector for providers with models */}
+                                {currentProvider && currentProvider.models && currentProvider.models.length > 0 && (
+                                    <div className="space-y-2">
+                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Model</label>
+                                        <div className="relative">
+                                            <select
+                                                value={customModel || selectedModel}
+                                                onChange={e => { setCustomModel(''); setSelectedModel(e.target.value); }}
+                                                className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700 appearance-none cursor-pointer pr-10"
+                                            >
+                                                {currentProvider.models.map(m => (
+                                                    <option key={m} value={m}>{m}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                                        </div>
                                     </div>
                                 )}
 
@@ -274,10 +299,6 @@ export const OnboardingFlow: React.FC = () => {
                                         <div className="space-y-2">
                                             <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Base URL</label>
                                             <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700" placeholder="http://localhost:11434" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Model</label>
-                                            <input value={customModel || selectedModel} onChange={e => setCustomModel(e.target.value)} className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700" placeholder="llama3" />
                                         </div>
                                     </div>
                                 )}
