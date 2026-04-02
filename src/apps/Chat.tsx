@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Send, X, Copy, Check, Sparkles, Wrench, ChevronDown, StopCircle, Brain } from 'lucide-react';
+import { Send, X, Copy, Check, Sparkles, Wrench, ChevronDown, StopCircle, Brain, Clock, Trash2, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useComposioStore } from '../stores/composioStore';
+import { useSessionStore, ChatMessage } from '../stores/sessionStore';
 import { getLLMProvider } from '../lib/llm/factory';
 import { useOS, OSAppWindow } from '../hooks/useOS';
 import Markdown from 'react-markdown';
@@ -108,18 +109,50 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
   const [imgInput, setImgInput] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { workspacePath } = useWorkspaceStore();
   const { openApp, appWindows, closeWindow, sendAppAction } = useOS();
   const { isAuthenticated: isComp } = useComposioStore();
-  const { theme } = useSettingsStore();
+  const { theme, aiConfig } = useSettingsStore();
+  const { sessions, activeSessionId, createSession, setActiveSession, updateSessionMessages, deleteSession, saveSessionToWorkspace } = useSessionStore();
 
   const allTools = useMemo(() => getAllTools(), []);
   const toolsP = useMemo(() => getToolsForPrompt(), []);
   const compP = useMemo(() => getComposioToolsForPrompt(), [isComp]);
   const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  // Get current model info
+  const currentProvider = aiConfig.providers?.find((p: any) => p.id === aiConfig.activeProviderId);
+  const currentModel = currentProvider?.selectedModel || 'unknown';
+  const currentProviderName = currentProvider?.name || 'unknown';
+
+  // Load active session on mount
+  useEffect(() => {
+    const active = sessions.find(s => s.id === activeSessionId);
+    if (active && active.messages.length > 0) {
+      setMsgs(active.messages as Message[]);
+    } else if (!activeSessionId) {
+      const newSession = createSession(currentModel, currentProviderName, workspacePath);
+      // Auto-save to workspace after creating
+      if (workspacePath) {
+        setTimeout(() => saveSessionToWorkspace(newSession.id, workspacePath), 1000);
+      }
+    }
+  }, []);
+
+  // Auto-save messages to session
+  useEffect(() => {
+    if (activeSessionId && msgs.length > 0 && !streaming) {
+      updateSessionMessages(activeSessionId, msgs as ChatMessage[]);
+      // Save to workspace
+      if (workspacePath) {
+        saveSessionToWorkspace(activeSessionId, workspacePath);
+      }
+    }
+  }, [msgs, streaming]);
 
   useEffect(() => { if (isComp) loadComposioTools(); }, [isComp]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
@@ -356,8 +389,46 @@ Respond with ONLY this JSON (no markdown fences, no extra text):
 
   const submit = useCallback((e?: React.FormEvent) => { e?.preventDefault?.(); if ((!input.trim() && !imgInput) || streaming) return; runAgent(input.trim() || 'Analyze this image', imgInput); setInput(''); setImgInput(null); }, [input, imgInput, streaming, runAgent]);
   const stop = useCallback(() => abort?.abort(), [abort]);
-  const clear = useCallback(() => setMsgs([]), []);
+  
+  // Create new session
+  const clear = useCallback(() => {
+    const newSession = createSession(currentModel, currentProviderName, workspacePath);
+    setMsgs([]);
+    if (workspacePath) {
+      setTimeout(() => saveSessionToWorkspace(newSession.id, workspacePath), 1000);
+    }
+  }, [currentModel, currentProviderName, workspacePath]);
+  
+  // Load a previous session
+  const loadSession = useCallback((sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (session) {
+      setActiveSession(sessionId);
+      setMsgs(session.messages as Message[]);
+      setShowHistory(false);
+    }
+  }, [sessions]);
+  
+  // Delete a session
+  const removeSession = useCallback((sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteSession(sessionId);
+    if (activeSessionId === sessionId) {
+      setMsgs([]);
+      const newSession = createSession(currentModel, currentProviderName, workspacePath);
+    }
+  }, [activeSessionId, currentModel, currentProviderName, workspacePath]);
+  
   const paste = useCallback((e: React.ClipboardEvent) => { for (const it of (e.clipboardData?.items || [])) { if (it.type.startsWith('image/')) { e.preventDefault(); const b = it.getAsFile(); if (b) { const r = new FileReader(); r.onload = () => setImgInput(r.result as string); r.readAsDataURL(b); } break; } } }, []);
+
+  // Format time ago
+  const timeAgo = (ts: number) => {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+    return `${Math.floor(diff / 86400000)}d`;
+  };
 
   return (
     <div className={cn("flex flex-col h-full font-sans", dark ? "bg-zinc-950 text-zinc-100" : "bg-white text-zinc-900")}>
@@ -369,8 +440,66 @@ Respond with ONLY this JSON (no markdown fences, no extra text):
           <span className="text-sm font-medium">Neuro</span>
           <span className={cn("text-[9px] uppercase tracking-wider", dark ? "text-zinc-600" : "text-zinc-400")}>crew-agentic</span>
         </div>
-        <button onClick={clear} className={cn("text-[11px] px-2 py-1 rounded-md transition-colors", dark ? "text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.05]" : "text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.03]")}>New chat</button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setShowHistory(!showHistory)}
+            className={cn("text-[11px] px-2 py-1 rounded-md transition-colors flex items-center gap-1", dark ? "text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.05]" : "text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.03]")}>
+            <Clock size={12} />
+            <span>{sessions.length}</span>
+          </button>
+          <button onClick={clear} className={cn("text-[11px] px-2 py-1 rounded-md transition-colors", dark ? "text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.05]" : "text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.03]")}>New chat</button>
+        </div>
       </div>
+
+      {/* Session History Panel */}
+      <AnimatePresence>
+        {showHistory && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className={cn("border-b overflow-hidden", dark ? "border-white/[0.06] bg-zinc-900/50" : "border-black/[0.06] bg-zinc-50/50")}
+          >
+            <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+              <div className="flex items-center justify-between px-2 py-1">
+                <span className={cn("text-[10px] font-medium uppercase tracking-wider", dark ? "text-zinc-500" : "text-zinc-400")}>Chat History</span>
+                <button onClick={() => setShowHistory(false)} className={cn("p-0.5 rounded", dark ? "hover:bg-white/[0.05]" : "hover:bg-black/[0.05]")}>
+                  <X size={12} className="opacity-50" />
+                </button>
+              </div>
+              {sessions.length === 0 ? (
+                <div className={cn("text-[11px] text-center py-4", dark ? "text-zinc-600" : "text-zinc-400")}>No chat history yet</div>
+              ) : (
+                sessions.slice(0, 20).map(session => (
+                  <div
+                    key={session.id}
+                    onClick={() => loadSession(session.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer group transition-colors",
+                      session.id === activeSessionId
+                        ? (dark ? "bg-white/[0.06]" : "bg-black/[0.04]")
+                        : (dark ? "hover:bg-white/[0.03]" : "hover:bg-black/[0.02]")
+                    )}
+                  >
+                    <MessageSquare size={12} className={cn("shrink-0", dark ? "text-zinc-600" : "text-zinc-400")} />
+                    <div className="flex-1 min-w-0">
+                      <div className={cn("text-[11px] truncate", dark ? "text-zinc-300" : "text-zinc-700")}>{session.title}</div>
+                      <div className={cn("text-[9px]", dark ? "text-zinc-600" : "text-zinc-400")}>
+                        {session.messages.length} messages · {timeAgo(session.updatedAt)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => removeSession(session.id, e)}
+                      className={cn("p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity", dark ? "hover:bg-white/[0.05] text-zinc-500" : "hover:bg-black/[0.05] text-zinc-400")}
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 overflow-y-auto">
         {msgs.length === 0 ? (
