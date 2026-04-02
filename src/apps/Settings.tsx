@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { Settings as SettingsIcon, Shield, Palette, Key, Bell, Info, Bot, Check, RefreshCw, Download, ArrowUpCircle, Rocket, Power, Globe, Server, X, ChevronDown, Sparkles } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Palette, Key, Bell, Info, Bot, Check, RefreshCw, Download, ArrowUpCircle, Rocket, Power, Globe, Server, X, ChevronDown, Sparkles, Image, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { OSAppWindow } from '../hooks/useOS';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -16,7 +16,7 @@ interface SettingsProps {
 export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
   const [activeTab, setActiveTab] = useState('general');
   const [launchOnStartup, setLaunchOnStartup] = useState(false);
-  const { aiConfig, updateAiConfig, updateProvider, theme, setTheme, notificationsEnabled, soundEnabled, desktopBadgesEnabled, setNotifications, setSound, setDesktopBadges } = useSettingsStore();
+  const { aiConfig, updateAiConfig, updateProvider, theme, setTheme, notificationsEnabled, soundEnabled, desktopBadgesEnabled, setNotifications, setSound, setDesktopBadges, wallpaper, setWallpaper, customWallpapers, addCustomWallpaper, removeCustomWallpaper } = useSettingsStore();
 
   // Update State
   const [updateStatus, setUpdateStatus] = useState<{
@@ -117,33 +117,160 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
 
           {/* APPEARANCE */}
           {activeTab === 'appearance' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="grid grid-cols-4 gap-3">
-                {Object.entries(themeDescriptions).map(([themeKey, description]) => (
-                  <button
-                    key={themeKey}
-                    onClick={() => { setTheme(themeKey as ThemeVariant); applyThemeToDOM(themeKey as ThemeVariant); }}
-                    className={cn(
-                      "p-3 border rounded-xl flex flex-col items-center gap-2 transition-all",
-                      theme === themeKey ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50/50" : "border-zinc-200 hover:border-zinc-300"
-                    )}
-                    title={description}
-                  >
-                    <div className={cn("w-8 h-8 rounded-lg",
-                      themeKey === 'light' ? 'bg-white border-2 border-gray-300' :
-                      themeKey === 'dark' ? 'bg-zinc-900 border-2 border-zinc-700' :
-                      themeKey === 'cyan' ? 'bg-cyan-500' :
-                      themeKey === 'purple' ? 'bg-purple-500' :
-                      themeKey === 'amber' ? 'bg-amber-500' :
-                      themeKey === 'rose' ? 'bg-rose-500' :
-                      themeKey === 'system' ? 'bg-gradient-to-br from-zinc-300 to-zinc-600' :
-                      'bg-slate-600'
-                    )} />
-                    <span className="text-[10px] font-medium capitalize">{themeKey}</span>
-                  </button>
-                ))}
+            <div className="space-y-8 animate-in fade-in duration-300">
+              {/* Theme Selection */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-zinc-900">Color Theme</h3>
+                <div className="grid grid-cols-4 gap-3">
+                  {Object.entries(themeDescriptions).map(([themeKey, description]) => (
+                    <button
+                      key={themeKey}
+                      onClick={() => { setTheme(themeKey as ThemeVariant); applyThemeToDOM(themeKey as ThemeVariant); }}
+                      className={cn(
+                        "p-3 border rounded-xl flex flex-col items-center gap-2 transition-all",
+                        theme === themeKey ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50/50" : "border-zinc-200 hover:border-zinc-300"
+                      )}
+                      title={description}
+                    >
+                      <div className={cn("w-8 h-8 rounded-lg",
+                        themeKey === 'light' ? 'bg-white border-2 border-gray-300' :
+                        themeKey === 'dark' ? 'bg-zinc-900 border-2 border-zinc-700' :
+                        themeKey === 'cyan' ? 'bg-cyan-500' :
+                        themeKey === 'purple' ? 'bg-purple-500' :
+                        themeKey === 'amber' ? 'bg-amber-500' :
+                        themeKey === 'rose' ? 'bg-rose-500' :
+                        themeKey === 'system' ? 'bg-gradient-to-br from-zinc-300 to-zinc-600' :
+                        'bg-slate-600'
+                      )} />
+                      <span className="text-[10px] font-medium capitalize">{themeKey}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <p className="text-[11px] text-zinc-400">Choose from 8 color themes. Applied instantly.</p>
+
+              {/* Wallpaper Selection */}
+              <div className="space-y-3 pt-4 border-t border-zinc-100">
+                <h3 className="text-sm font-medium text-zinc-900">Desktop Wallpaper</h3>
+                
+                {/* Upload Custom Wallpaper */}
+                <button
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const url = reader.result as string;
+                          setWallpaper(url);
+                          addCustomWallpaper(url);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    };
+                    input.click();
+                  }}
+                  className="w-full p-4 border border-dashed border-zinc-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2 text-sm text-zinc-500 hover:text-blue-600"
+                >
+                  <Upload size={16} />
+                  Upload Custom Wallpaper
+                </button>
+
+                {/* Preset Wallpapers */}
+                <div className="grid grid-cols-5 gap-2">
+                  {/* Reset to Default */}
+                  <button
+                    onClick={() => setWallpaper('')}
+                    className={cn(
+                      "relative aspect-video rounded-lg border-2 overflow-hidden transition-all",
+                      !wallpaper ? "border-blue-500 ring-2 ring-blue-500" : "border-zinc-200 hover:border-zinc-300"
+                    )}
+                    title="Default"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-zinc-100 to-zinc-300" />
+                    <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-zinc-600">Default</span>
+                  </button>
+
+                  {/* Preset Colors/Gradients */}
+                  {[
+                    { name: 'Blue', bg: 'bg-gradient-to-br from-blue-400 to-blue-600' },
+                    { name: 'Purple', bg: 'bg-gradient-to-br from-purple-400 to-purple-600' },
+                    { name: 'Dark', bg: 'bg-gradient-to-br from-zinc-800 to-zinc-950' },
+                    { name: 'Nature', bg: 'bg-gradient-to-br from-green-400 to-emerald-600' },
+                    { name: 'Sunset', bg: 'bg-gradient-to-br from-orange-400 to-red-500' },
+                    { name: 'Ocean', bg: 'bg-gradient-to-br from-cyan-400 to-blue-500' },
+                    { name: 'Rose', bg: 'bg-gradient-to-br from-pink-400 to-rose-500' },
+                    { name: 'Night', bg: 'bg-gradient-to-br from-slate-700 to-slate-900' },
+                  ].map((preset, i) => (
+                    <button
+                      key={preset.name}
+                      onClick={() => {
+                        // Create gradient as data URL
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 800;
+                        canvas.height = 600;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                          const gradient = ctx.createLinearGradient(0, 0, 800, 600);
+                          const colors: Record<string, [string, string]> = {
+                            'Blue': ['#60a5fa', '#2563eb'],
+                            'Purple': ['#c084fc', '#9333ea'],
+                            'Dark': ['#3f3f46', '#09090b'],
+                            'Nature': ['#4ade80', '#059669'],
+                            'Sunset': ['#fb923c', '#ef4444'],
+                            'Ocean': ['#22d3ee', '#3b82f6'],
+                            'Rose': ['#f472b6', '#e11d48'],
+                            'Night': ['#475569', '#0f172a'],
+                          };
+                          const [c1, c2] = colors[preset.name] || ['#e5e7eb', '#9ca3af'];
+                          gradient.addColorStop(0, c1);
+                          gradient.addColorStop(1, c2);
+                          ctx.fillStyle = gradient;
+                          ctx.fillRect(0, 0, 800, 600);
+                          setWallpaper(canvas.toDataURL());
+                        }
+                      }}
+                      className={cn(
+                        "relative aspect-video rounded-lg border-2 overflow-hidden transition-all",
+                        wallpaper?.startsWith('data:image') && wallpaper.includes(preset.name.toLowerCase()) ? "border-blue-500 ring-2 ring-blue-500" : "border-zinc-200 hover:border-zinc-300"
+                      )}
+                      title={preset.name}
+                    >
+                      <div className={cn("absolute inset-0", preset.bg)} />
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Wallpapers */}
+                {customWallpapers.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <h4 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Your Wallpapers</h4>
+                    <div className="grid grid-cols-5 gap-2">
+                      {customWallpapers.map((url, i) => (
+                        <div key={i} className="relative group">
+                          <button
+                            onClick={() => setWallpaper(url)}
+                            className={cn(
+                              "w-full aspect-video rounded-lg border-2 overflow-hidden transition-all",
+                              wallpaper === url ? "border-blue-500 ring-2 ring-blue-500" : "border-zinc-200 hover:border-zinc-300"
+                            )}
+                          >
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </button>
+                          <button
+                            onClick={() => removeCustomWallpaper(url)}
+                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={8} className="text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

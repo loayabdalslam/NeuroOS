@@ -47,14 +47,21 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         apiKey: '',
         selectedModel: 'opencode-mini',
         models: [
+            // Free tier models (no API key required)
             'opencode-mini',
             'opencode-fast',
+            'opencode-lite',
+            'opencode-coder-lite',
+            // Pro models (API key required)
             'opencode-smart',
             'opencode-vision',
             'opencode-coder',
             'opencode-writer',
             'opencode-reasoning',
-            'opencode-lite'
+            'opencode-pro',
+            'opencode-ultra',
+            'opencode-coder-pro',
+            'opencode-vision-pro'
         ]
     },
     {
