@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { composioClient, type ComposioTool, type ComposioAppConnection } from '../lib/composio/composioClient';
+import { composioClient, type ComposioTool, type ComposioAppConnection, type ComposioApp } from '../lib/composio/composioClient';
 
 interface ComposioState {
     apiKey: string;
@@ -12,21 +12,28 @@ interface ComposioState {
     isOnboarding: boolean;
     connections: ComposioAppConnection[];
     availableTools: ComposioTool[];
+    availableApps: ComposioApp[];
     authorizedTools: Set<string>;
     pendingPermissions: { toolId: string; appId: string; toolName: string }[];
+    isLoading: boolean;
+    error: string | null;
 
     // Actions
     setApiKey: (key: string) => Promise<boolean>;
     startOnboarding: () => void;
     completeOnboarding: () => void;
     loadConnections: () => Promise<void>;
+    loadApps: () => Promise<void>;
     loadTools: (appId?: string) => Promise<void>;
+    searchTools: (query: string) => Promise<ComposioTool[]>;
     requestToolPermission: (toolId: string, appId: string, toolName: string) => void;
     grantToolPermission: (toolId: string) => void;
     denyToolPermission: (toolId: string) => void;
     authorizeApp: (appId: string) => Promise<string | null>;
     executeTool: (toolId: string, params: Record<string, any>, appId: string) => Promise<any>;
+    getToolsForPrompt: () => string;
     logout: () => void;
+    clearError: () => void;
 }
 
 export const useComposioStore = create<ComposioState>()(
@@ -37,17 +44,31 @@ export const useComposioStore = create<ComposioState>()(
             isOnboarding: false,
             connections: [],
             availableTools: [],
+            availableApps: [],
             authorizedTools: new Set(),
             pendingPermissions: [],
+            isLoading: false,
+            error: null,
 
             setApiKey: async (key: string) => {
-                const success = await composioClient.initializeAuth(key);
-                if (success) {
-                    set({ apiKey: key, isAuthenticated: true, isOnboarding: false });
-                    await get().loadConnections();
-                    await get().loadTools();
+                set({ isLoading: true, error: null });
+                try {
+                    const success = await composioClient.initializeAuth(key);
+                    if (success) {
+                        set({ apiKey: key, isAuthenticated: true, isOnboarding: false });
+                        await get().loadConnections();
+                        await get().loadApps();
+                        await get().loadTools();
+                    } else {
+                        set({ error: 'Invalid API key' });
+                    }
+                    return success;
+                } catch (error: any) {
+                    set({ error: error.message || 'Authentication failed' });
+                    return false;
+                } finally {
+                    set({ isLoading: false });
                 }
-                return success;
             },
 
             startOnboarding: () => set({ isOnboarding: true }),
@@ -55,13 +76,48 @@ export const useComposioStore = create<ComposioState>()(
             completeOnboarding: () => set({ isOnboarding: false }),
 
             loadConnections: async () => {
-                const connections = await composioClient.getConnections();
-                set({ connections });
+                set({ isLoading: true });
+                try {
+                    const connections = await composioClient.getConnections();
+                    set({ connections });
+                } catch (error: any) {
+                    set({ error: error.message });
+                } finally {
+                    set({ isLoading: false });
+                }
+            },
+
+            loadApps: async () => {
+                set({ isLoading: true });
+                try {
+                    const apps = await composioClient.getAvailableApps();
+                    set({ availableApps: apps });
+                } catch (error: any) {
+                    set({ error: error.message });
+                } finally {
+                    set({ isLoading: false });
+                }
             },
 
             loadTools: async (appId?: string) => {
-                const tools = await composioClient.getAvailableTools(appId);
-                set({ availableTools: tools });
+                set({ isLoading: true });
+                try {
+                    const tools = await composioClient.getAvailableTools(appId);
+                    set({ availableTools: tools });
+                } catch (error: any) {
+                    set({ error: error.message });
+                } finally {
+                    set({ isLoading: false });
+                }
+            },
+
+            searchTools: async (query: string) => {
+                try {
+                    return await composioClient.searchTools(query);
+                } catch (error: any) {
+                    set({ error: error.message });
+                    return [];
+                }
             },
 
             requestToolPermission: (toolId, appId, toolName) => {
@@ -87,12 +143,20 @@ export const useComposioStore = create<ComposioState>()(
             },
 
             authorizeApp: async (appId: string) => {
-                const authUrl = await composioClient.getAuthUrl(appId);
-                if (authUrl) {
-                    window.open(authUrl, 'composio_auth', 'width=600,height=700');
-                    return authUrl;
+                set({ isLoading: true });
+                try {
+                    const authUrl = await composioClient.getAuthUrl(appId);
+                    if (authUrl) {
+                        window.open(authUrl, 'composio_auth', 'width=600,height=700');
+                        return authUrl;
+                    }
+                    return null;
+                } catch (error: any) {
+                    set({ error: error.message });
+                    return null;
+                } finally {
+                    set({ isLoading: false });
                 }
-                return null;
             },
 
             executeTool: async (toolId, params, appId) => {
@@ -109,7 +173,37 @@ export const useComposioStore = create<ComposioState>()(
                     };
                 }
 
-                return await composioClient.executeTool(toolId, params, appId);
+                try {
+                    return await composioClient.executeTool(toolId, params, appId);
+                } catch (error: any) {
+                    return { success: false, error: error.message };
+                }
+            },
+
+            getToolsForPrompt: () => {
+                const state = get();
+                const toolsByApp: Record<string, ComposioTool[]> = {};
+                
+                state.availableTools.forEach(tool => {
+                    if (!toolsByApp[tool.appName]) {
+                        toolsByApp[tool.appName] = [];
+                    }
+                    toolsByApp[tool.appName].push(tool);
+                });
+
+                let prompt = '\n[COMPOSIO INTEGRATIONS]\n';
+                for (const [appName, tools] of Object.entries(toolsByApp)) {
+                    prompt += `\n${appName}:\n`;
+                    tools.forEach(tool => {
+                        const authStatus = state.authorizedTools.has(tool.id) ? '✅' : '🔒';
+                        const params = Object.entries(tool.params || {})
+                            .map(([key, param]: any) => `${key}: ${param.type || 'string'}`)
+                            .join(', ');
+                        prompt += `  ${authStatus} ${tool.name}(${params}): ${tool.description}\n`;
+                    });
+                }
+                
+                return prompt;
             },
 
             logout: () => {
@@ -120,10 +214,14 @@ export const useComposioStore = create<ComposioState>()(
                     isOnboarding: false,
                     connections: [],
                     availableTools: [],
+                    availableApps: [],
                     authorizedTools: new Set(),
-                    pendingPermissions: []
+                    pendingPermissions: [],
+                    error: null
                 });
-            }
+            },
+
+            clearError: () => set({ error: null })
         }),
         {
             name: 'neuro-composio-storage',

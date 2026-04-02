@@ -38,13 +38,31 @@ const isPathSafe = (userPath: string): boolean => {
     try {
         const resolvedPath = path.resolve(userPath);
         const homeDir = os.homedir();
+        const appDir = path.resolve(__dirname, '../..'); // Project root
 
         // Allow paths within home directory
         if (resolvedPath.startsWith(homeDir)) {
             return true;
         }
 
-        // Reject everything else
+        // Allow paths within the app directory
+        if (resolvedPath.startsWith(appDir)) {
+            return true;
+        }
+
+        // Allow common workspace directories on Windows
+        const allowedRoots = ['E:\\chatit.cloud', 'C:\\Users', 'D:\\', 'E:\\'];
+        for (const root of allowedRoots) {
+            if (resolvedPath.startsWith(root)) {
+                return true;
+            }
+        }
+
+        // Allow drives like C:\, D:\, E:\ etc
+        if (/^[A-Z]:[\\/]/i.test(resolvedPath)) {
+            return true;
+        }
+
         return false;
     } catch (error) {
         return false;

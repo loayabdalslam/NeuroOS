@@ -1,179 +1,218 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-    Send, BrainCircuit, User, Eraser, Loader2, Sparkles, X, Pause, Play,
-    ChevronDown, ChevronUp, Trash2, Copy, Check, FileText, Image as ImageIcon,
-    Wifi, WifiOff, Users, MessageCircle, Hash, Volume2, VolumeX, SkipBack, SkipForward,
-    AlertCircle, AlertTriangle, Lock
-} from 'lucide-react';
+import { Send, X, Copy, Check, Sparkles, Wrench, ChevronDown, ChevronUp, StopCircle, Brain, Bot, User, RotateCcw } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { showContextMenu } from '../components/ContextMenu';
-import { useSettingsStore } from '../stores/settingsStore';
 import { useComposioStore } from '../stores/composioStore';
 import { getLLMProvider } from '../lib/llm/factory';
 import { useOS, OSAppWindow } from '../hooks/useOS';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { useWorkspaceStore } from '../stores/workspaceStore';
-import { useFileSystem } from '../hooks/useFileSystem';
-import { useAIStore } from '../stores/aiStore';
-import {
-    parseToolCalls, executeTool, stripToolCalls,
-    ToolContext, ToolResult, getAllTools, getToolsForPrompt
-} from '../lib/ai';
+import { useSettingsStore } from '../stores/settingsStore';
+import { parseToolCalls, executeTool, stripToolCalls, ToolContext, getAllTools, getToolsForPrompt } from '../lib/ai';
 import { getUserFriendlyError } from '../lib/llm/errors';
-
+import { getComposioToolsForPrompt, loadComposioTools } from '../lib/ai/tools/composioTools';
+import { VISION_MODELS } from '../lib/llm/types';
 
 interface ChatAppProps { windowData: OSAppWindow; }
 
-type StepKind = 'thinking' | 'streaming' | 'tool-call' | 'tool-result' | 'tool-error' | 'info' | 'error' | 'success';
-
-interface StepLog {
-    id: number;
-    kind: StepKind;
-    text: string;
-    body?: string;
+interface ThinkingBlock {
+    id: string;
+    type: 'thought' | 'plan' | 'tool_call' | 'tool_result' | 'tool_error' | 'synthesis' | 'agent';
+    content: string;
     detail?: string;
     tool?: string;
+    agent?: string;
     timestamp: number;
+    duration?: number;
+}
+
+interface ToolSummaryItem {
+    tool: string;
+    status: 'success' | 'error';
+    preview: string;
 }
 
 interface Message {
     id: string;
-    role: 'user' | 'assistant' | 'system';
+    role: 'user' | 'assistant';
     content: string;
     timestamp: number;
     isStreaming?: boolean;
-    steps?: StepLog[];
-    error?: string;
+    thinking?: ThinkingBlock[];
+    toolSummary?: ToolSummaryItem[];
+    agentUsed?: string;
 }
 
-const MAX_ITER = 12;
+const MAX_CREW_ITERATIONS = 12;
 
-const kindConfig: Record<StepKind, { icon: React.ElementType; color: string; bg: string; border: string; label: string }> = {
-    thinking: { icon: BrainCircuit, color: 'text-zinc-400', bg: 'bg-zinc-50', border: 'border-zinc-200', label: 'Thinking' },
-    streaming: { icon: Sparkles, color: 'text-zinc-600', bg: 'bg-zinc-100', border: 'border-zinc-300', label: 'Generating' },
-    'tool-call': { icon: Sparkles, color: 'text-zinc-800', bg: 'bg-zinc-200', border: 'border-zinc-400', label: 'Tool Call' },
-    'tool-result': { icon: Check, color: 'text-zinc-800', bg: 'bg-zinc-100', border: 'border-zinc-300', label: 'Result' },
-    'tool-error': { icon: X, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', label: 'Error' },
-    info: { icon: Sparkles, color: 'text-zinc-400', bg: 'bg-zinc-50', border: 'border-zinc-200', label: 'Info' },
-    error: { icon: X, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', label: 'Error' },
-    success: { icon: Check, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Success' },
+// ─── Crew AI Agent Prompts ──────────────────────────────────────────
+const AGENT_PROMPTS = {
+    coordinator: `You are the Coordinator agent. Your job is to orchestrate the workflow by delegating tasks to the right tools and synthesizing results into a clear response.
+You think step-by-step, break complex requests into sub-tasks, and coordinate tool usage efficiently.
+Always explain your reasoning before calling tools.`,
+
+    researcher: `You are the Researcher agent. You gather information from the web, scrape pages, and retrieve data.
+You use browser_navigate, browser_scrape, web_fetch, and search_web tools effectively.`,
+
+    executor: `You are the Executor agent. You perform actions: create files, run commands, execute tasks.
+You use save_file, run_shell, open_app, and similar tools effectively.`,
+
+    analyst: `You are the Analyst agent. You review results, identify patterns, and provide insights.
+You synthesize information and present findings clearly.`,
 };
 
-const formatTimestamp = (ts: number) => {
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+// ─── Components ─────────────────────────────────────────────────────
+
+const TypingDots = () => (
+    <div className="flex gap-1.5 items-center py-2">
+        {[0, 1, 2].map(i => (
+            <motion.div key={i} className="w-1 h-1 rounded-full bg-zinc-400"
+                animate={{ opacity: [0.2, 0.8, 0.2] }}
+                transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.25 }} />
+        ))}
+    </div>
+);
+
+const ThinkingBlockView: React.FC<{
+    block: ThinkingBlock;
+    expanded: boolean;
+    onToggle: () => void;
+    isDark: boolean;
+}> = ({ block, expanded, onToggle, isDark }) => {
+    const icons: Record<string, React.ReactNode> = {
+        thought: <Brain size={11} />,
+        plan: <Brain size={11} />,
+        tool_call: <Wrench size={11} />,
+        tool_result: <Check size={11} />,
+        tool_error: <X size={11} />,
+        synthesis: <Sparkles size={11} />,
+        agent: <Bot size={11} />,
+    };
+
+    const labels: Record<string, string> = {
+        thought: 'Thinking',
+        plan: 'Planning',
+        tool_call: 'Tool Call',
+        tool_result: 'Tool Result',
+        tool_error: 'Tool Error',
+        synthesis: 'Synthesis',
+        agent: 'Agent',
+    };
+
+    const isLive = block.type === 'thought' && !block.duration;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 3 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+                "rounded-lg overflow-hidden transition-colors",
+                isDark ? "bg-white/[0.03]" : "bg-black/[0.02]"
+            )}
+        >
+            <button onClick={onToggle}
+                className={cn("w-full flex items-center gap-2 px-3 py-2 text-left text-[11px]", isDark ? "hover:bg-white/[0.05]" : "hover:bg-black/[0.03]")}>
+                <span className={cn("shrink-0 opacity-50", isDark ? "text-zinc-400" : "text-zinc-500")}>{icons[block.type]}</span>
+                <span className={cn("flex-1 truncate", isDark ? "text-zinc-400" : "text-zinc-500")}>
+                    {block.agent && <span className="opacity-60">[{block.agent}] </span>}
+                    {block.content}
+                </span>
+                {isLive && (
+                    <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity }}
+                        className="w-1 h-1 rounded-full bg-zinc-500" />
+                )}
+                {block.detail && (
+                    <ChevronDown size={11} className={cn("shrink-0 opacity-30 transition-transform", expanded && "rotate-180")} />
+                )}
+                {block.duration && (
+                    <span className={cn("text-[9px] opacity-30", isDark ? "text-zinc-500" : "text-zinc-400")}>{block.duration}ms</span>
+                )}
+            </button>
+            <AnimatePresence>
+                {expanded && block.detail && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden">
+                        <div className={cn("px-3 pb-2 text-[10px] whitespace-pre-wrap break-words max-h-48 overflow-y-auto", isDark ? "text-zinc-500" : "text-zinc-400")}>
+                            {block.detail}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
 };
+
+const ToolSummaryView: React.FC<{ items: ToolSummaryItem[]; isDark: boolean }> = ({ items, isDark }) => (
+    <div className={cn("flex flex-wrap gap-1.5 mt-2")}>
+        {items.map((item, i) => (
+            <div key={i} className={cn(
+                "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px]",
+                isDark ? "bg-white/[0.04] text-zinc-500" : "bg-black/[0.03] text-zinc-400"
+            )}>
+                <Wrench size={9} className="opacity-50" />
+                <span className="font-mono">{item.tool}</span>
+                <span className={cn("opacity-40", item.status === 'error' && "text-red-400")}>
+                    {item.status === 'success' ? '✓' : '✗'}
+                </span>
+            </div>
+        ))}
+    </div>
+);
+
+// ─── Main App ───────────────────────────────────────────────────────
 
 export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
-    const [currentSteps, setCurrentSteps] = useState<StepLog[]>([]);
-    const [showTools, setShowTools] = useState(false);
-    const [thinkingPreview, setThinkingPreview] = useState('');
     const [abortController, setAbortController] = useState<AbortController | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
-    const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
-    const [errorModal, setErrorModal] = useState<{ show: boolean; title: string; message: string } | null>(null);
-    const [confirmationPending, setConfirmationPending] = useState<{ toolName: string; args: Record<string, any>; resolve: (confirmed: boolean) => void } | null>(null);
-    const [permissionPending, setPermissionPending] = useState<{ toolId: string; toolName: string; appId: string; resolve: (authorized: boolean) => void } | null>(null);
+    const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set());
+    const [showAllThinking, setShowAllThinking] = useState(false);
+    const [imageInput, setImageInput] = useState<string | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { workspacePath } = useWorkspaceStore();
-    const { openApp, appWindows, closeWindow, sendAppAction, focusWindow } = useOS();
-    
-    const getAppWindows = useCallback(() => {
-        return appWindows;
-    }, [appWindows]);
-    
+    const { openApp, appWindows, closeWindow, sendAppAction } = useOS();
+    const { isAuthenticated: isComposioAuth } = useComposioStore();
+    const { theme } = useSettingsStore();
+
     const allTools = useMemo(() => getAllTools(), []);
     const toolsPrompt = useMemo(() => getToolsForPrompt(), []);
+    const composioToolsPrompt = useMemo(() => getComposioToolsForPrompt(), [isComposioAuth]);
 
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, []);
+    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages, scrollToBottom]);
+    useEffect(() => { if (isComposioAuth) loadComposioTools(); }, [isComposioAuth]);
+    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-    useEffect(() => {
-        if (messages.length === 0) {
-            setMessages([{
-                id: 'welcome',
-                role: 'assistant',
-                content: '# Welcome to Neuro Chat\n\nI\'m your AI assistant powered by **agentic AI**. I can help you with:\n\n• **Research** - Search the web, browse pages, gather information\n• **File Operations** - Read, write, create, and manage files\n• **Automation** - Execute commands, run scripts, automate tasks\n• **Analysis** - Analyze data, review code, provide insights\n\nJust type your request and I\'ll think through it step by step.\n\n> 💡 Each thought and action will be shown in real-time below my response.',
-                timestamp: Date.now()
-            }]);
-        }
+    const checkVisionSupport = useCallback((): boolean => {
+        try {
+            const { aiConfig } = useSettingsStore.getState();
+            const provider = aiConfig.providers?.find((p: any) => p.id === aiConfig.activeProviderId);
+            if (!provider) return false;
+            const model = provider.selectedModel?.toLowerCase() || '';
+            const visionList = VISION_MODELS[provider.type as keyof typeof VISION_MODELS] || [];
+            return visionList.some(v => model.includes(v.toLowerCase()));
+        } catch { return false; }
     }, []);
 
     const getToolContext = useCallback((): ToolContext => ({
         openApp: (id, name) => openApp(id, name),
         closeWindow: (id) => closeWindow(id),
         sendAppAction: (idOrComponent, type, payload) => sendAppAction(idOrComponent, type, payload),
-        getAppWindows: () => getAppWindows(),
+        getAppWindows: () => appWindows,
         appWindows: appWindows.filter(w => w.component !== 'chat'),
         workspacePath,
-        writeFile: async (path: string, content: string) => {
-            const electron = (window as any).electron;
-            if (electron?.fileSystem?.write) {
-                await electron.fileSystem.write(path, content);
-            }
-        },
-        readFile: async (path) => {
-            const electron = (window as any).electron;
-            if (electron?.fileSystem?.read) {
-                return await electron.fileSystem.read(path);
-            }
-            throw new Error('File system not available');
-        },
-        listFiles: async (path) => {
-            const electron = (window as any).electron;
-            if (electron?.fileSystem?.list) {
-                return await electron.fileSystem.list(path);
-            }
-            return [];
-        },
-        createDir: async (path) => {
-            const electron = (window as any).electron;
-            if (electron?.fileSystem?.createDir) {
-                await electron.fileSystem.createDir(path);
-            }
-        },
-        deleteFile: async (path) => {
-            const electron = (window as any).electron;
-            if (electron?.fileSystem?.delete) {
-                await electron.fileSystem.delete(path);
-            }
-        },
-        addMessage: (role, content) => {
-            // Used for memory/context
-        },
-        updateMemory: (key, value) => {
-            useAIStore.getState().updateMemory(key, value);
-        }
-    }), [openApp, closeWindow, sendAppAction, getAppWindows, appWindows, workspacePath]);
-
-    const confirmToolExecution = useCallback((toolName: string, args: Record<string, any>): Promise<boolean> => {
-        return new Promise((resolve) => {
-            setConfirmationPending({ toolName, args, resolve });
-        });
-    }, []);
-
-    const addStep = useCallback((kind: StepKind, text: string, detail?: string, tool?: string) => {
-        const step: StepLog = {
-            id: Date.now() + Math.random(),
-            kind,
-            text,
-            detail,
-            tool,
-            timestamp: Date.now()
-        };
-        setCurrentSteps(prev => [...prev, step]);
-    }, []);
+        writeFile: async (path, content) => { const e = (window as any).electron; if (e?.fileSystem?.write) await e.fileSystem.write(path, content); },
+        readFile: async (path) => { const e = (window as any).electron; if (e?.fileSystem?.read) return await e.fileSystem.read(path); throw new Error('File system not available'); },
+        listFiles: async (path) => { const e = (window as any).electron; if (e?.fileSystem?.list) return await e.fileSystem.list(path); return []; },
+        createDir: async (path) => { const e = (window as any).electron; if (e?.fileSystem?.createDir) await e.fileSystem.createDir(path); },
+        deleteFile: async (path) => { const e = (window as any).electron; if (e?.fileSystem?.delete) await e.fileSystem.delete(path); },
+        addMessage: () => {},
+        updateMemory: (key, value) => {},
+    }), [openApp, closeWindow, sendAppAction, appWindows, workspacePath]);
 
     const handleCopy = useCallback((content: string, id: string) => {
         navigator.clipboard.writeText(content);
@@ -181,737 +220,392 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
         setTimeout(() => setCopiedId(null), 2000);
     }, []);
 
-    const runAI = useCallback(async (userInput: string) => {
-        const userMessage: Message = {
-            id: `user-${Date.now()}`,
-            role: 'user',
-            content: userInput,
-            timestamp: Date.now()
-        };
-        
-        const assistantMessage: Message = {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: '',
-            timestamp: Date.now(),
-            isStreaming: true,
-            steps: []
-        };
+    const toggleThinking = useCallback((id: string) => {
+        setExpandedThinking(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    }, []);
+
+    // ─── CrewAI Agentic Loop ─────────────────────────────────────────
+    const runCrewAgent = useCallback(async (userInput: string, image?: string | null) => {
+        const userMessage: Message = { id: `u-${Date.now()}`, role: 'user', content: userInput, timestamp: Date.now() };
+        const assistantId = `a-${Date.now()}`;
+        const assistantMessage: Message = { id: assistantId, role: 'assistant', content: '', timestamp: Date.now(), isStreaming: true, thinking: [], toolSummary: [] };
 
         setMessages(prev => [...prev, userMessage, assistantMessage]);
         setIsStreaming(true);
-        setCurrentSteps([]);
-        
+
         const controller = new AbortController();
         setAbortController(controller);
 
-        let fullResponse = '';
-        
-        try {
-            const llm = getLLMProvider();
-            const systemPrompt = `You are Neuro, an intelligent AI assistant. You have access to various tools to help users.
-            
+        const thinking: ThinkingBlock[] = [];
+        const toolSummary: ToolSummaryItem[] = [];
+
+        const addBlock = (type: ThinkingBlock['type'], content: string, detail?: string, tool?: string, agent?: string) => {
+            const block: ThinkingBlock = {
+                id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+                type, content, detail, tool, agent, timestamp: Date.now()
+            };
+            thinking.push(block);
+            updateUI();
+        };
+
+        const completeBlock = (id: string, finalContent?: string) => {
+            const block = thinking.find(b => b.id === id);
+            if (block) {
+                block.duration = Date.now() - block.timestamp;
+                if (finalContent) block.content = finalContent;
+            }
+            updateUI();
+        };
+
+        const updateUI = () => {
+            setMessages(prev => prev.map(m =>
+                m.id === assistantId
+                    ? { ...m, thinking: [...thinking], toolSummary: [...toolSummary] }
+                    : m
+            ));
+        };
+
+        // Phase 1: Coordinator analyzes the request
+        addBlock('thought', 'Analyzing your request...');
+
+        const systemPrompt = `You are Neuro, an intelligent agentic AI assistant powered by a CrewAI-style multi-agent system.
+
 AVAILABLE TOOLS:
 ${toolsPrompt}
+${composioToolsPrompt}
 
 WORKSPACE: ${workspacePath || 'Not set'}
 
-Guidelines:
-1. Think step by step before taking actions
-2. Use tools when needed to accomplish tasks
-3. Always provide clear, actionable results
-4. If you encounter errors, explain what happened and suggest alternatives
-5. Show your thinking process
+CREW AGENTS AVAILABLE:
+${Object.entries(AGENT_PROMPTS).map(([role, desc]) => `- ${role}: ${desc.split('\n')[0]}`).join('\n')}
 
-When you need to use a tool, respond in this JSON format:
-{ "tool": "tool_name", "args": { "param1": "value1" } }
+INSTRUCTIONS:
+1. THINK step-by-step. Explain your reasoning before acting.
+2. When you need a tool, respond with ONLY the JSON: {"tool": "name", "args": {...}}
+3. You can chain MULTIPLE tools. After each result, decide next steps.
+4. After all tools complete, SYNTHESIZE results into a clear summary.
+5. For complex tasks, break them into sub-tasks and tackle each one.
 
-Otherwise, provide your response directly.`;
+TOOL FORMAT (respond with ONLY this JSON, no markdown):
+{"tool": "tool_name", "args": {"param1": "value1"}}`;
 
-            const conversationHistory = messages
-                .filter(m => m.role !== 'system')
-                .map(m => ({ role: m.role, content: m.content }));
+        const conversationHistory = messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+        const messagesForLLM: Array<{ role: 'system' | 'user' | 'assistant'; content: any }> = [
+            { role: 'system', content: systemPrompt },
+            ...conversationHistory
+        ];
 
-            const messagesForLLM = [
-                { role: 'system' as const, content: systemPrompt },
-                ...conversationHistory,
-                { role: 'user' as const, content: userInput }
-            ];
+        if (image && checkVisionSupport()) {
+            messagesForLLM.push({ role: 'user', content: [{ type: 'text', text: userInput }, { type: 'image_url', image_url: { url: image } }] });
+        } else if (image) {
+            messagesForLLM.push({ role: 'user', content: `${userInput}\n\n[Image attached - vision may not be supported by this model]` });
+        } else {
+            messagesForLLM.push({ role: 'user', content: userInput });
+        }
 
-            let iterCount = 0;
-            let currentStepId = 0;
+        let fullResponse = '';
+        let iteration = 0;
 
-            await llm.stream(messagesForLLM, (chunk) => {
-                fullResponse += chunk;
-                setThinkingPreview(fullResponse);
-                
-                setMessages(prev => prev.map(m => 
-                    m.id === assistantMessage.id 
-                        ? { ...m, content: stripToolCalls(fullResponse, parseToolCalls(fullResponse)) }
-                        : m
-                ));
-            }, controller.signal);
+        try {
+            const llm = getLLMProvider();
+            let currentBlockId = thinking[thinking.length - 1]?.id;
 
-            setThinkingPreview('');
-            
-            // Check if we got any response
-            if (!fullResponse.trim()) {
-                const errorMsg = 'No response received from AI. Please try again.';
-                setErrorModal({
-                    show: true,
-                    title: 'No Response',
-                    message: errorMsg
-                });
-                addStep('error', 'No response', errorMsg);
-                setMessages(prev => prev.map(m => 
-                    m.id === assistantMessage.id 
-                        ? { ...m, content: errorMsg, isStreaming: false }
-                        : m
-                ));
-                setIsStreaming(false);
-                return;
-            }
-            
-            addStep('success', 'Response complete');
+            // Phase 2: Iterative agent execution
+            while (iteration < MAX_CREW_ITERATIONS) {
+                iteration++;
+                let currentResponse = '';
+                const startTime = Date.now();
 
-            const toolCalls = parseToolCalls(fullResponse);
+                if (iteration > 1) {
+                    addBlock('thought', `Iteration ${iteration}: Continuing analysis...`);
+                    currentBlockId = thinking[thinking.length - 1]?.id;
+                }
 
-            if (toolCalls.length > 0) {
-                addStep('tool-call', `Executing ${toolCalls.length} tool(s)...`);
-                
-                for (const toolCall of toolCalls) {
-                    iterCount++;
-                    if (iterCount > MAX_ITER) {
-                        addStep('error', 'Maximum iterations reached', 'Stopped to prevent infinite loops');
-                        break;
-                    }
+                // Stream LLM response
+                await llm.stream(messagesForLLM, (chunk) => {
+                    currentResponse += chunk;
+                    fullResponse += chunk;
 
-                    currentStepId++;
-                    addStep('tool-call', `Running: ${toolCall.tool}`, JSON.stringify(toolCall.args), toolCall.tool);
-                    
-                    let retryCount = 0;
-                    const maxRetries = 2;
-                    let toolResult: any = null;
-                    
-                    // Retry mechanism for failed tools
-                    while (retryCount <= maxRetries) {
-                        try {
-                            toolResult = await executeTool(toolCall, getToolContext(), confirmToolExecution);
-
-                            // Check if tool requires permission (Composio)
-                            if (!toolResult.success && toolResult.data?.requiresPermission) {
-                                addStep('info', `Tool requires authorization`, `"${toolResult.data.toolName}" needs permission to use ${toolResult.data.appId}`);
-
-                                // Show permission dialog
-                                const permissionGranted = await new Promise<boolean>((resolve) => {
-                                    setPermissionPending({
-                                        toolId: toolResult.data.toolId,
-                                        toolName: toolResult.data.toolName,
-                                        appId: toolResult.data.appId,
-                                        resolve
-                                    });
-                                });
-
-                                if (permissionGranted) {
-                                    addStep('tool-call', `Retrying ${toolCall.tool} with permission...`);
-                                    continue; // Retry the tool
-                                } else {
-                                    toolResult = { success: false, message: `Tool authorization cancelled by user` };
-                                    break;
-                                }
-                            }
-
-                            if (toolResult.success) {
-                                addStep('tool-result', `${toolCall.tool} completed`, toolResult.message.substring(0, 500));
-                                break; // Success, exit retry loop
-                            } else {
-                                retryCount++;
-                                if (retryCount <= maxRetries) {
-                                    addStep('tool-call', `${toolCall.tool} failed, retrying... (${retryCount}/${maxRetries})`, toolResult.message);
-                                    await new Promise(r => setTimeout(r, 1000)); // Wait before retry
-                                }
-                            }
-                        } catch (error: any) {
-                            retryCount++;
-                            if (retryCount <= maxRetries) {
-                                addStep('tool-call', `${toolCall.tool} error, retrying... (${retryCount}/${maxRetries})`, error.message);
-                                await new Promise(r => setTimeout(r, 1000));
-                            } else {
-                                toolResult = { success: false, message: `Tool failed after ${maxRetries} retries: ${error.message}` };
-                            }
+                    // Update thinking block with streaming content
+                    if (currentBlockId) {
+                        const block = thinking.find(b => b.id === currentBlockId);
+                        if (block) {
+                            const preview = currentResponse.slice(-80).replace(/\n/g, ' ').trim();
+                            block.content = preview.length > 3 ? preview : block.content;
                         }
                     }
-                    
-                    if (toolResult) {
-                        fullResponse += `\n\n[${toolCall.tool}: ${toolResult.message}]`;
-                        
-                        const toolResultMessage: Message = {
-                            id: `tool-${Date.now()}-${Math.random()}`,
-                            role: 'assistant',
-                            content: `\n\n**Tool: ${toolCall.tool}**\n${toolResult.message}`,
-                            timestamp: Date.now()
-                        };
-                        setMessages(prev => [...prev, toolResultMessage]);
+
+                    const displayContent = stripToolCalls(fullResponse, parseToolCalls(fullResponse));
+                    setMessages(prev => prev.map(m =>
+                        m.id === assistantId ? { ...m, content: displayContent, thinking: [...thinking] } : m
+                    ));
+                }, controller.signal);
+
+                // Complete the thinking block
+                if (currentBlockId) completeBlock(currentBlockId);
+
+                // Parse tool calls
+                const toolCalls = parseToolCalls(currentResponse);
+
+                // No tool calls = final response
+                if (toolCalls.length === 0) {
+                    messagesForLLM.push({ role: 'assistant', content: currentResponse });
+
+                    if (currentResponse.includes('"tool"')) {
+                        const fixedCalls = parseToolCalls(currentResponse.replace(/```json\n?/g, '').replace(/```\n?/g, ''));
+                        if (fixedCalls.length > 0) continue;
                     }
+
+                    addBlock('synthesis', 'Response complete');
+                    break;
                 }
-            } else {
-                // No tool calls found, but we have response content
-                addStep('info', 'Response ready', fullResponse.slice(0, 200));
+
+                // Execute tool calls
+                messagesForLLM.push({ role: 'assistant', content: currentResponse });
+
+                for (const toolCall of toolCalls) {
+                    const callId = `tc-${Date.now()}`;
+                    addBlock('tool_call', `Executing: ${toolCall.tool}`, JSON.stringify(toolCall.args, null, 2), toolCall.tool);
+
+                    const toolStartTime = Date.now();
+                    try {
+                        const result = await executeTool(toolCall, getToolContext());
+                        const duration = Date.now() - toolStartTime;
+
+                        if (result.success) {
+                            addBlock('tool_result', `${toolCall.tool} completed (${duration}ms)`, result.message?.slice(0, 500), toolCall.tool);
+                            toolSummary.push({ tool: toolCall.tool, status: 'success', preview: result.message?.slice(0, 60) || 'done' });
+                        } else {
+                            addBlock('tool_error', `${toolCall.tool} failed: ${result.message?.slice(0, 80)}`, result.message, toolCall.tool);
+                            toolSummary.push({ tool: toolCall.tool, status: 'error', preview: result.message?.slice(0, 60) || 'failed' });
+                        }
+
+                        messagesForLLM.push({
+                            role: 'user',
+                            content: result.success
+                                ? `Tool ${toolCall.tool} succeeded: ${result.message}`
+                                : `Tool ${toolCall.tool} failed: ${result.message}`
+                        });
+                    } catch (err: any) {
+                        addBlock('tool_error', `${toolCall.tool} error: ${err.message?.slice(0, 80)}`, err.message, toolCall.tool);
+                        toolSummary.push({ tool: toolCall.tool, status: 'error', preview: err.message?.slice(0, 60) || 'error' });
+                        messagesForLLM.push({ role: 'user', content: `Tool ${toolCall.tool} error: ${err.message}` });
+                    }
+
+                    updateUI();
+                }
+
+                fullResponse = '';
             }
 
-            // Check if the response contains error messages from the AI
-            const errorPatterns: RegExp[] = [
-                /cannot read.*image/i,
-                /does not support image/i,
-                /image.*input/i,
-                /vision.*not supported/i,
-                /error.*tool/i,
-                /tool.*failed/i
-            ];
-            
-            const containsError = errorPatterns.some(pattern => pattern.test(fullResponse) && fullResponse.length < 500);
-            
-            // Final check - if message is still empty
-            if (!fullResponse.trim()) {
-                const errorMsg = 'The AI returned an empty response. This might be due to a configuration issue or the model not responding properly.';
-                setErrorModal({
-                    show: true,
-                    title: 'Empty Response',
-                    message: errorMsg
-                });
-                addStep('error', 'Empty response', errorMsg);
-            } else if (containsError) {
-                // AI responded with an error message - show it in modal
-                setErrorModal({
-                    show: true,
-                    title: 'AI Response',
-                    message: fullResponse.trim()
-                });
-                addStep('error', 'AI Error', fullResponse.slice(0, 300));
-            }
-
-            setMessages(prev => prev.map(m => 
-                m.id === assistantMessage.id 
-                    ? { ...m, content: fullResponse, isStreaming: false, steps: [...currentSteps] }
+            // Final synthesis
+            setMessages(prev => prev.map(m =>
+                m.id === assistantId
+                    ? { ...m, content: m.content || 'Task completed.', isStreaming: false, thinking: [...thinking], toolSummary: [...toolSummary] }
                     : m
             ));
 
         } catch (error: any) {
-            console.error('Chat Error:', error);
-            
-            if (error.name === 'AbortError') {
-                setMessages(prev => prev.map(m => 
-                    m.id === assistantMessage.id 
-                        ? { ...m, content: fullResponse + '\n\n*[Generation stopped]*', isStreaming: false }
-                        : m
-                ));
-                addStep('info', 'Generation stopped by user');
-            } else {
-                const errorMessage = getUserFriendlyError(error);
-
-                
-                // Show error modal
-                setErrorModal({
-                    show: true,
-                    title: 'Error',
-                    message: errorMessage
-                });
-                
-                setMessages(prev => prev.map(m => 
-                    m.id === assistantMessage.id 
-                        ? { ...m, content: `❌ Error: ${errorMessage}`, isStreaming: false, error: errorMessage }
-                        : m
-                ));
-                addStep('error', 'Error', errorMessage);
-            }
+            console.error('Crew Agent Error:', error);
+            const errorMsg = error.name === 'AbortError' ? 'Stopped by user.' : getUserFriendlyError(error);
+            addBlock('tool_error', errorMsg);
+            setMessages(prev => prev.map(m =>
+                m.id === assistantId ? { ...m, content: m.content || errorMsg, isStreaming: false, thinking: [...thinking], toolSummary: [...toolSummary] } : m
+            ));
         } finally {
             setIsStreaming(false);
             setAbortController(null);
-            setMessages(prev => prev.map(m => 
-                m.id === assistantMessage.id 
-                    ? { ...m, steps: [...currentSteps], isStreaming: false }
-                    : m
-            ));
         }
-    }, [messages, workspacePath, toolsPrompt, getToolContext, currentSteps, addStep]);
+    }, [messages, workspacePath, toolsPrompt, composioToolsPrompt, getToolContext, checkVisionSupport]);
 
     const handleSubmit = useCallback((e?: React.FormEvent) => {
-        e?.preventDefault();
-        if (!input.trim() || isStreaming) return;
-        runAI(input.trim());
+        e?.preventDefault?.();
+        if ((!input.trim() && !imageInput) || isStreaming) return;
+        runCrewAgent(input.trim() || 'Analyze this image', imageInput);
         setInput('');
-    }, [input, isStreaming, runAI]);
+        setImageInput(null);
+    }, [input, imageInput, isStreaming, runCrewAgent]);
 
-    const handleStop = useCallback(() => {
-        abortController?.abort();
-    }, [abortController]);
+    const handleStop = useCallback(() => abortController?.abort(), [abortController]);
+    const handleClear = useCallback(() => setMessages([]), []);
 
-    const handleClear = useCallback(() => {
-        setMessages([{
-            id: 'welcome',
-            role: 'assistant',
-            content: '# Welcome to Neuro Chat\n\nI\'m your AI assistant powered by **agentic AI**. Start typing to begin...',
-            timestamp: Date.now()
-        }]);
-        setCurrentSteps([]);
-    }, []);
-
-    const toggleStepExpand = useCallback((stepId: number) => {
-        setExpandedSteps(prev => {
-            const next = new Set(prev);
-            if (next.has(stepId)) {
-                next.delete(stepId);
-            } else {
-                next.add(stepId);
+    const handlePaste = useCallback((e: React.ClipboardEvent) => {
+        for (const item of (e.clipboardData?.items || [])) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const blob = item.getAsFile();
+                if (blob) { const r = new FileReader(); r.onload = () => setImageInput(r.result as string); r.readAsDataURL(blob); }
+                break;
             }
-            return next;
-        });
+        }
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-white text-zinc-900 font-mono">
-            {/* Error Modal */}
-            <AnimatePresence>
-                {errorModal?.show && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-                        onClick={() => setErrorModal(null)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
-                                    <AlertCircle size={24} className="text-red-600" />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-zinc-900 mb-2">{errorModal.title}</h3>
-                                    <p className="text-sm text-zinc-600 mb-4">{errorModal.message}</p>
-                                    <div className="flex gap-2 justify-end">
-                                        <button
-                                            onClick={() => setErrorModal(null)}
-                                            className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800"
-                                        >
-                                            Close
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Tool Confirmation Modal */}
-            <AnimatePresence>
-                {confirmationPending && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
-                        >
-                            <div className="flex items-start gap-4 mb-4">
-                                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center shrink-0">
-                                    <AlertTriangle size={24} className="text-yellow-600" />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-zinc-900">Confirm Tool Execution</h3>
-                                    <p className="text-sm text-zinc-600 mt-1">
-                                        The AI wants to run: <span className="font-semibold text-zinc-900">{confirmationPending.toolName}</span>
-                                    </p>
-                                </div>
-                            </div>
-                            {Object.keys(confirmationPending.args).length > 0 && (
-                                <div className="bg-zinc-50 rounded-lg p-3 mb-4 max-h-24 overflow-auto">
-                                    <p className="text-xs font-medium text-zinc-700 mb-2">Arguments:</p>
-                                    <pre className="text-xs text-zinc-600 whitespace-pre-wrap break-words">
-                                        {JSON.stringify(confirmationPending.args, null, 2)}
-                                    </pre>
-                                </div>
-                            )}
-                            <div className="flex gap-2 justify-end">
-                                <button
-                                    onClick={() => {
-                                        confirmationPending?.resolve(false);
-                                        setConfirmationPending(null);
-                                    }}
-                                    className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded-lg text-sm font-medium hover:bg-zinc-300"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        confirmationPending?.resolve(true);
-                                        setConfirmationPending(null);
-                                    }}
-                                    className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800"
-                                >
-                                    Confirm
-                                </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Tool Permission Modal */}
-            <AnimatePresence>
-                {permissionPending && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
-                        >
-                            <div className="flex items-start gap-4 mb-4">
-                                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                                    <Lock size={24} className="text-blue-600" />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-zinc-900">Authorize Tool</h3>
-                                    <p className="text-sm text-zinc-600 mt-1">
-                                        <span className="font-semibold text-zinc-900">"{permissionPending.toolName}"</span> requires authorization
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                                <p className="text-sm text-blue-900">
-                                    This tool needs permission to access {permissionPending.appId}. You'll be taken to authorize this connection.
-                                </p>
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                                <button
-                                    onClick={() => {
-                                        permissionPending?.resolve(false);
-                                        setPermissionPending(null);
-                                    }}
-                                    className="px-4 py-2 bg-zinc-200 text-zinc-900 rounded-lg text-sm font-medium hover:bg-zinc-300"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        permissionPending?.resolve(true);
-                                        setPermissionPending(null);
-                                    }}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-                                >
-                                    Authorize
-                                </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
+        <div className={cn("flex flex-col h-full font-sans", isDark ? "bg-zinc-950 text-zinc-100" : "bg-white text-zinc-900")}>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-zinc-50">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-zinc-900 text-white flex items-center justify-center rounded-lg">
-                        <BrainCircuit size={18} />
-                    </div>
-                    <div>
-                        <h1 className="text-sm font-semibold tracking-tight">Neuro Chat</h1>
-                        <p className="text-[10px] text-zinc-500">Agentic AI Assistant</p>
-                    </div>
-                </div>
+            <div className={cn("flex items-center justify-between px-5 py-3 border-b", isDark ? "border-white/[0.06]" : "border-black/[0.06]")}>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowTools(!showTools)}
-                        className={cn(
-                            "px-3 py-1.5 text-xs rounded-lg border transition-all",
-                            showTools ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
-                        )}
-                    >
-                        Tools ({allTools.length})
-                    </button>
-                    <button
-                        onClick={handleClear}
-                        className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
-                        title="Clear chat"
-                    >
-                        <Trash2 size={16} />
-                    </button>
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
+                        <Sparkles size={12} className="opacity-50" />
+                    </div>
+                    <span className="text-sm font-medium">Neuro</span>
+                    <span className={cn("text-[9px] uppercase tracking-wider", isDark ? "text-zinc-600" : "text-zinc-400")}>crew-agentic</span>
                 </div>
+                <button onClick={handleClear} className={cn("text-[11px] px-2 py-1 rounded-md transition-colors", isDark ? "text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.05]" : "text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.03]")}>
+                    New chat
+                </button>
             </div>
 
-            {/* Tools Panel */}
-            <AnimatePresence>
-                {showTools && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="border-b border-zinc-200 bg-zinc-50 overflow-hidden"
-                    >
-                        <div className="p-4 max-h-48 overflow-y-auto">
-                            <div className="grid grid-cols-4 gap-2">
-                                {allTools.map(tool => (
-                                    <div
-                                        key={tool.name}
-                                        className="px-2 py-1.5 bg-white border border-zinc-200 rounded text-[10px] text-zinc-600 truncate"
-                                        title={tool.description}
-                                    >
-                                        {tool.name}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Thinking Display */}
-                <AnimatePresence>
-                    {isStreaming && thinkingPreview && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="max-w-full"
-                        >
-                            <div className="flex gap-2">
-                                <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-[10px] bg-blue-100 text-blue-600">
-                                    <Sparkles size={12} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="inline-block max-w-full px-4 py-3 rounded-xl text-sm leading-relaxed text-left bg-blue-50 text-blue-900 border border-blue-200">
-                                        <div className="text-xs font-semibold text-blue-700 mb-2">🧠 Thinking...</div>
-                                        <div>
-                                            <Markdown
-                                                components={{
-                                                    code: ({ className, children, ...props }) => (
-                                                        <code className="bg-blue-200 px-1 py-0.5 rounded text-xs" {...props}>{children}</code>
-                                                    )
-                                                }}
-                                            >
-                                                {(thinkingPreview.slice(0, 500) + (thinkingPreview.length > 500 ? '...' : ''))}
-                                            </Markdown>
-                                            <motion.span
-                                                animate={{ opacity: [1, 0.5, 1] }}
-                                                transition={{ duration: 0.8, repeat: Infinity }}
-                                                className="inline-block w-1 h-4 bg-blue-600 ml-1 align-text-top"
-                                            />
+            <div className="flex-1 overflow-y-auto">
+                {messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full px-6">
+                        <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-5" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
+                            <Sparkles size={24} className="opacity-30" />
+                        </div>
+                        <h2 className={cn("text-lg font-medium mb-1.5", isDark ? "text-zinc-200" : "text-zinc-800")}>Crew Agent Ready</h2>
+                        <p className={cn("text-xs text-center max-w-xs mb-6", isDark ? "text-zinc-600" : "text-zinc-400")}>
+                            Multi-agent system with planning, research, execution, and analysis capabilities.
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5 w-full max-w-sm">
+                            {[
+                                'Search and summarize web pages',
+                                'Analyze and organize files',
+                                'Execute complex multi-step tasks',
+                                'Research and write reports',
+                            ].map(s => (
+                                <button key={s} onClick={() => { setInput(s); inputRef.current?.focus(); }}
+                                    className={cn("text-left px-3 py-2.5 rounded-lg text-[11px] transition-colors", isDark ? "text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300" : "text-zinc-400 hover:bg-black/[0.03] hover:text-zinc-600")}>
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
+                        {messages.map(msg => (
+                            <div key={msg.id} className={cn("group", msg.role === 'user' && "flex justify-end")}>
+                                {msg.role === 'user' ? (
+                                    <div className="max-w-[80%]">
+                                        <div className={cn("rounded-xl px-3.5 py-2.5 text-sm", isDark ? "bg-white/[0.06]" : "bg-black/[0.04]")}>
+                                            {msg.content}
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {/* Thinking blocks - expanded by default */}
+                                        {msg.thinking && msg.thinking.length > 0 && (
+                                            <div className="space-y-0.5">
+                                                {/* Show first 3 or all if expanded */}
+                                                {(showAllThinking ? msg.thinking : msg.thinking.slice(0, 3)).map(block => (
+                                                    <ThinkingBlockView
+                                                        key={block.id}
+                                                        block={block}
+                                                        expanded={expandedThinking.has(block.id)}
+                                                        onToggle={() => toggleThinking(block.id)}
+                                                        isDark={isDark}
+                                                    />
+                                                ))}
+                                                {msg.thinking.length > 3 && (
+                                                    <button onClick={() => setShowAllThinking(!showAllThinking)}
+                                                        className={cn("text-[10px] px-2 py-1 rounded-md", isDark ? "text-zinc-600 hover:text-zinc-400" : "text-zinc-400 hover:text-zinc-600")}>
+                                                        {showAllThinking ? 'Show less' : `Show all ${msg.thinking.length} steps`}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
 
-                {messages.map(message => (
-                    <div key={message.id} className={cn(
-                        "group",
-                        message.role === 'user' ? "ml-auto max-w-[85%]" : "max-w-full"
-                    )}>
-                        <div className={cn(
-                            "flex gap-2",
-                            message.role === 'user' ? "flex-row-reverse" : "flex-row"
-                        )}>
-                            <div className={cn(
-                                "w-6 h-6 rounded flex items-center justify-center shrink-0 text-[10px]",
-                                message.role === 'user' ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
-                            )}>
-                                {message.role === 'user' ? <User size={12} /> : <BrainCircuit size={12} />}
-                            </div>
-                            
-                            <div className={cn(
-                                "flex-1 min-w-0",
-                                message.role === 'user' ? "text-right" : "text-left"
-                            )}>
-                                <div className={cn(
-                                    "inline-block max-w-full px-4 py-3 rounded-xl text-sm leading-relaxed text-left",
-                                    message.role === 'user' 
-                                        ? "bg-zinc-900 text-white" 
-                                        : "bg-zinc-50 text-zinc-900 border border-zinc-200"
-                                )}>
-                                    {message.role === 'assistant' ? (
-                                        <>
-                                            <Markdown
-                                                components={{
+                                        {/* Tool Summary */}
+                                        {msg.toolSummary && msg.toolSummary.length > 0 && (
+                                            <ToolSummaryView items={msg.toolSummary} isDark={isDark} />
+                                        )}
+
+                                        {/* Main Response */}
+                                        <div className={cn("text-sm leading-relaxed", isDark ? "text-zinc-300" : "text-zinc-700")}>
+                                            {msg.isStreaming && !msg.content ? <TypingDots /> : (
+                                                <Markdown components={{
                                                     code: ({ className, children, ...props }) => {
                                                         const match = /language-(\w+)/.exec(className || '');
                                                         return match ? (
-                                                            <pre className="bg-zinc-900 text-zinc-100 p-3 rounded-lg overflow-x-auto text-xs my-2">
+                                                            <pre className={cn("p-2.5 rounded-lg overflow-x-auto text-[11px] my-1.5", isDark ? "bg-white/[0.04]" : "bg-black/[0.03]")}>
                                                                 <code {...props}>{children}</code>
                                                             </pre>
                                                         ) : (
-                                                            <code className="bg-zinc-200 px-1 py-0.5 rounded text-xs" {...props}>{children}</code>
+                                                            <code className={cn("px-1 py-0.5 rounded text-[11px]", isDark ? "bg-white/[0.06]" : "bg-black/[0.05]")} {...props}>{children}</code>
                                                         );
-                                                    }
-                                                }}
-                                            >
-                                                {message.content || (message.isStreaming ? '' : '')}
-                                            </Markdown>
-                                            {message.isStreaming && (
-                                                <motion.span
-                                                    animate={{ opacity: [1, 0.5, 1] }}
-                                                    transition={{ duration: 0.8, repeat: Infinity }}
-                                                    className="inline-block w-1 h-4 bg-zinc-600 ml-1"
-                                                />
+                                                    },
+                                                    p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                                                    ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>,
+                                                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>,
+                                                    a: ({ href, children }) => <a href={href} className="underline opacity-80 hover:opacity-100" target="_blank" rel="noopener noreferrer">{children}</a>,
+                                                }}>
+                                                    {msg.content}
+                                                </Markdown>
                                             )}
-                                        </>
-                                    ) : (
-                                        <p className="whitespace-pre-wrap">{message.content}</p>
-                                    )}
-                                    
-                                    {message.isStreaming && (
-                                        <span className="inline-block w-2 h-4 bg-zinc-400 animate-pulse ml-1" />
-                                    )}
-                                </div>
-                                
-                                <div className="flex items-center justify-between mt-1 px-1">
-                                    <span className="text-[10px] text-zinc-400">
-                                        {formatTimestamp(message.timestamp)}
-                                    </span>
-                                    {message.role === 'assistant' && (
-                                        <button
-                                            onClick={() => handleCopy(message.content, message.id)}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400 hover:text-zinc-600"
-                                        >
-                                            {copiedId === message.id ? <Check size={12} /> : <Copy size={12} />}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Steps/Thinking Preview for Assistant Messages */}
-                        {message.role === 'assistant' && message.steps && message.steps.length > 0 && (
-                            <div className="ml-8 mt-2 space-y-1">
-                                {message.steps.map((step, idx) => {
-                                    const cfg = kindConfig[step.kind];
-                                    const isExpanded = expandedSteps.has(step.id);
-                                    
-                                    return (
-                                        <motion.div
-                                            key={step.id}
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: idx * 0.05 }}
-                                            className={cn(
-                                                "border rounded-lg overflow-hidden text-xs",
-                                                cfg.bg, cfg.border
+                                            {msg.isStreaming && msg.content && (
+                                                <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.8, repeat: Infinity }}
+                                                    className={cn("inline-block w-1 h-3.5 ml-0.5 rounded-sm", isDark ? "bg-zinc-500" : "bg-zinc-300")} />
                                             )}
-                                        >
-                                            <button
-                                                onClick={() => toggleStepExpand(step.id)}
-                                                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-black/5"
-                                            >
-                                                <cfg.icon size={12} className={cfg.color} />
-                                                <span className="flex-1 truncate">{step.text}</span>
-                                                {step.detail && (
-                                                    isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />
-                                                )}
-                                            </button>
-                                            
-                                            <AnimatePresence>
-                                                {isExpanded && step.detail && (
-                                                    <motion.div
-                                                        initial={{ height: 0 }}
-                                                        animate={{ height: 'auto' }}
-                                                        exit={{ height: 0 }}
-                                                        className="px-3 pb-2 overflow-hidden"
-                                                    >
-                                                        <pre className="text-[10px] text-zinc-600 whitespace-pre-wrap bg-white/50 p-2 rounded">
-                                                            {step.detail}
-                                                        </pre>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </motion.div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                ))}
+                                        </div>
 
-                {/* Live Thinking Preview */}
-                {thinkingPreview && (
-                    <div className="ml-8 mt-2 p-3 bg-zinc-100 border border-zinc-200 rounded-lg">
-                        <div className="flex items-center gap-2 text-xs text-zinc-500 mb-2">
-                            <Loader2 size={12} className="animate-spin" />
-                            <span>Thinking...</span>
-                        </div>
-                        <pre className="text-xs text-zinc-600 whitespace-pre-wrap font-mono">
-                            {thinkingPreview.slice(-500)}
-                        </pre>
+                                        {/* Copy */}
+                                        {!msg.isStreaming && msg.content && (
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => handleCopy(msg.content, msg.id)}
+                                                    className={cn("p-1 rounded-md", isDark ? "text-zinc-600 hover:text-zinc-400" : "text-zinc-300 hover:text-zinc-500")}>
+                                                    {copiedId === msg.id ? <Check size={13} /> : <Copy size={13} />}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        <div ref={messagesEndRef} />
                     </div>
                 )}
-
-                <div ref={messagesEndRef} />
             </div>
 
             {/* Input */}
-            <div className="border-t border-zinc-200 p-4 bg-white">
-                <form onSubmit={handleSubmit} className="flex gap-2">
-                    <div className="flex-1 relative">
-                        <textarea
-                            ref={inputRef}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSubmit();
-                                }
-                            }}
-                            placeholder="Type your message... (Shift+Enter for new line)"
-                            className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm resize-none focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200"
-                            rows={2}
-                            disabled={isStreaming}
-                        />
-                        <div className="absolute bottom-2 right-2 text-[10px] text-zinc-400">
-                            {input.length} chars
+            <div className={cn("border-t p-4", isDark ? "border-white/[0.06]" : "border-black/[0.06]")}>
+                <div className="max-w-3xl mx-auto">
+                    <AnimatePresence>
+                        {imageInput && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-2">
+                                <div className="relative inline-block">
+                                    <img src={imageInput} alt="" className={cn("h-16 rounded-lg border", isDark ? "border-white/[0.1]" : "border-black/[0.08]")} />
+                                    <button onClick={() => setImageInput(null)} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-zinc-600 flex items-center justify-center">
+                                        <X size={10} className="text-white" />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                    <form onSubmit={handleSubmit} className="relative">
+                        <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onPaste={handlePaste}
+                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+                            placeholder="Ask anything..."
+                            className={cn("w-full border rounded-xl px-3.5 py-3 pr-11 text-sm resize-none focus:outline-none min-h-[44px] max-h-28 transition-colors",
+                                isDark ? "bg-white/[0.03] border-white/[0.06] text-zinc-100 placeholder:text-zinc-600 focus:border-white/[0.1]" : "bg-black/[0.02] border-black/[0.06] text-zinc-900 placeholder:text-zinc-400 focus:border-black/[0.12]")}
+                            rows={1} disabled={isStreaming}
+                            style={{ height: input.split('\n').length > 3 ? '112px' : '44px' }} />
+                        <div className="absolute right-1.5 bottom-1.5">
+                            {isStreaming ? (
+                                <button type="button" onClick={handleStop} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-red-500/10">
+                                    <StopCircle size={15} className="text-red-400" />
+                                </button>
+                            ) : (
+                                <button type="submit" disabled={!input.trim() && !imageInput}
+                                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-20 hover:bg-black/5">
+                                    <Send size={14} className="opacity-60" />
+                                </button>
+                            )}
                         </div>
+                    </form>
+                    <div className={cn("flex items-center justify-between mt-1.5 text-[9px]", isDark ? "text-zinc-700" : "text-zinc-300")}>
+                        <span>Enter ↵ · Shift+Enter ↵ · Paste image</span>
+                        <span>{allTools.length} tools · CrewAI v1</span>
                     </div>
-                    
-                    {isStreaming ? (
-                        <button
-                            type="button"
-                            onClick={handleStop}
-                            className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
-                        >
-                            <Pause size={18} />
-                        </button>
-                    ) : (
-                        <button
-                            type="submit"
-                            disabled={!input.trim()}
-                            className="px-4 py-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <Send size={18} />
-                        </button>
-                    )}
-                </form>
-                
-                <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-400">
-                    <span>Press Enter to send, Shift+Enter for new line</span>
-                    <span>{allTools.length} tools available</span>
                 </div>
             </div>
         </div>

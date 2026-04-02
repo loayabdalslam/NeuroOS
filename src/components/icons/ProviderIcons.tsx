@@ -7,17 +7,13 @@ export const ProviderLogos: Record<string, React.FC<{ className?: string, size?:
         </svg>
     ),
     anthropic: ({ className, size = 24 }) => (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-            {/* Simplified generic brain/sparkle shape for Anthropic as updated brand assets are strict */}
-            <path d="M12 2L14.5 9H20.5L15.5 13L17.5 19.5L12 15.5L6.5 19.5L8.5 13L3.5 9H9.5L12 2Z" className="opacity-80" />
-            {/* Actually, let's use a nice custom shape that looks like their 'Aeon' or just a brain abstraction */}
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
             <path d="M12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20C16.4183 20 20 16.4183 20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             <path d="M12 8V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
     ),
     ollama: ({ className, size = 24 }) => (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
-            {/* Llama-like shape or just the 'O' symbol used in some contexts, keeping it clean */}
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
             <path d="M10 8C10 8 11 9 12 9C13 9 14 8 14 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             <circle cx="9" cy="12" r="1" fill="currentColor" />
@@ -35,7 +31,6 @@ export const ProviderLogos: Record<string, React.FC<{ className?: string, size?:
     ),
     gemini: ({ className, size = 24 }) => (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-            {/* Star/Sparkle shape */}
             <path d="M12 2L14.2 8.5L21 10.8L14.2 13L12 19.5L9.8 13L3 10.8L9.8 8.5L12 2Z" />
         </svg>
     ),
@@ -48,14 +43,12 @@ export const ProviderLogos: Record<string, React.FC<{ className?: string, size?:
     ),
     mistral: ({ className, size = 24 }) => (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-            {/* Wave/Fluid shape */}
             <path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
             <path d="M7 14L10 9L13 14L17 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     ),
     openrouter: ({ className, size = 24 }) => (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
-            {/* OpenRouter logo - connected nodes/router symbol */}
             <circle cx="12" cy="12" r="3" />
             <circle cx="12" cy="5" r="2" />
             <circle cx="12" cy="19" r="2" />
@@ -66,6 +59,13 @@ export const ProviderLogos: Record<string, React.FC<{ className?: string, size?:
             <circle cx="6.5" cy="17.5" r="1.5" />
             <circle cx="17.5" cy="17.5" r="1.5" />
             <path d="M12 9V5M12 19V15M9 12H5M19 12H15M9.5 9L6.5 6.5M14.5 14L17.5 17.5M14.5 10L17.5 6.5M9.5 14L6.5 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    ),
+    opencode: ({ className, size = 24 }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 6L3 12L8 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M16 6L21 12L16 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M14 4L10 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
     ),
     custom: ({ className, size = 24 }) => (

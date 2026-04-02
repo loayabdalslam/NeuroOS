@@ -93,9 +93,19 @@ export function getToolsForPrompt(): string {
  * 2. Markdown fences: ```json { "tool": "name", "args": {} } ```
  * 3. JSON with surrounding text
  * 4. Multiple tool calls in one response
+ * 5. Nested objects in args
  */
 export function parseToolCalls(text: string): ParsedToolCall[] {
     const calls: ParsedToolCall[] = [];
+    const trimmed = text.trim();
+
+    // Strategy 0: Pure JSON response (entire response is just a tool call)
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        const parsed = tryParseToolCall(trimmed);
+        if (parsed) {
+            return [{ ...parsed, rawMatch: trimmed }];
+        }
+    }
 
     // Strategy 1: Extract from markdown code fences (```json ... ```)
     const fenceRegex = /```(?:json)?\s*\n?\s*(\{[\s\S]*?\})\s*\n?\s*```/g;
@@ -109,26 +119,31 @@ export function parseToolCalls(text: string): ParsedToolCall[] {
 
     if (calls.length > 0) return calls;
 
-    // Strategy 2: Find JSON objects with "tool" key anywhere in text
-    const jsonRegex = /\{[^{}]*"tool"\s*:\s*"[^"]+"\s*,\s*"args"\s*:\s*\{[^{}]*\}[^{}]*\}/g;
-    while ((match = jsonRegex.exec(text)) !== null) {
-        const parsed = tryParseToolCall(match[0]);
-        if (parsed) {
-            calls.push({ ...parsed, rawMatch: match[0] });
+    // Strategy 2: Find JSON objects with "tool" key anywhere in text using balanced brace extraction
+    const toolKeyRegex = /"tool"\s*:/g;
+    while ((match = toolKeyRegex.exec(text)) !== null) {
+        // Find the opening brace before this "tool" key
+        let braceStart = match.index - 1;
+        while (braceStart >= 0 && text[braceStart] !== '{') {
+            braceStart--;
         }
-    }
-
-    if (calls.length > 0) return calls;
-
-    // Strategy 3: Find any JSON object that might be a tool call
-    const anyJsonRegex = /\{[\s\S]*?"tool"\s*:[\s\S]*?\}/g;
-    while ((match = anyJsonRegex.exec(text)) !== null) {
-        // Try to find the balanced braces
-        const balanced = extractBalancedJson(text, match.index);
-        if (balanced) {
-            const parsed = tryParseToolCall(balanced);
-            if (parsed) {
-                calls.push({ ...parsed, rawMatch: balanced });
+        
+        if (braceStart >= 0) {
+            const balanced = extractBalancedJson(text, braceStart);
+            if (balanced) {
+                const parsed = tryParseToolCall(balanced);
+                if (parsed) {
+                    // Check if this call overlaps with existing calls
+                    const overlaps = calls.some(c => {
+                        const existingStart = text.indexOf(c.rawMatch);
+                        const existingEnd = existingStart + c.rawMatch.length;
+                        return braceStart < existingEnd && braceStart + balanced.length > existingStart;
+                    });
+                    
+                    if (!overlaps) {
+                        calls.push({ ...parsed, rawMatch: balanced });
+                    }
+                }
             }
         }
     }
@@ -146,6 +161,9 @@ function tryParseToolCall(jsonStr: string): { tool: string; args: Record<string,
         // Fix single-quote property names only (not apostrophes in values)
         // Replace 'propertyName': with "propertyName":
         cleaned = cleaned.replace(/'([a-zA-Z_][a-zA-Z0-9_]*)'(\s*:)/g, '"$1"$2');
+        
+        // Fix unquoted property names (common AI mistake)
+        cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
 
         const obj = JSON.parse(cleaned);
         if (obj && typeof obj.tool === 'string') {
@@ -154,8 +172,24 @@ function tryParseToolCall(jsonStr: string): { tool: string; args: Record<string,
                 args: obj.args || {}
             };
         }
-    } catch {
-        // Not valid JSON
+    } catch (e) {
+        // Try to extract tool name and args using regex as fallback
+        const toolMatch = jsonStr.match(/"tool"\s*:\s*"([^"]+)"/);
+        if (toolMatch) {
+            const toolName = toolMatch[1];
+            // Try to extract args object
+            const argsMatch = jsonStr.match(/"args"\s*:\s*(\{[\s\S]*\})/);
+            if (argsMatch) {
+                try {
+                    const args = JSON.parse(argsMatch[1]);
+                    return { tool: toolName, args };
+                } catch {
+                    // Return with empty args if parsing fails
+                    return { tool: toolName, args: {} };
+                }
+            }
+            return { tool: toolName, args: {} };
+        }
     }
     return null;
 }
@@ -164,8 +198,9 @@ function extractBalancedJson(text: string, startIdx: number): string | null {
     let depth = 0;
     let inString = false;
     let escape = false;
+    const maxSearchLength = 10000; // Increased limit for complex tool calls
 
-    for (let i = startIdx; i < text.length && i < startIdx + 2000; i++) {
+    for (let i = startIdx; i < text.length && i < startIdx + maxSearchLength; i++) {
         const char = text[i];
 
         if (escape) {

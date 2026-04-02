@@ -12,6 +12,7 @@ import {
 import { APPS_CONFIG } from '../lib/apps';
 import { cn } from '../lib/utils';
 import { NeuroIcon } from './icons/NeuroIcon';
+import { getAppIcon } from './icons/AppIcons';
 
 import { useAuthStore } from '../stores/authStore';
 
@@ -81,34 +82,37 @@ export const StartMenu: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-5 gap-y-6 gap-x-2">
-                  {filteredApps.map(app => (
-                  <button
-                    key={app.id}
-                    draggable={true}
-                    onDragStart={(e: any) => {
-                      if (e.dataTransfer) {
-                        e.dataTransfer.setData('neuro/app', JSON.stringify({
-                          id: app.id,
-                          name: app.name
-                        }));
-                        e.dataTransfer.effectAllowed = 'copy';
-                      }
-                    }}
-                    onClick={() => {
-                      openApp(app.id, app.name);
-                      toggleStartMenu(false);
-                    }}
-                    className="flex flex-col items-center gap-2 group p-2 rounded-xl hover:bg-zinc-50 transition-colors"
-                  >
-                    <div className={cn(
-                      "w-12 h-12 rounded-[14px] flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-all duration-300 ease-spring",
-                      app.color
-                    )}>
-                      <span className="text-xl font-bold uppercase tracking-tighter">{app.name.charAt(0)}</span>
-                    </div>
-                    <span className="text-[11px] font-medium text-zinc-600 group-hover:text-zinc-900">{app.name}</span>
-                  </button>
-                  ))}
+                  {filteredApps.map(app => {
+                    const IconComponent = getAppIcon(app.id);
+                    return (
+                      <button
+                        key={app.id}
+                        draggable={true}
+                        onDragStart={(e: any) => {
+                          if (e.dataTransfer) {
+                            e.dataTransfer.setData('neuro/app', JSON.stringify({
+                              id: app.id,
+                              name: app.name
+                            }));
+                            e.dataTransfer.effectAllowed = 'copy';
+                          }
+                        }}
+                        onClick={() => {
+                          openApp(app.id, app.name);
+                          toggleStartMenu(false);
+                        }}
+                        className="flex flex-col items-center gap-2 group p-2 rounded-xl hover:bg-zinc-50 transition-colors"
+                      >
+                        <div className={cn(
+                          "w-12 h-12 rounded-[14px] flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-all duration-300 ease-spring",
+                          app.color
+                        )}>
+                          <IconComponent size={24} className="text-white" />
+                        </div>
+                        <span className="text-[11px] font-medium text-zinc-600 group-hover:text-zinc-900">{app.name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

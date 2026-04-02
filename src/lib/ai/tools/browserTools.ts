@@ -181,7 +181,34 @@ function detectCaptcha(html: string, text: string): boolean {
     if (h.includes('captcha') || t.includes('captcha')) return true;
     if (h.includes('g-recaptcha') || h.includes('hcaptcha')) return true;
     if (h.includes('please verify') || h.includes('are you human')) return true;
+    if (h.includes('recaptcha/api') || h.includes('challenge-platform')) return true;
+    if (h.includes('cloudflare') && (h.includes('challenge') || h.includes('verify'))) return true;
     return false;
+}
+
+/** Show a system notification for CAPTCHA human intervention */
+async function notifyCaptchaNeeded(url: string): Promise<void> {
+    // Browser notification
+    if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+            new Notification('Human Action Required', {
+                body: `CAPTCHA detected on ${url}. Please solve it in the browser window.`,
+                icon: '🤖'
+            });
+        } else if (Notification.permission !== 'denied') {
+            const perm = await Notification.requestPermission();
+            if (perm === 'granted') {
+                new Notification('Human Action Required', {
+                    body: `CAPTCHA detected on ${url}. Please solve it in the browser window.`,
+                    icon: '🤖'
+                });
+            }
+        }
+    }
+    // Also try electron native notification
+    try {
+        await (window as any).electron?.system?.notification?.('Human Action Required', `CAPTCHA detected. Please solve it in the browser.`);
+    } catch {}
 }
 
 // ─── Tools ──────────────────────────────────────────────────────────────────
@@ -246,11 +273,18 @@ registerTool({
         if (d.h2s?.length) md.push(`## Sections\n${d.h2s.map((h: string) => `- ${h}`).join('\n')}`);
         if (d.cleanText) md.push(`\n${d.cleanText}`);
 
-        useAIStore.getState().addBrowserLog({ type: 'info', message: `Scraped ${d.url} — ${d.cleanText?.length ?? 0} chars` });
+        // CAPTCHA detection
+        const hasCaptcha = detectCaptcha(d.html || '', d.cleanText || '');
+        if (hasCaptcha) {
+            await notifyCaptchaNeeded(d.url || 'unknown');
+            md.push('\n\n⚠️ **CAPTCHA DETECTED** — Human intervention required. Please solve the CAPTCHA in the browser window.');
+        }
+
+        useAIStore.getState().addBrowserLog({ type: 'info', message: `Scraped ${d.url} — ${d.cleanText?.length ?? 0} chars${hasCaptcha ? ' [CAPTCHA detected]' : ''}` });
         return {
             success: true,
-            message: `✅ Scraped "${d.title || d.url}"`,
-            data: { ...d, markdown: md.join('\n\n') },
+            message: `✅ Scraped "${d.title || d.url}"${hasCaptcha ? ' ⚠️ CAPTCHA detected - human help needed' : ''}`,
+            data: { ...d, markdown: md.join('\n\n'), captcha: hasCaptcha },
         };
     },
 });
@@ -258,7 +292,7 @@ registerTool({
 // 3. WEB FETCH — CORS-free fetch via Electron IPC (doesn't open browser window)
 registerTool({
     name: 'web_fetch',
-    description: 'Fetch a URL via Electron (bypasses CORS) and return its content as markdown. Faster than browser_scrape but no JS execution.',
+    description: 'Fetch a URL via Electron (bypasses CORS) and return its content as markdown. Faster than browser_scrape but no JS execution. Detects CAPTCHAs.',
     category: 'browser',
     parameters: {
         url: { type: 'string', description: 'Full URL to fetch', required: true },
@@ -274,15 +308,26 @@ registerTool({
             const data = await ipcFetch(url);
             const fmt = args.format || 'markdown';
             const maxLen = args.maxLength ?? 8000;
+
+            // CAPTCHA detection
+            const hasCaptcha = detectCaptcha(data.html, data.text);
+            if (hasCaptcha) {
+                await notifyCaptchaNeeded(url);
+            }
+
             let content: string;
             if (fmt === 'raw_html') content = data.html.slice(0, maxLen);
             else if (fmt === 'text') content = data.text.slice(0, maxLen);
             else content = htmlToMarkdown(data.html, data.text, url).slice(0, maxLen);
 
+            if (hasCaptcha) {
+                content += '\n\n⚠️ **CAPTCHA DETECTED** — This page requires human verification. The fetched content may be incomplete.';
+            }
+
             return {
                 success: true,
-                message: `✅ Fetched ${url} — ${content.length} chars`,
-                data: { url, content, format: fmt },
+                message: `✅ Fetched ${url} — ${content.length} chars${hasCaptcha ? ' ⚠️ CAPTCHA detected' : ''}`,
+                data: { url, content, format: fmt, captcha: hasCaptcha },
             };
         } catch (e: any) {
             return { success: false, message: `❌ Fetch failed: ${e.message}` };
@@ -319,21 +364,27 @@ registerTool({
                 });
                 const ddgHtml = await ddgRes.text();
                 
-                // Parse DuckDuckGo results
-                const ddgMatches = ddgHtml.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g);
-                for (const match of ddgMatches) {
-                    let url = match[1];
-                    const title = match[2].replace(/<[^>]+>/g, '').trim();
-                    
-                    // Clean DuckDuckGo redirect
-                    if (url.includes('uddg=')) {
-                        url = decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
+                // Check for CAPTCHA in search results
+                if (detectCaptcha(ddgHtml, ddgHtml)) {
+                    await notifyCaptchaNeeded('DuckDuckGo Search');
+                    useAIStore.getState().addBrowserLog({ type: 'error', message: 'CAPTCHA detected on DuckDuckGo - switching to alternative' });
+                } else {
+                    // Parse DuckDuckGo results
+                    const ddgMatches = ddgHtml.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g);
+                    for (const match of ddgMatches) {
+                        let url = match[1];
+                        const title = match[2].replace(/<[^>]+>/g, '').trim();
+                        
+                        // Clean DuckDuckGo redirect
+                        if (url.includes('uddg=')) {
+                            url = decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
+                        }
+                        
+                        if (url.startsWith('http') && title && !url.includes('duckduckgo.com')) {
+                            results.push({ title, url });
+                        }
+                        if (results.length >= 10) break;
                     }
-                    
-                    if (url.startsWith('http') && title && !url.includes('duckduckgo.com')) {
-                        results.push({ title, url });
-                    }
-                    if (results.length >= 10) break;
                 }
             } catch (e) {
                 useAIStore.getState().addBrowserLog({ type: 'error', message: `DuckDuckGo failed: ${e}` });
