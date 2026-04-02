@@ -167,7 +167,7 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
 
     const think: ThinkingBlock[] = [];
     const tSum: ToolSummaryItem[] = [];
-    const done: string[] = [];
+    const done: Array<{ tool: string; success: boolean; message: string; data?: any }> = [];
 
     const addB = (type: ThinkingBlock['type'], content: string, detail?: string, tool?: string) => {
       think.push({ id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, type, content, detail, tool, timestamp: Date.now() });
@@ -178,41 +178,53 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
 
     addB('thought', 'Analyzing your request...');
 
-    const sysPrompt = `You are Neuro, an intelligent agentic AI assistant powered by a CrewAI multi-agent system.
+    const sysPrompt = `You are Neuro, an intelligent agentic AI assistant. You MUST complete tasks thoroughly and report exactly what you accomplished.
 
-TOOLS:
+═══ YOUR TOOLS ═══
 ${toolsP}
 ${compP}
 
-WORKSPACE: ${workspacePath || 'Not set'}
+═══ WORKSPACE ═══
+${workspacePath || 'Not set'}
 
-WEB RESEARCH - You can search/scrape ANY website:
+═══ CAPABILITIES ═══
+You can search, browse, read, write files, run commands, and automate any task.
+
+Popular websites you can access:
 - Search: Google, Bing, DuckDuckGo, Yahoo
 - Social: Twitter/X, Facebook, Instagram, LinkedIn, Reddit
-- News: CNN, BBC, Reuters, NYT, Al Jazeera
-- Tech: GitHub, Stack Overflow, Hacker News
-- Shopping: Amazon, eBay
-- Video: YouTube
-- Education: Wikipedia
-- Finance: Bloomberg, Yahoo Finance
-- AI: Hugging Face, arXiv
+- News: CNN, BBC, Reuters, NYT, Al Jazeera半岛
+- Tech: GitHub, Stack Overflow, Hacker News, Product Hunt
+- Shopping: Amazon, eBay, AliExpress
+- Video: YouTube, Vimeo, Dailymotion
+- Education: Wikipedia, Khan Academy, Coursera, edX
+- Finance: Bloomberg, Yahoo Finance, CoinMarketCap
+- AI/ML: Hugging Face, arXiv, Papers With Code
 
-WORKFLOW:
-1. ANALYZE what user wants
-2. PLAN steps
-3. EXECUTE with tools
-4. FALLBACK if tool fails try alternatives
-5. SYNTHESIZE results
-6. REPORT what accomplished with sources
+═══ HOW TO WORK ═══
+1. UNDERSTAND exactly what the user wants
+2. PLAN your approach before acting
+3. EXECUTE tools one at a time
+4. If a tool FAILS, automatically try a fallback:
+   - search_web fails → try web_fetch with DuckDuckGo URL or Bing URL
+   - web_fetch fails → try browser_navigate then browser_scrape
+   - browser_scrape fails → try browser_get_html
+5. After completing, REPORT in detail:
+   - What you searched for or did
+   - What results you found (with sources as clickable links)
+   - What conclusions or summary you reached
 
-TOOL FORMAT (ONLY JSON, no fences):
+═══ TOOL FORMAT ═══
+Respond with ONLY this JSON (no markdown fences, no extra text):
 {"tool": "tool_name", "args": {"param1": "value1"}}
 
-RULES:
-- Always explain what you accomplished
-- If something fails, say what failed and what fallback you tried
-- List all sources found
-- Be thorough and persistent`;
+═══ CRITICAL RULES ═══
+- When reporting search results, format links as: [Page Title](url)
+- Always list what you found and from where
+- Be specific about numbers, names, dates
+- If you find articles, mention their titles
+- Never say "task completed" without explaining what was done
+- Include a summary of key findings at the end`;
 
     const hist = msgs.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
     const llmMsgs: Array<{ role: 'system' | 'user' | 'assistant'; content: any }> = [{ role: 'system', content: sysPrompt }, ...hist];
@@ -281,11 +293,11 @@ RULES:
           if (result.success) {
             addB('tool_result', `${tc.tool} done (${dur}ms)`, result.message?.slice(0, 500), tc.tool);
             tSum.push({ tool: usedFB ? `${tc.tool}*` : tc.tool, status: 'success', preview: result.message?.slice(0, 60) || 'done' });
-            done.push(`${tc.tool}: ${result.message?.slice(0, 100)}`);
+            done.push({ tool: tc.tool, success: true, message: result.message?.slice(0, 500) || 'done', data: result.data });
           } else {
             addB('tool_error', `${tc.tool} failed: ${result.message?.slice(0, 80)}`, result.message, tc.tool);
             tSum.push({ tool: tc.tool, status: 'error', preview: result.message?.slice(0, 60) || 'failed' });
-            done.push(`${tc.tool}: FAILED - ${result.message?.slice(0, 80)}`);
+            done.push({ tool: tc.tool, success: false, message: result.message?.slice(0, 200) || 'failed' });
           }
 
           llmMsgs.push({ role: 'user', content: result.success ? `Tool ${tc.tool} succeeded: ${result.message}` : `Tool ${tc.tool} failed: ${result.message}\n\nTry alternative.` });
@@ -294,7 +306,41 @@ RULES:
         full = '';
       }
 
-      const report = done.length > 0 ? `\n\n---\n**Completed (${done.length}):**\n${done.map((t, i) => `${i + 1}. ${t}`).join('\n')}` : '';
+      // Generate detailed task completion report
+      const successfulTasks = done.filter(t => t.success);
+      const failedTasks = done.filter(t => !t.success);
+      
+      let report = '';
+      if (done.length > 0) {
+        report = '\n\n---\n**Task Summary:**\n';
+        report += `Completed ${successfulTasks.length}/${done.length} steps successfully.\n\n`;
+        
+        if (successfulTasks.length > 0) {
+          report += '**What was accomplished:**\n';
+          successfulTasks.forEach((t, i) => {
+            report += `${i + 1}. **${t.tool}**: ${t.message?.slice(0, 150)}\n`;
+          });
+        }
+        
+        if (failedTasks.length > 0) {
+          report += '\n**What failed:**\n';
+          failedTasks.forEach((t, i) => {
+            report += `- **${t.tool}**: ${t.message?.slice(0, 100)}\n`;
+          });
+        }
+      }
+
+      // If the last successful tool was a search, include the results with proper formatting
+      const lastSearchResult = successfulTasks.find(t => t.tool === 'search_web' || t.tool === 'web_fetch' || t.tool === 'browser_scrape');
+      if (lastSearchResult?.data?.results) {
+        report += '\n**Sources:**\n';
+        lastSearchResult.data.results.slice(0, 5).forEach((r: any, i: number) => {
+          if (r.title && r.url) {
+            report += `${i + 1}. [${r.title}](${r.url})\n`;
+          }
+        });
+      }
+
       setMsgs(p => p.map(m => m.id === aId ? { ...m, content: (m.content || 'Task completed.') + report, isStreaming: false, thinking: [...think], toolSummary: [...tSum] } : m));
 
     } catch (error: any) {
@@ -373,7 +419,24 @@ RULES:
                           p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
                           ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>,
                           ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>,
-                          a: ({ href, children }) => <a href={href} className="underline opacity-80 hover:opacity-100" target="_blank" rel="noopener noreferrer">{children}</a>,
+                          a: ({ href, children }) => (
+                            <a href={href}
+                              className="underline opacity-80 hover:opacity-100 cursor-pointer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (href && href.startsWith('http')) {
+                                  openApp('browser', 'Browser');
+                                  setTimeout(() => {
+                                    const all = useOS.getState().appWindows;
+                                    const browser = all.filter(w => w.component === 'browser').pop();
+                                    if (browser) {
+                                      useOS.getState().sendAppAction(browser.id, 'navigate', { url: href });
+                                    }
+                                  }, 100);
+                                }
+                              }}
+                            >{children}</a>
+                          ),
                         }}>{msg.content}</Markdown>
                       )}
                       {msg.isStreaming && msg.content && <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.8, repeat: Infinity }} className={cn("inline-block w-1 h-3.5 ml-0.5 rounded-sm", dark ? "bg-zinc-500" : "bg-zinc-300")} />}

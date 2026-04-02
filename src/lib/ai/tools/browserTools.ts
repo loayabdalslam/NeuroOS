@@ -464,11 +464,11 @@ registerTool({
             if (results.length > 0) {
                 const uniqueResults = results.filter((v, i, a) => a.findIndex(t => t.url === v.url) === i);
                 
-                let message = `🔍 **Search Results for "${query}":**\n\n`;
+                let message = `Search Results for "${query}":\n\n`;
                 uniqueResults.slice(0, 8).forEach((r, i) => {
-                    message += `${i + 1}. **${r.title}**\n   ${r.url}\n\n`;
+                    message += `${i + 1}. [${r.title}](${r.url})\n`;
                 });
-                message += `💡 Use **web_fetch** tool with any URL above to get full content.`;
+                message += `\nClick any link to open it in the browser, or use web_fetch to get full content.`;
                 
                 useAIStore.getState().addBrowserLog({ type: 'info', message: `Found ${uniqueResults.length} results` });
                 
@@ -477,6 +477,7 @@ registerTool({
                     message,
                     data: {
                         query,
+                        results: uniqueResults.slice(0, 8),
                         resultLinks: uniqueResults.map(r => r.url),
                         count: uniqueResults.length
                     }
