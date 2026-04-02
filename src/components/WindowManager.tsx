@@ -9,8 +9,6 @@ import { ChatApp } from '../apps/Chat';
 import { FileViewer } from '../apps/FileViewer';
 import { BoardApp } from '../apps/Board';
 import { BrowserApp } from '../apps/Browser';
-import { LLMManager } from '../apps/LLMManager';
-import { MusicApp } from '../apps/Music';
 import { MediaViewer } from '../apps/MediaViewer';
 
 // Component Registry
@@ -22,8 +20,6 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
     viewer: FileViewer,
     board: BoardApp,
     browser: BrowserApp,
-    llmmanager: LLMManager,
-    music: MusicApp,
     media: MediaViewer,
 };
 

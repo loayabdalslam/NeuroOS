@@ -7,8 +7,6 @@ import {
     ViewerIcon,
     BoardIcon,
     BrowserIcon,
-    LLMIcon,
-    MusicIcon,
     MediaIcon
 } from '../components/icons/AppIcons';
 
@@ -28,7 +26,5 @@ export const APPS_CONFIG: Record<string, AppConfig> = {
     viewer: { id: 'viewer', name: 'File Viewer', icon: ViewerIcon, color: 'bg-violet-500' },
     board: { id: 'board', name: 'NeuroBoard', icon: BoardIcon, color: 'bg-indigo-400' },
     browser: { id: 'browser', name: 'Browser', icon: BrowserIcon, color: 'bg-sky-400' },
-    llmmanager: { id: 'llmmanager', name: 'LLM Manager', icon: LLMIcon, color: 'bg-red-500' },
-    music: { id: 'music', name: 'Music', icon: MusicIcon, color: 'bg-pink-500' },
     media: { id: 'media', name: 'Media Viewer', icon: MediaIcon, color: 'bg-cyan-500' },
 };
