@@ -347,7 +347,6 @@ export const OnboardingFlow: React.FC = () => {
                                 </div>
                             </div>
                         )}
- )}
                     </div>
 
                     <div className="flex flex-col items-center gap-6">

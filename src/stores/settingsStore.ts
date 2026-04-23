@@ -46,23 +46,10 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         type: 'opencode',
         baseUrl: 'https://api.opencode.ai/v1',
         apiKey: '',
-        selectedModel: 'opencode-mini',
+        selectedModel: 'opencode-pro',
         models: [
-            // Free tier models (no API key required)
-            'opencode-mini',
-            'opencode-fast',
-            'opencode-lite',
-            'opencode-coder-lite',
-            // Pro models (API key required)
-            'opencode-smart',
-            'opencode-vision',
-            'opencode-coder',
-            'opencode-writer',
-            'opencode-reasoning',
-            'opencode-pro',
-            'opencode-ultra',
-            'opencode-coder-pro',
-            'opencode-vision-pro'
+            'opencode-pro', 'opencode-instant', 'opencode-lite', 
+            'opencode-coder-pro', 'opencode-vision-pro', 'opencode-reasoning'
         ]
     },
     {
@@ -72,7 +59,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.openai.com/v1',
         apiKey: '',
         selectedModel: 'gpt-5.4-thinking',
-        models: ['gpt-5.4-thinking', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-4o', 'gpt-4o-mini']
+        models: ['gpt-5.4-thinking', 'gpt-5.4-pro', 'gpt-5.4-instant', 'gpt-rosalind', 'gpt-5.4-cyber']
     },
     {
         id: 'anthropic',
@@ -80,8 +67,8 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         type: 'anthropic',
         baseUrl: 'https://api.anthropic.com/v1',
         apiKey: '',
-        selectedModel: 'claude-4.7-opus',
-        models: ['claude-4.7-opus', 'claude-4.6-sonnet', 'claude-4.5-haiku']
+        selectedModel: 'claude-opus-4.7',
+        models: ['claude-opus-4.7', 'claude-4.6-sonnet', 'claude-4.5-haiku']
     },
     {
         id: 'gemini',
@@ -89,8 +76,8 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         type: 'gemini',
         baseUrl: 'https://generativelanguage.googleapis.com',
         apiKey: '',
-        selectedModel: 'gemini-2.5-pro',
-        models: ['gemini-2.5-pro', 'gemini-2.5-ultra', 'gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
+        selectedModel: 'gemini-3.1-pro',
+        models: ['gemini-3.1-pro', 'gemini-3.1-flash', 'gemini-2.5-pro', 'gemini-1.5-pro']
     },
     {
         id: 'mistral',
@@ -98,8 +85,8 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         type: 'mistral',
         baseUrl: 'https://api.mistral.ai/v1',
         apiKey: '',
-        selectedModel: 'mistral-large-3',
-        models: ['mistral-large-3', 'mistral-3-dense', 'mistral-small-3', 'mistral-7b-v3']
+        selectedModel: 'mistral-small-4',
+        models: ['mistral-small-4', 'mistral-large-3', 'mistral-3-dense']
     },
     {
         id: 'groq',
@@ -108,7 +95,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.groq.com/openai/v1',
         apiKey: '',
         selectedModel: 'llama-4-405b',
-        models: ['llama-4-405b', 'llama-4-70b', 'llama-4-8b', 'mistral-small-3', 'gemma-3-8b']
+        models: ['llama-4-405b', 'llama-4-70b', 'llama-4-8b', 'mistral-small-4']
     },
     {
         id: 'perplexity',
@@ -117,7 +104,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.perplexity.ai',
         apiKey: '',
         selectedModel: 'sonar-3-pro',
-        models: ['sonar-3-pro', 'sonar-3-small', 'gpt-5.4', 'claude-4.7-opus']
+        models: ['sonar-3-pro', 'sonar-3-small']
     },
     {
         id: 'xai',
@@ -125,8 +112,8 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         type: 'xai',
         baseUrl: 'https://api.x.ai/v1',
         apiKey: '',
-        selectedModel: 'grok-4.20',
-        models: ['grok-4.20', 'grok-4', 'grok-mini']
+        selectedModel: 'grok-4.20-beta',
+        models: ['grok-4.20-beta', 'grok-4', 'grok-mini']
     },
     {
         id: 'openrouter',
@@ -135,7 +122,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://openrouter.ai/api/v1',
         apiKey: '',
         selectedModel: 'kimi-k2.6',
-        models: ['kimi-k2.6', 'qwen-3.6-plus', 'trinity-large-preview', 'mimo-v2-pro', 'llama-4-8b']
+        models: ['kimi-k2.6', 'qwen-3.6-plus', 'trinity-large-preview', 'llama-4-8b']
     },
     {
         id: 'ollama',
@@ -143,8 +130,11 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         type: 'ollama',
         baseUrl: 'http://localhost:11434',
         apiKey: '',
-        selectedModel: 'llama-4-8b',
-        models: ['llama-4-8b', 'llama-4-70b', 'mistral-small-3', 'phi-4', 'gemma-3-8b']
+        selectedModel: 'gemma4:e4b',
+        models: [
+            'gemma4:e4b', 'minimax-m2:cloud', 'granite4:350m', 
+            'gemma3:latest', 'phi-4', 'deepseek-v3.1:671b-cloud'
+        ]
     },
     {
         id: 'lmstudio',
@@ -209,26 +199,34 @@ export const useSettingsStore = create<SettingsState>()(
                 if (!provider) return;
 
                 try {
+                    let modelNames: string[] = [];
                     if (provider.type === 'ollama') {
                         const baseUrl = (overrideUrl || provider.baseUrl || 'http://localhost:11434').replace(/\/$/, '');
                         const response = await fetch(`${baseUrl}/api/tags`);
                         const data = await response.json();
                         if (data && data.models) {
-                            const modelNames = data.models.map((m: any) => m.name);
-                            get().updateProvider(providerId, { models: modelNames });
-                            return { success: true, count: modelNames.length };
+                            modelNames = data.models.map((m: any) => m.name);
                         }
                     } else if (provider.type === 'lmstudio') {
                         const baseUrl = (overrideUrl || provider.baseUrl || 'http://localhost:1234/v1').replace(/\/$/, '');
                         const response = await fetch(`${baseUrl}/models`);
                         const data = await response.json();
                         if (data && data.data) {
-                            const modelNames = data.data.map((m: any) => m.id);
-                            get().updateProvider(providerId, { models: modelNames });
-                            return { success: true, count: modelNames.length };
+                            modelNames = data.data.map((m: any) => m.id);
                         }
                     }
-                    return { success: false, error: 'Malformed response' };
+
+                    if (modelNames.length > 0) {
+                        const updates: any = { models: modelNames };
+                        // Automatically select the first model if current selection is generic or empty
+                        if (!provider.selectedModel || provider.selectedModel === 'local-model' || provider.selectedModel === 'llama-4-8b') {
+                            updates.selectedModel = modelNames[0];
+                        }
+                        get().updateProvider(providerId, updates);
+                        return { success: true, count: modelNames.length };
+                    }
+                    
+                    return { success: false, error: 'No models found' };
                 } catch (error: any) {
                     console.error(`Failed to refresh models for ${providerId}:`, error);
                     return { success: false, error: error.message };
