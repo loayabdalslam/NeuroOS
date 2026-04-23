@@ -222,23 +222,22 @@ registerTool({
     },
     handler: async (args): Promise<ToolResult> => {
         try {
-            const os = useOS.getState();
-            let boardWin = os.appWindows.find(w => w.component === 'board');
+            let boardWin = useOS.getState().appWindows.find(w => w.component === 'board');
 
             if (!boardWin) {
-                os.openApp('board', 'NeuroBoard');
-                await new Promise(r => setTimeout(r, 500));
-                boardWin = os.appWindows.find(w => w.component === 'board');
+                useOS.getState().openApp('board', 'NeuroBoard');
+                await new Promise(r => setTimeout(r, 800));
+                boardWin = useOS.getState().appWindows.find(w => w.component === 'board');
             }
 
             if (boardWin) {
-                os.sendAppAction(boardWin.id, 'add_card', {
+                useOS.getState().sendAppAction(boardWin.id, 'add_card', {
                     type: 'note',
                     title: args.title || 'Note',
                     content: args.content || '',
                     color: args.color || 'blue'
                 });
-                os.focusWindow(boardWin.id);
+                useOS.getState().focusWindow(boardWin.id);
             }
 
             return { success: true, message: `Saved "${args.title}" to NeuroBoard.`, data: { title: args.title } };
