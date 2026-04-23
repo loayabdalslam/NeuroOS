@@ -370,7 +370,11 @@ registerTool({
 
         const results: Array<{title: string; url: string; snippet?: string}> = [];
         let contentFromTopResult = '';
-        
+
+        // Ensure browser is open and ready for agentic search
+        ensureBrowserOpen();
+        await new Promise(r => setTimeout(r, 1200));
+
         try {
             // Strategy 1: Browser-based Agentic Search (Priority: REAL DATA)
             try {
