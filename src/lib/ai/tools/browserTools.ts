@@ -228,13 +228,24 @@ registerTool({
         if (!url) return { success: false, message: 'URL is required' };
 
         ensureBrowserOpen(url);
+        // Wait a small moment for browser to actually start opening if it wasn't
+        await new Promise(r => setTimeout(r, 800));
+
         const shouldWait = args.wait !== false;
         useAIStore.getState().addBrowserLog({ type: 'info', message: `Navigating to: ${url}` });
 
         const action = shouldWait ? 'navigate_and_wait' : 'navigate';
         const result = await sendBrowserAction(action, { url, timeout: args.timeout ?? 15000 }, (args.timeout ?? 15000) + 2000);
 
-        if (!result.success) return { success: false, message: `Navigation failed: ${result.error}` };
+        if (!result.success) {
+            // Check if it already open/at that URL as a fallback verification
+            const info = await sendBrowserAction('get_page_info', {}).catch(() => null);
+            if (info?.success && (info.data.url.includes(url) || url.includes(info.data.url))) {
+                return { success: true, message: `✅ Verified navigation to ${info.data.url}`, data: info.data };
+            }
+            return { success: false, message: `Navigation failed: ${result.error}` };
+        }
+
         return {
             success: true,
             message: `✅ Navigated to ${result.data?.url || url}${result.data?.timedOut ? ' (timed out, page may still be loading)' : ''}`,
@@ -382,9 +393,9 @@ registerTool({
                 }
             } catch (e) {}
 
-            // Strategy 2: Wikipedia for factual info
+            // Strategy 2: Wikipedia for factual info (with origin=* to prevent CORS)
             try {
-                const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&utf8=1&srlimit=5`;
+                const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&utf8=1&srlimit=5&origin=*`;
                 const wikiRes = await fetch(wikiUrl);
                 const wikiData = await wikiRes.json() as any;
 
@@ -400,7 +411,7 @@ registerTool({
                     // Fetch first Wikipedia article content
                     if (!contentFromTopResult && wikiData.query.search[0]) {
                         const pageTitle = wikiData.query.search[0].title;
-                        const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts&exintro=1&explaintext=1&format=json`;
+                        const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts&exintro=1&explaintext=1&format=json&origin=*`;
                         try {
                             const contentRes = await fetch(contentUrl);
                             const contentData = await contentRes.json() as any;
@@ -416,7 +427,19 @@ registerTool({
                 }
             } catch (e) {}
 
-            // Strategy 3: Try direct fetch of known sites for the query
+            // Strategy 3: DuckDuckGo HTML scraping (Very reliable fallback)
+            if (results.length < 2) {
+                try {
+                    const ddgHtml = await duckDuckGoSearch(query);
+                    if (ddgHtml.results && ddgHtml.results.length > 0) {
+                        for (const url of ddgHtml.results.slice(0, 5)) {
+                            results.push({ title: extractDomain(url), url, snippet: `Search result for ${query}` });
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            // Strategy 4: Try direct fetch of known sites for the query
             if (results.length < 3) {
                 const directUrls = [
                     `https://www.britannica.com/search?query=${encodeURIComponent(query)}`,

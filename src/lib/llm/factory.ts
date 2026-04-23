@@ -37,6 +37,9 @@ export const getLLMProvider = (): LLMProvider => {
             case 'groq':
             case 'mistral':
             case 'openrouter':
+            case 'perplexity':
+            case 'xai':
+            case 'opencode':
             case 'custom':
                 // These all use the standard OpenAI/Vercel AI SDK compatible format
                 return new OpenAIProvider(activeProvider.baseUrl, activeProvider.apiKey, activeProvider.selectedModel);

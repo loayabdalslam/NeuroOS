@@ -314,12 +314,42 @@ TOOL CALL FORMAT:
           let result: any = null;
           let usedFB = false;
 
-          try { result = await executeTool(tc, getCtx()); } catch (e: any) { result = { success: false, message: e.message }; }
+          // ── OS Wait Mechanism ──
+          // If tool involves opening browser or a new window, give OS a moment to breath
+          if (tc.tool.includes('browser') || tc.tool.includes('search')) {
+            await new Promise(r => setTimeout(r, 600));
+          }
+
+          try { 
+            result = await executeTool(tc, getCtx()); 
+            
+            // ── Ambiguous Result Check ──
+            // If scrape or fetch returns success: true but empty data, treat as failure to trigger fallback
+            if (result.success && (tc.tool === 'browser_scrape' || tc.tool === 'web_fetch')) {
+              const content = result.data?.markdown || result.data?.content || result.data?.cleanText || '';
+              if (content.length < 50 && !result.data?.captcha) {
+                addB('thought', `Result from ${tc.tool} seems empty or blocked. Forcing fallback...`);
+                result.success = false;
+                result.message = 'Low quality or empty content retrieved.';
+              }
+            }
+          } catch (e: any) { 
+            result = { success: false, message: e.message }; 
+          }
 
           if (!result.success) {
             for (const fb of getFallbacks(tc.tool, tc.args)) {
-              addB('thought', `Primary failed, trying: ${fb.tool}`, undefined, fb.tool);
-              try { result = await executeTool(fb, getCtx()); if (result.success) { usedFB = true; addB('tool_result', `Fallback ${fb.tool} succeeded`, result.message?.slice(0, 300), fb.tool); break; } } catch {}
+              addB('thought', `Primary ${tc.tool} failed, trying fallback: ${fb.tool}`, undefined, fb.tool);
+              // Small delay before fallback
+              await new Promise(r => setTimeout(r, 1000));
+              try { 
+                result = await executeTool(fb, getCtx()); 
+                if (result.success) { 
+                  usedFB = true; 
+                  addB('tool_result', `Fallback ${fb.tool} succeeded`, result.message?.slice(0, 300), fb.tool); 
+                  break; 
+                } 
+              } catch {}
             }
           }
 
@@ -334,7 +364,7 @@ TOOL CALL FORMAT:
             done.push({ tool: tc.tool, success: false, message: result.message?.slice(0, 200) || 'failed' });
           }
 
-          llmMsgs.push({ role: 'user', content: result.success ? `Tool ${tc.tool} succeeded: ${result.message}` : `Tool ${tc.tool} failed: ${result.message}\n\nTry alternative.` });
+          llmMsgs.push({ role: 'user', content: result.success ? `Tool ${tc.tool} succeeded: ${result.message}` : `Tool ${tc.tool} failed: ${result.message}\n\nPlease try a more creative or deep search strategy.` });
           upd();
         }
         full = '';
@@ -464,9 +494,11 @@ TOOL CALL FORMAT:
                   <div className="p-2 space-y-1 max-h-80 overflow-y-auto">
                     {aiConfig.providers.map(provider => (
                       <div key={provider.id}>
-                        <div className={cn("px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider", dark ? "text-zinc-500" : "text-zinc-400")}>
-                          {provider.name}
-                          {provider.type === 'opencode' && <span className="ml-1 text-emerald-500">(Free)</span>}
+                        <div className={cn("px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest flex items-center justify-between", dark ? "text-zinc-500" : "text-zinc-400")}>
+                          <span>{provider.name}</span>
+                          {['opencode', 'ollama', 'lmstudio'].includes(provider.type) && (
+                            <span className="text-[7px] font-black px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">FREE</span>
+                          )}
                         </div>
                         {provider.models.map(model => (
                           <button

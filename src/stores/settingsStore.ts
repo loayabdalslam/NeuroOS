@@ -5,7 +5,7 @@ import { ThemeVariant } from '../lib/designSystem/themes';
 interface ProviderConfig {
     id: string;
     name: string;
-    type: 'openai' | 'anthropic' | 'ollama' | 'lmstudio' | 'gemini' | 'groq' | 'mistral' | 'openrouter' | 'opencode' | 'custom';
+    type: 'openai' | 'anthropic' | 'ollama' | 'lmstudio' | 'gemini' | 'groq' | 'mistral' | 'openrouter' | 'perplexity' | 'xai' | 'opencode' | 'custom';
     baseUrl: string;
     apiKey: string;
     selectedModel: string;
@@ -34,6 +34,7 @@ interface SettingsState {
     };
     updateAiConfig: (config: Partial<SettingsState['aiConfig']>) => void;
     updateProvider: (providerId: string, updates: Partial<ProviderConfig>) => void;
+    refreshProviderModels: (providerId: string) => Promise<void>;
     addProvider: (provider: ProviderConfig) => void;
     removeProvider: (providerId: string) => void;
 }
@@ -65,22 +66,22 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         ]
     },
     {
-        id: 'ollama',
-        name: 'Ollama',
-        type: 'ollama',
-        baseUrl: 'http://localhost:11434',
+        id: 'openai',
+        name: 'OpenAI',
+        type: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
         apiKey: '',
-        selectedModel: 'llama3',
-        models: ['llama3', 'mistral', 'neural-chat', 'codellama', 'phi3', 'gemma2']
+        selectedModel: 'gpt-5.4-thinking',
+        models: ['gpt-5.4-thinking', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-4o', 'gpt-4o-mini']
     },
     {
-        id: 'openrouter',
-        name: 'OpenRouter',
-        type: 'openrouter',
-        baseUrl: 'https://openrouter.ai/api/v1',
+        id: 'anthropic',
+        name: 'Anthropic',
+        type: 'anthropic',
+        baseUrl: 'https://api.anthropic.com/v1',
         apiKey: '',
-        selectedModel: 'openai/gpt-4o-mini',
-        models: ['openai/gpt-4o-mini', 'openai/gpt-4o', 'anthropic/claude-3.5-sonnet', 'google/gemini-flash-1.5', 'meta-llama/llama-3.1-70b-instruct']
+        selectedModel: 'claude-4.7-opus',
+        models: ['claude-4.7-opus', 'claude-4.6-sonnet', 'claude-4.5-haiku']
     },
     {
         id: 'gemini',
@@ -88,18 +89,72 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         type: 'gemini',
         baseUrl: 'https://generativelanguage.googleapis.com',
         apiKey: '',
-        selectedModel: 'gemini-2.0-flash',
-        models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
+        selectedModel: 'gemini-2.5-pro',
+        models: ['gemini-2.5-pro', 'gemini-2.5-ultra', 'gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
     },
     {
-        id: 'anthropic',
-        name: 'Anthropic',
-        type: 'anthropic',
-        baseUrl: 'https://api.anthropic.com',
+        id: 'mistral',
+        name: 'Mistral',
+        type: 'mistral',
+        baseUrl: 'https://api.mistral.ai/v1',
         apiKey: '',
-        selectedModel: 'claude-sonnet-4-20250514',
-        models: ['claude-opus-4-20250514', 'claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022']
+        selectedModel: 'mistral-large-3',
+        models: ['mistral-large-3', 'mistral-3-dense', 'mistral-small-3', 'mistral-7b-v3']
     },
+    {
+        id: 'groq',
+        name: 'Groq',
+        type: 'groq',
+        baseUrl: 'https://api.groq.com/openai/v1',
+        apiKey: '',
+        selectedModel: 'llama-4-405b',
+        models: ['llama-4-405b', 'llama-4-70b', 'llama-4-8b', 'mistral-small-3', 'gemma-3-8b']
+    },
+    {
+        id: 'perplexity',
+        name: 'Perplexity',
+        type: 'perplexity',
+        baseUrl: 'https://api.perplexity.ai',
+        apiKey: '',
+        selectedModel: 'sonar-3-pro',
+        models: ['sonar-3-pro', 'sonar-3-small', 'gpt-5.4', 'claude-4.7-opus']
+    },
+    {
+        id: 'xai',
+        name: 'X.AI (Grok)',
+        type: 'xai',
+        baseUrl: 'https://api.x.ai/v1',
+        apiKey: '',
+        selectedModel: 'grok-4.20',
+        models: ['grok-4.20', 'grok-4', 'grok-mini']
+    },
+    {
+        id: 'openrouter',
+        name: 'OpenRouter',
+        type: 'openrouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        apiKey: '',
+        selectedModel: 'kimi-k2.6',
+        models: ['kimi-k2.6', 'qwen-3.6-plus', 'trinity-large-preview', 'mimo-v2-pro', 'llama-4-8b']
+    },
+    {
+        id: 'ollama',
+        name: 'Ollama (Local)',
+        type: 'ollama',
+        baseUrl: 'http://localhost:11434',
+        apiKey: '',
+        selectedModel: 'llama-4-8b',
+        models: ['llama-4-8b', 'llama-4-70b', 'mistral-small-3', 'phi-4', 'gemma-3-8b']
+    },
+    {
+        id: 'lmstudio',
+        name: 'LM Studio (Local)',
+        type: 'lmstudio',
+        baseUrl: 'http://localhost:1234/v1',
+        apiKey: '',
+        selectedModel: 'local-model',
+        models: ['local-model']
+    }
 ];
 
 export const useSettingsStore = create<SettingsState>()(
@@ -148,6 +203,33 @@ export const useSettingsStore = create<SettingsState>()(
                     )
                 }
             })),
+
+            refreshProviderModels: async (providerId) => {
+                const provider = get().aiConfig.providers.find(p => p.id === providerId);
+                if (!provider) return;
+
+                try {
+                    if (provider.type === 'ollama') {
+                        const baseUrl = provider.baseUrl || 'http://localhost:11434';
+                        const response = await fetch(`${baseUrl}/api/tags`);
+                        const data = await response.json();
+                        if (data.models) {
+                            const modelNames = data.models.map((m: any) => m.name);
+                            get().updateProvider(providerId, { models: modelNames });
+                        }
+                    } else if (provider.type === 'lmstudio') {
+                        const baseUrl = provider.baseUrl || 'http://localhost:1234/v1';
+                        const response = await fetch(`${baseUrl}/models`);
+                        const data = await response.json();
+                        if (data.data) {
+                            const modelNames = data.data.map((m: any) => m.id);
+                            get().updateProvider(providerId, { models: modelNames });
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Failed to refresh models for ${providerId}:`, error);
+                }
+            },
 
             addProvider: (provider) => set((state) => ({
                 aiConfig: {

@@ -16,7 +16,7 @@ interface SettingsProps {
 export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
   const [activeTab, setActiveTab] = useState('general');
   const [launchOnStartup, setLaunchOnStartup] = useState(false);
-  const { aiConfig, updateAiConfig, updateProvider, theme, setTheme, notificationsEnabled, soundEnabled, desktopBadgesEnabled, setNotifications, setSound, setDesktopBadges, wallpaper, setWallpaper, customWallpapers, addCustomWallpaper, removeCustomWallpaper } = useSettingsStore();
+  const { aiConfig, updateAiConfig, updateProvider, refreshProviderModels, theme, setTheme, notificationsEnabled, soundEnabled, desktopBadgesEnabled, setNotifications, setSound, setDesktopBadges, wallpaper, setWallpaper, customWallpapers, addCustomWallpaper, removeCustomWallpaper } = useSettingsStore();
 
   // Update State
   const [updateStatus, setUpdateStatus] = useState<{
@@ -274,79 +274,104 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
             </div>
           )}
 
-          {/* AI MODELS */}
+{/* AI MODELS */}
           {activeTab === 'ai' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="grid grid-cols-3 gap-3">
-                {aiConfig.providers.map(provider => {
-                  const Icon = ProviderLogos[provider.type] || ProviderLogos.custom;
-                  const isActive = aiConfig.activeProviderId === provider.id;
-                  return (
-                    <button
-                      key={provider.id}
-                      onClick={() => updateAiConfig({ activeProviderId: provider.id })}
-                      className={cn(
-                        "relative p-4 border rounded-xl flex flex-col gap-2 text-left transition-all",
-                        isActive ? "border-blue-500 bg-blue-50/50 ring-1 ring-blue-500" : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", isActive ? "bg-white shadow-sm text-blue-600" : "bg-zinc-100 text-zinc-500")}>
-                          <Icon size={20} />
-                        </div>
-                        {isActive && <div className="p-0.5 bg-blue-500 rounded-full text-white"><Check size={10} strokeWidth={3} /></div>}
-                      </div>
-                      <div><div className="text-xs font-semibold text-zinc-900">{provider.name}</div><div className="text-[10px] text-zinc-400 truncate">{provider.selectedModel || "Not configured"}</div></div>
-                      {provider.type === 'opencode' && <span className="absolute top-2 right-2 text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">FREE</span>}
-                    </button>
-                  );
-                })}
-              </div>
+             <div className="space-y-6 animate-in fade-in duration-300">
+               <div className="grid grid-cols-3 gap-3">
+                 {aiConfig.providers.map(provider => {
+                   const Icon = ProviderLogos[provider.type] || ProviderLogos.custom;
+                   const isActive = aiConfig.activeProviderId === provider.id;
+                   const isFree = ['opencode', 'ollama', 'lmstudio'].includes(provider.type);
+                   
+                   return (
+                     <button
+                       key={provider.id}
+                       onClick={() => {
+                         updateAiConfig({ activeProviderId: provider.id });
+                         if (provider.type === 'ollama' || provider.type === 'lmstudio') {
+                           refreshProviderModels(provider.id);
+                         }
+                       }}
+                       className={cn(
+                         "relative p-4 border rounded-xl flex flex-col gap-2 text-left transition-all group",
+                         isActive ? "border-zinc-900 bg-zinc-50 shadow-sm" : "border-zinc-100 hover:border-zinc-300 hover:bg-zinc-50/50"
+                       )}
+                     >
+                       <div className="flex items-center justify-between">
+                         <div className={cn(
+                           "w-9 h-9 rounded-xl flex items-center justify-center transition-colors", 
+                           isActive ? "bg-white text-zinc-900 shadow-sm" : "bg-zinc-100 text-zinc-400 group-hover:bg-white group-hover:text-zinc-600"
+                         )}>
+                           <Icon size={20} />
+                         </div>
+                         {isActive ? (
+                            <div className="w-5 h-5 bg-zinc-900 rounded-full flex items-center justify-center text-white"><Check size={10} strokeWidth={3} /></div>
+                         ) : isFree && (
+                            <span className="text-[7px] font-black px-1 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase">Free</span>
+                         )}
+                       </div>
+                       <div>
+                         <div className="text-[11px] font-bold text-zinc-900 uppercase tracking-tight">{provider.name}</div>
+                         <div className="text-[10px] text-zinc-400 truncate mt-0.5">{provider.selectedModel || "Not configured"}</div>
+                       </div>
+                     </button>
+                   );
+                 })}
+               </div>
 
-              {/* Provider Config */}
-              {aiConfig.providers.filter(p => p.id === aiConfig.activeProviderId).map(provider => (
-                <div key={provider.id} className="space-y-4 pt-4 border-t border-zinc-100">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Model</label>
-                      {provider.models && provider.models.length > 0 ? (
-                        <div className="relative">
-                          <select
-                            value={provider.selectedModel}
-                            onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })}
-                            className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 appearance-none cursor-pointer pr-8"
-                          >
-                            {provider.models.map(m => (
-                              <option key={m} value={m}>{m}</option>
-                            ))}
-                          </select>
-                          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-                        </div>
-                      ) : (
-                        <input type="text" value={provider.selectedModel} onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })} placeholder="e.g. gpt-4o" className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200" />
-                      )}
-                      {provider.type === 'opencode' && (
-                        <p className="text-[10px] text-emerald-500 flex items-center gap-1">
-                          <Sparkles size={10} /> All models are free — no API key required
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Endpoint URL</label>
-                      <input value={provider.baseUrl} onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })} placeholder="https://api.example.com/v1" className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200" />
-                    </div>
-                  </div>
-                  {provider.type !== 'ollama' && provider.type !== 'lmstudio' && provider.type !== 'opencode' && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">API Key</label>
-                      <input type="password" placeholder={provider.apiKey ? "••••••••" : "Enter API Key"} value={provider.apiKey} onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })} className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 placeholder:text-zinc-300" />
-                      <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Shield size={10} /> Stored locally, never leaves your device</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+               {/* Provider Config */}
+               {aiConfig.providers.filter(p => p.id === aiConfig.activeProviderId).map(provider => (
+                 <div key={provider.id} className="space-y-4 pt-4 border-t border-zinc-100">
+                   <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                       <div className="flex items-center justify-between">
+                         <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Model</label>
+                         {(provider.type === 'ollama' || provider.type === 'lmstudio') && (
+                           <button 
+                             onClick={() => refreshProviderModels(provider.id)}
+                             className="p-1 hover:bg-zinc-100 rounded-md text-zinc-400 hover:text-zinc-600 transition-colors"
+                             title="Refresh models"
+                           >
+                             <RefreshCw size={10} />
+                           </button>
+                         )}
+                       </div>
+                       <input
+                         type="text"
+                         value={provider.selectedModel}
+                         onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })}
+                         placeholder="e.g. gpt-4o"
+                         list={`models-${provider.id}`}
+                         className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                       />
+                       <datalist id={`models-${provider.id}`}>
+                         {provider.models?.map(m => (
+                           <option key={m} value={m} />
+                         ))}
+                       </datalist>
+                       {provider.type === 'opencode' && (
+                         <p className="text-[10px] text-emerald-500 flex items-center gap-1">
+                           <Sparkles size={10} /> All models are free — no API key required
+                         </p>
+                       )}
+                       <p className="text-[10px] text-zinc-400 mt-1">Type a model name or select from suggestions</p>
+                     </div>
+                     <div className="space-y-1.5">
+                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Endpoint URL</label>
+                       <input value={provider.baseUrl} onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })} placeholder="https://api.example.com/v1" className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200" />
+                     </div>
+                   </div>
+                   {provider.type !== 'ollama' && provider.type !== 'lmstudio' && provider.type !== 'opencode' && (
+                     <div className="space-y-1.5">
+                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">API Key</label>
+                       <input type="password" placeholder={provider.apiKey ? "••••••••" : "Enter API Key"} value={provider.apiKey} onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })} className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 placeholder:text-zinc-300" />
+                       <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Shield size={10} /> Stored locally, never leaves your device</p>
+                     </div>
+                   )}
+                 </div>
+               ))}
+             </div>
+           )}
 
           {/* SECURITY */}
           {activeTab === 'security' && (

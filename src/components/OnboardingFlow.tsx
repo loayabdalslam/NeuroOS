@@ -17,7 +17,7 @@ const STEPS = [
 
 export const OnboardingFlow: React.FC = () => {
     const { addUser, users, cancelAddUser } = useAuthStore();
-    const { aiConfig, updateAiConfig, updateProvider } = useSettingsStore();
+    const { aiConfig, updateAiConfig, updateProvider, refreshProviderModels } = useSettingsStore();
     const { setWorkspace } = useWorkspaceStore();
 
     const [currentStep, setCurrentStep] = useState(users.length > 0 ? 1 : 0);
@@ -203,53 +203,76 @@ export const OnboardingFlow: React.FC = () => {
                                 <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-2">
                                     <div className="flex items-center gap-2 text-zinc-900">
                                         <Bot size={14} />
-                                        <span className="text-[11px] font-bold uppercase tracking-wider">AI Integration</span>
+                                        <span className="text-[11px] font-bold uppercase tracking-wider">Intelligence Core</span>
                                     </div>
                                     <p className="text-[11px] text-zinc-400 leading-relaxed">
-                                        Choose a provider. OpenCode offers free models with no API key required.
+                                        Choose your primary AI brain. <strong>OpenCode</strong> and <strong>Local</strong> models are free. Flagship providers require an API key.
                                     </p>
                                 </div>
 
                                 {/* Custom Provider Dropdown */}
-                                <div className="space-y-2">
-                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Provider</label>
+                                <div className="space-y-1">
+                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">AI PROVIDER</label>
                                     <div className="relative">
                                         <button
                                             onClick={() => setProviderDropdownOpen(!providerDropdownOpen)}
-                                            className="w-full p-3 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700 flex items-center justify-between text-left"
+                                            className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700 flex items-center justify-between text-left shadow-sm hover:shadow-md"
                                         >
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-3">
                                                 {currentProvider && (() => {
                                                     const Icon = ProviderLogos[currentProvider.type] || ProviderLogos.custom;
-                                                    return <Icon size={18} className="text-zinc-500" />;
+                                                    return <Icon size={20} className="text-zinc-900" />;
                                                 })()}
-                                                <span className="text-sm">{currentProvider?.name || 'Select Provider'}</span>
-                                                {currentProvider?.type === 'opencode' && <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">FREE</span>}
+                                                <div>
+                                                    <span className="text-sm font-medium">{currentProvider?.name || 'Select Provider'}</span>
+                                                    {['opencode', 'ollama', 'lmstudio'].includes(currentProvider?.type || '') && (
+                                                        <span className="ml-2 text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">FREE</span>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <ChevronDown size={16} className={cn("text-zinc-400 transition-transform", providerDropdownOpen && "rotate-180")} />
+                                            <ChevronDown size={16} className={cn("text-zinc-400 transition-transform duration-300", providerDropdownOpen && "rotate-180")} />
                                         </button>
 
                                         {providerDropdownOpen && (
-                                            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute top-full left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+                                            <motion.div 
+                                                initial={{ opacity: 0, scale: 0.95, y: -10 }} 
+                                                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                                                className="absolute top-full left-0 right-0 mt-2 bg-white border border-zinc-200 rounded-2xl shadow-2xl z-[100] overflow-hidden max-h-[320px] overflow-y-auto p-1.5"
+                                            >
                                                 {providers.map(p => {
                                                     const Icon = ProviderLogos[p.type] || ProviderLogos.custom;
+                                                    const isFree = ['opencode', 'ollama', 'lmstudio'].includes(p.type);
                                                     return (
                                                         <button
                                                             key={p.id}
-                                                            onClick={() => { setSelectedProviderId(p.id); setProviderDropdownOpen(false); }}
-                                                            className={cn("w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-50 transition-colors text-left", selectedProviderId === p.id && "bg-blue-50")}
+                                                            onClick={() => { 
+                                                                setSelectedProviderId(p.id); 
+                                                                setProviderDropdownOpen(false);
+                                                                if (p.type === 'ollama' || p.type === 'lmstudio') {
+                                                                    refreshProviderModels(p.id);
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "w-full px-3 py-2.5 flex items-center gap-3 rounded-xl transition-all text-left group",
+                                                                selectedProviderId === p.id ? "bg-zinc-900 text-white" : "hover:bg-zinc-50"
+                                                            )}
                                                         >
-                                                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", selectedProviderId === p.id ? "bg-blue-100 text-blue-600" : "bg-zinc-100 text-zinc-500")}>
+                                                            <div className={cn(
+                                                                "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
+                                                                selectedProviderId === p.id ? "bg-white/10" : "bg-zinc-100 group-hover:bg-white text-zinc-500 group-hover:text-zinc-900"
+                                                            )}>
                                                                 <Icon size={18} />
                                                             </div>
-                                                            <div className="flex-1">
-                                                                <div className="text-sm font-medium text-zinc-900 flex items-center gap-2">
-                                                                    {p.name}
-                                                                    {p.type === 'opencode' && <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">FREE</span>}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-sm font-medium truncate">{p.name}</span>
+                                                                    {isFree && <span className={cn("text-[7px] font-black px-1 py-0.5 rounded", selectedProviderId === p.id ? "bg-emerald-500 text-white" : "bg-emerald-50 text-emerald-600")}>FREE</span>}
                                                                 </div>
-                                                                <div className="text-[10px] text-zinc-400">{p.type}</div>
+                                                                <div className={cn("text-[9px] truncate", selectedProviderId === p.id ? "text-zinc-400" : "text-zinc-400")}>
+                                                                    {p.type === 'ollama' || p.type === 'lmstudio' ? 'Local Instance' : p.baseUrl?.replace('https://', '')}
+                                                                </div>
                                                             </div>
-                                                            {selectedProviderId === p.id && <Check size={16} className="text-blue-500" />}
+                                                            {selectedProviderId === p.id && <Check size={14} className="text-emerald-400" />}
                                                         </button>
                                                     );
                                                 })}

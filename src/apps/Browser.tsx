@@ -109,15 +109,33 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
         }
     }, [activeTabId, activeTab.url, activeTab.title, isInputFocused]);
 
+    // Track if webview is ready for the active tab
+    const [isWebviewReady, setIsWebviewReady] = useState<Record<string, boolean>>({});
+    const lastProcessedActionRef = useRef<string | null>(null);
+
     // Handle incoming AI automation actions – full browser control engine
     useEffect(() => {
         if (!windowData.lastAction) return;
+        
+        // Prevent accidental re-processing of the same action object if the component re-renders
+        // unless it's a truly new action (ID or timestamp based check would be better, but we use the object ref or a hash)
+        const actionKey = JSON.stringify(windowData.lastAction);
+        if (lastProcessedActionRef.current === actionKey) return;
+
         const { type, payload } = windowData.lastAction;
         const requestId: string | undefined = payload?.__requestId;
+        const wv = webviewRefs.current[activeTabId];
 
+        // If webview is not ready yet, we wait. The effect will re-run when dependencies change.
+        // Or we can rely on the fact that windowData.lastAction is stable until next action.
+        if (!wv || !isWebviewReady[activeTabId]) {
+            console.log(`[Browser] Action ${type} received but webview for ${activeTabId} is not ready. Waiting...`);
+            return; 
+        }
+
+        lastProcessedActionRef.current = actionKey;
         addBrowserLog({ type: 'action', message: `AI Action: ${type}`, tabId: activeTabId });
 
-        const wv = webviewRefs.current[activeTabId];
         const ai = useAIStore.getState();
 
         const ok = (data: any) => {
@@ -133,13 +151,41 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
             ok({ url: normalizeUrl(payload.url), status: 'navigating' });
 
         } else if (type === 'navigate_and_wait' && payload?.url) {
-            if (!wv) { fail('No webview available'); return; }
             const url = normalizeUrl(payload.url);
             const timeout = payload.timeout ?? 15000;
-            const cleanup = () => wv.removeEventListener('did-stop-loading', onLoad);
-            const timer = setTimeout(() => { cleanup(); ok({ url: wv.src || url, title: wv.getTitle?.() || '', timedOut: true }); }, timeout);
-            function onLoad() { cleanup(); clearTimeout(timer); ok({ url: wv.src || url, title: wv.getTitle?.() || '' }); }
+            
+            let isResolved = false;
+            const cleanup = () => {
+                wv.removeEventListener('did-stop-loading', onLoad);
+                wv.removeEventListener('did-fail-load', onFail);
+            };
+
+            const timer = setTimeout(() => { 
+                if (isResolved) return;
+                isResolved = true;
+                cleanup(); 
+                ok({ url: wv.getURL?.() || url, title: wv.getTitle?.() || '', timedOut: true }); 
+            }, timeout);
+
+            function onLoad() { 
+                if (isResolved) return;
+                isResolved = true;
+                cleanup(); 
+                clearTimeout(timer); 
+                // Double check the URL matches or is at least loaded
+                ok({ url: wv.getURL?.() || url, title: wv.getTitle?.() || '', status: 'loaded' }); 
+            }
+
+            function onFail(e: any) {
+                if (isResolved) return;
+                isResolved = true;
+                cleanup();
+                clearTimeout(timer);
+                fail(`Failed to load ${url}: ${e.errorDescription || 'Unknown error'}`);
+            }
+
             wv.addEventListener('did-stop-loading', onLoad);
+            wv.addEventListener('did-fail-load', onFail);
             navigateTo(activeTabId, url);
 
             // ── SCRAPING ────────────────────────────────────────────────────────────
@@ -315,6 +361,11 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
     const wireWebviewEvents = (wv: any, tabId: string) => {
         if (!wv || (wv as any).__wired) return;
         (wv as any).__wired = true;
+
+        wv.addEventListener('dom-ready', () => {
+            console.log(`[Browser] Webview ${tabId} dom-ready`);
+            setIsWebviewReady(prev => ({ ...prev, [tabId]: true }));
+        });
 
         wv.addEventListener('did-start-loading', () => {
             updateTab(tabId, { isLoading: true });

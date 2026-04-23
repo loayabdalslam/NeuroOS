@@ -1,7 +1,7 @@
 {
   "name": "NeuroOS",
   "private": false,
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Neuro OS -AI OS FREE Minimalist Intelligence Os For Productivity",
   "productName": "Neuro OS™",
   "main": "dist-electron/main.js",
