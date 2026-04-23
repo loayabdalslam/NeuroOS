@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
     Mail, Hash, Code, Table, BookOpen, Users, Calendar,
@@ -29,6 +29,14 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
     const [showKey, setShowKey] = useState(false);
     const [editingKey, setEditingKey] = useState(false);
     const [connecting, setConnecting] = useState<string | null>(null);
+    const [connectError, setConnectError] = useState<string | null>(null);
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        if (store.isAuthenticated) {
+            store.loadConnections();
+        }
+    }, [store.isAuthenticated]);
 
     useEffect(() => {
         if (!windowData?.lastAction) return;
@@ -41,11 +49,19 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
         }
     }, [windowData?.lastAction?.timestamp]);
 
+    useEffect(() => {
+        return () => {
+            if (pollRef.current) clearInterval(pollRef.current);
+        };
+    }, []);
+
     const handleSaveKey = async () => {
         if (!keyInput.trim()) return;
-        await store.setApiKey(keyInput.trim());
-        setKeyInput('');
-        setEditingKey(false);
+        const ok = await store.setApiKey(keyInput.trim());
+        if (ok) {
+            setKeyInput('');
+            setEditingKey(false);
+        }
     };
 
     const handleRemoveKey = () => {
@@ -55,11 +71,39 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
 
     const handleConnect = async (appId: string) => {
         setConnecting(appId);
-        await store.authorizeApp(appId);
-        setTimeout(() => {
-            store.loadConnections();
+        setConnectError(null);
+
+        const url = await store.authorizeApp(appId);
+
+        if (!url) {
+            setConnectError(`Could not start ${appId} connection. Check your API key and try again.`);
             setConnecting(null);
-        }, 2000);
+            return;
+        }
+
+        if (pollRef.current) clearInterval(pollRef.current);
+        let attempts = 0;
+        pollRef.current = setInterval(async () => {
+            attempts++;
+            await store.loadConnections();
+            const conn = store.connections.find(c => c.appId === appId);
+            if (conn?.status === 'connected' || attempts >= 60) {
+                if (pollRef.current) clearInterval(pollRef.current);
+                pollRef.current = null;
+                setConnecting(null);
+            }
+        }, 3000);
+    };
+
+    const handleDisconnect = async (appId: string) => {
+        const conn = store.connections.find(c => c.appId === appId);
+        if (!conn) return;
+        const { composioClient } = await import('../lib/composio/composioClient');
+        const connId = (conn as any).id;
+        if (connId) {
+            await composioClient.disconnectApp(connId);
+        }
+        await store.loadConnections();
     };
 
     const getConnectionStatus = (appId: string) => {
@@ -80,12 +124,11 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
                     <span className="text-sm font-bold tracking-tight">Integrations</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {store.isAuthenticated && (
+                    {store.isAuthenticated ? (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
-                            <Check size={10} /> Connected
+                            <Check size={10} /> API Connected
                         </span>
-                    )}
-                    {!store.isAuthenticated && (
+                    ) : (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-zinc-500 bg-zinc-800 px-2 py-1 rounded-full">
                             Not configured
                         </span>
@@ -173,6 +216,14 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
                         )}
                     </div>
 
+                    {connectError && (
+                        <div className="p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2">
+                            <X size={12} className="text-red-400 shrink-0" />
+                            <span className="text-[11px] text-red-300">{connectError}</span>
+                            <button onClick={() => setConnectError(null)} className="ml-auto text-[10px] text-red-400 hover:text-red-300">Dismiss</button>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-2">
                         {SERVICES.map(service => {
                             const Icon = service.icon;
@@ -207,7 +258,10 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
                                     </div>
                                     <div className="mt-2.5">
                                         {connected ? (
-                                            <button className="w-full text-[10px] font-bold text-zinc-500 hover:text-red-400 py-1.5 rounded-lg hover:bg-red-500/5 transition-all">
+                                            <button
+                                                onClick={() => handleDisconnect(service.id)}
+                                                className="w-full text-[10px] font-bold text-zinc-500 hover:text-red-400 py-1.5 rounded-lg hover:bg-red-500/5 transition-all"
+                                            >
                                                 Disconnect
                                             </button>
                                         ) : (
@@ -217,7 +271,7 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
                                                 className="w-full text-[10px] font-bold text-violet-400 hover:text-violet-300 disabled:text-zinc-600 py-1.5 rounded-lg hover:bg-violet-500/5 disabled:hover:bg-transparent transition-all flex items-center justify-center gap-1"
                                             >
                                                 {isConnecting ? (
-                                                    <><Loader2 size={10} className="animate-spin" /> Connecting...</>
+                                                    <><Loader2 size={10} className="animate-spin" /> Waiting for auth...</>
                                                 ) : (
                                                     'Connect'
                                                 )}
@@ -229,6 +283,17 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
                         })}
                     </div>
                 </div>
+
+                {connecting && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-3 bg-violet-500/10 border border-violet-500/20 rounded-xl text-center space-y-1"
+                    >
+                        <p className="text-[11px] text-violet-300 font-bold">Authorization in progress</p>
+                        <p className="text-[10px] text-violet-400/70">Complete the sign-in in your browser, then come back here. Status will update automatically.</p>
+                    </motion.div>
+                )}
 
                 {!store.isAuthenticated && (
                     <div className="text-center py-4">

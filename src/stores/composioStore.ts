@@ -146,11 +146,7 @@ export const useComposioStore = create<ComposioState>()(
                 set({ isLoading: true });
                 try {
                     const authUrl = await composioClient.getAuthUrl(appId);
-                    if (authUrl) {
-                        window.open(authUrl, 'composio_auth', 'width=600,height=700');
-                        return authUrl;
-                    }
-                    return null;
+                    return authUrl;
                 } catch (error: any) {
                     set({ error: error.message });
                     return null;
