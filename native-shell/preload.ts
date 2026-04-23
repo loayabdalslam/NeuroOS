@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electron', {
     fileSystem: {
         list: (path: string) => ipcRenderer.invoke('file:list', path),
         read: (path: string) => ipcRenderer.invoke('file:read', path),
+        readBinary: (path: string) => ipcRenderer.invoke('file:readBinary', path),
         write: (path: string, content: string) => ipcRenderer.invoke('file:write', path, content),
         createDir: (path: string) => ipcRenderer.invoke('file:createDir', path),
         delete: (path: string) => ipcRenderer.invoke('file:delete', path),

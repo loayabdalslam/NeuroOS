@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     ZoomIn, ZoomOut, RotateCw, Play, Pause, SkipBack, SkipForward,
     Volume2, VolumeX, Volume1, Maximize2, Image, Video, Music,
-    FileText, Upload, Minimize2, RefreshCw, Move
+    FileText, Upload, Minimize2, RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -29,6 +29,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
     const [fileName, setFileName] = useState('');
     const [fileExt, setFileExt] = useState('');
     const [fileType, setFileType] = useState<'image' | 'video' | 'audio' | 'unknown'>('unknown');
+    const [mediaSrc, setMediaSrc] = useState('');
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -74,24 +75,48 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
         setCurrentTime(0);
         setDuration(0);
         setIsPlaying(false);
+        setMediaSrc('');
 
         const ext = path.split('.').pop()?.toLowerCase() || '';
         setFileExt(ext);
 
-        if (MEDIA_EXTENSIONS.image.includes(ext)) setFileType('image');
-        else if (MEDIA_EXTENSIONS.video.includes(ext)) setFileType('video');
-        else if (MEDIA_EXTENSIONS.audio.includes(ext)) setFileType('audio');
-        else setFileType('unknown');
+        let type: 'image' | 'video' | 'audio' | 'unknown' = 'unknown';
+        if (MEDIA_EXTENSIONS.image.includes(ext)) type = 'image';
+        else if (MEDIA_EXTENSIONS.video.includes(ext)) type = 'video';
+        else if (MEDIA_EXTENSIONS.audio.includes(ext)) type = 'audio';
+        setFileType(type);
 
         if (windowData) {
             updateWindow(windowData.id, { title: n });
         }
-    };
 
-    const getFileUrl = () => {
-        if (!filePath) return '';
-        if (filePath.startsWith('blob:') || filePath.startsWith('http')) return filePath;
-        return filePath.startsWith('/') ? `file://${filePath}` : `file:///${filePath.replace(/\\/g, '/')}`;
+        if (type === 'unknown') return;
+
+        try {
+            const electron = (window as any).electron;
+            if (electron?.fileSystem?.readBinary) {
+                const data = await electron.fileSystem.readBinary(path);
+                const mimeMap: Record<string, string> = {
+                    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+                    webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', avif: 'image/avif',
+                    mp4: 'video/mp4', webm: 'video/webm', avi: 'video/x-msvideo', mov: 'video/quicktime',
+                    mkv: 'video/x-matroska', wmv: 'video/x-ms-wmv', ogv: 'video/ogg',
+                    mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac',
+                    aac: 'audio/aac', m4a: 'audio/mp4', wma: 'audio/x-ms-wma',
+                };
+                const mime = mimeMap[ext] || 'application/octet-stream';
+                const blob = new Blob([data], { type: mime });
+                const url = URL.createObjectURL(blob);
+                setMediaSrc(url);
+            } else if (path.startsWith('blob:') || path.startsWith('http')) {
+                setMediaSrc(path);
+            } else {
+                setError('File system not available');
+            }
+        } catch (err: any) {
+            console.error('Failed to load media:', err);
+            setError('Failed to load file');
+        }
     };
 
     // --- Image controls ---
@@ -122,16 +147,10 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
     };
 
     const handleSetAsWallpaper = async () => {
-        if (!filePath || fileType !== 'image') return;
+        if (!mediaSrc || fileType !== 'image') return;
         try {
-            const electron = (window as any).electron;
-            if (electron?.fileSystem?.read) {
-                const data = await electron.fileSystem.read(filePath);
-                const blob = new Blob([data]);
-                const url = URL.createObjectURL(blob);
-                setWallpaper(url);
-                addCustomWallpaper(url);
-            }
+            setWallpaper(mediaSrc);
+            addCustomWallpaper(mediaSrc);
         } catch (err) {
             console.error('Failed to set wallpaper:', err);
         }
@@ -260,7 +279,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
             </div>
 
             {/* Image toolbar */}
-            {fileType === 'image' && filePath && (
+            {fileType === 'image' && mediaSrc && (
                 <div className="flex items-center justify-center gap-1 px-3 py-1.5 bg-white/[0.02] border-b border-white/[0.04] shrink-0">
                     <button onClick={() => setZoom(z => Math.max(0.1, z - 0.25))} className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white">
                         <ZoomOut size={15} />
@@ -322,7 +341,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                 </AnimatePresence>
 
                 {/* Image view */}
-                {fileType === 'image' && filePath && !error && (
+                {fileType === 'image' && mediaSrc && !error && (
                     <div
                         className={cn(
                             "h-full w-full flex items-center justify-center overflow-hidden",
@@ -345,7 +364,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                            src={getFileUrl()}
+                            src={mediaSrc}
                             alt={fileName}
                             className="max-w-full max-h-full object-contain select-none"
                             style={{
@@ -364,13 +383,13 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                 )}
 
                 {/* Video view */}
-                {fileType === 'video' && filePath && !error && (
+                {fileType === 'video' && mediaSrc && !error && (
                     <div className="h-full w-full bg-black flex items-center justify-center relative group"
                          onMouseMove={resetControlsTimer}>
                         <video
                             key={filePath}
                             ref={videoRef}
-                            src={getFileUrl()}
+                            src={mediaSrc}
                             className="max-w-full max-h-full object-contain"
                             onTimeUpdate={handleTimeUpdate}
                             onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
@@ -475,7 +494,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                 )}
 
                 {/* Audio view */}
-                {fileType === 'audio' && filePath && !error && (
+                {fileType === 'audio' && mediaSrc && !error && (
                     <motion.div
                         key={filePath}
                         initial={{ opacity: 0 }}
@@ -579,7 +598,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
 
                         <audio
                             ref={audioRef}
-                            src={getFileUrl()}
+                            src={mediaSrc}
                             onTimeUpdate={handleTimeUpdate}
                             onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
                             onPlay={() => setIsPlaying(true)}

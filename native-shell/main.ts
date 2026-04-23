@@ -234,6 +234,14 @@ app.on('ready', () => {
         return await fs.readFile(filePath, 'utf-8');
     });
 
+    ipcMain.handle('file:readBinary', async (_, filePath) => {
+        if (!isPathSafe(filePath)) {
+            throw new Error('Access denied: path is outside home directory');
+        }
+        const buffer = await fs.readFile(filePath);
+        return buffer;
+    });
+
     ipcMain.handle('file:write', async (_, filePath, content) => {
         if (!isPathSafe(filePath)) {
             throw new Error('Access denied: path is outside home directory');

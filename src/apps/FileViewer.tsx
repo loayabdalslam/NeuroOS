@@ -104,13 +104,27 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
         setBlobUrl('');
 
         try {
-            const stat = await window.electron!.fileSystem.stat(filePath).catch(() => null);
+            const electron = (window as any).electron;
+            const stat = await electron?.fileSystem?.stat(filePath).catch(() => null);
             if (!stat) throw new Error('not found');
             if (stat.size) setFileSize(stat.size);
 
             if (fileType === 'image' || fileType === 'video' || fileType === 'audio' || fileType === 'pdf') {
-                const fileUrl = filePath.startsWith('/') ? `file://${filePath}` : `file:///${filePath.replace(/\\/g, '/')}`;
-                setBlobUrl(fileUrl);
+                if (electron?.fileSystem?.readBinary) {
+                    const mimeMap: Record<string, string> = {
+                        png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+                        webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', avif: 'image/avif',
+                        mp4: 'video/mp4', webm: 'video/webm', avi: 'video/x-msvideo', mov: 'video/quicktime',
+                        mkv: 'video/x-matroska', ogv: 'video/ogg',
+                        mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac',
+                        aac: 'audio/aac', m4a: 'audio/mp4', wma: 'audio/x-ms-wma',
+                        pdf: 'application/pdf',
+                    };
+                    const data = await electron.fileSystem.readBinary(filePath);
+                    const mime = mimeMap[ext] || 'application/octet-stream';
+                    const blob = new Blob([data], { type: mime });
+                    setBlobUrl(URL.createObjectURL(blob));
+                }
             } else {
                 const text = await readFile(filePath);
                 setContent(text);

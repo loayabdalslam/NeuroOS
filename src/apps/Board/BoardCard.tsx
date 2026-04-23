@@ -21,6 +21,7 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
     const [previewContent, setPreviewContent] = useState<string | null>(null);
     const [metadata, setMetadata] = useState<LinkMetadata | null>(null);
     const [previewType, setPreviewType] = useState<'text' | 'image' | 'video' | 'code' | 'markdown' | 'html' | 'none'>('none');
+    const [previewBlobUrl, setPreviewBlobUrl] = useState<string>('');
     const { readFile } = useFileSystem();
     const { openApp, sendAppAction, appWindows } = useOS();
 
@@ -80,8 +81,24 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                 fetchContent('code');
             } else if (imageExtensions.includes(ext)) {
                 setPreviewType('image');
+                const electron = (window as any).electron;
+                if (electron?.fileSystem?.readBinary) {
+                    const mimeMap: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp' };
+                    electron.fileSystem.readBinary(card.metadata.path).then((data: any) => {
+                        const blob = new Blob([data], { type: mimeMap[ext] || 'image/png' });
+                        setPreviewBlobUrl(URL.createObjectURL(blob));
+                    }).catch(() => {});
+                }
             } else if (videoExtensions.includes(ext)) {
                 setPreviewType('video');
+                const electron = (window as any).electron;
+                if (electron?.fileSystem?.readBinary) {
+                    const mimeMap: Record<string, string> = { mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg', mov: 'video/quicktime', mkv: 'video/x-matroska' };
+                    electron.fileSystem.readBinary(card.metadata.path).then((data: any) => {
+                        const blob = new Blob([data], { type: mimeMap[ext] || 'video/mp4' });
+                        setPreviewBlobUrl(URL.createObjectURL(blob));
+                    }).catch(() => {});
+                }
             } else if (['txt'].includes(ext)) {
                 fetchContent('text');
             } else {
@@ -215,20 +232,20 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                                     )}>
                                         {previewContent?.slice(0, 1000) || "Loading preview..."}
                                     </div>
-                                ) : previewType === 'image' ? (
+                                ) : previewType === 'image' && previewBlobUrl ? (
                                     <div className="w-full h-full flex items-center justify-center bg-zinc-100/50 rounded-xl overflow-hidden relative">
                                         <img
-                                            src={`file://${card.metadata.path}`}
+                                            src={previewBlobUrl}
                                             alt="preview"
                                             className="w-full h-full object-cover transition-transform duration-500 group-hover/preview:scale-110"
                                             onLoad={(e) => (e.currentTarget.style.opacity = '1')}
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover/preview:opacity-100 transition-opacity" />
                                     </div>
-                                ) : previewType === 'video' ? (
+                                ) : previewType === 'video' && previewBlobUrl ? (
                                     <div className="w-full h-full flex items-center justify-center bg-zinc-900 rounded-xl overflow-hidden relative">
                                         <video
-                                            src={`file://${card.metadata.path}`}
+                                            src={previewBlobUrl}
                                             autoPlay
                                             muted
                                             loop
