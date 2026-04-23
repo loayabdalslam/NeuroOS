@@ -44,7 +44,7 @@ interface ComposioApp {
 class ComposioClient {
     private apiKey: string = '';
     private userId: string = '';
-    private baseUrl: string = 'https://api.composio.dev/api/v1';
+    private baseUrl: string = 'https://backend.composio.dev/api/v3';
     private connections: Map<string, ComposioAppConnection> = new Map();
     private tools: Map<string, ComposioTool> = new Map();
     private apps: Map<string, ComposioApp> = new Map();
@@ -78,7 +78,7 @@ class ComposioClient {
             const response = await fetch(`${this.baseUrl}${endpoint}`, {
                 ...options,
                 headers: {
-                    'Authorization': `Bearer ${this.apiKey}`,
+                    'x-api-key': this.apiKey,
                     'Content-Type': 'application/json',
                     ...options.headers,
                 },
@@ -97,13 +97,11 @@ class ComposioClient {
 
     async initializeAuth(apiKey: string): Promise<boolean> {
         try {
-            const data = await this.makeRequest<{ userId: string }>('/auth/verify', {
-                headers: { 'Authorization': `Bearer ${apiKey}` },
-            });
+            this.apiKey = apiKey;
+            const data = await this.makeRequest<any>('/auth/session/info');
 
             if (data) {
-                this.apiKey = apiKey;
-                this.userId = data.userId || 'user-' + Date.now();
+                this.userId = data.user?.id || data.id || 'user-' + Date.now();
                 this.saveAuthToStorage({
                     apiKey,
                     userId: this.userId,
@@ -112,9 +110,11 @@ class ComposioClient {
                 });
                 return true;
             }
+            this.apiKey = '';
             return false;
         } catch (e) {
             console.error('Composio auth failed:', e);
+            this.apiKey = '';
             return false;
         }
     }
