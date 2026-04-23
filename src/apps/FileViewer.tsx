@@ -3,36 +3,29 @@ import { OSAppWindow, useOS } from '../hooks/useOS';
 import { useFileSystem } from '../hooks/useFileSystem';
 import {
     FileText, Image as ImageIcon, Film, Music, Code, FileJson,
-    File, Download, Copy, ZoomIn, ZoomOut, RotateCw,
-    WrapText, AlignLeft
+    File, Copy, ZoomIn, ZoomOut, WrapText, AlignLeft, Check,
+    ChevronRight, Hash, Braces, Globe, FileType, RotateCw
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
 
 // ─── Extension Mapping ──────────────────────────────
 type FileType = 'text' | 'code' | 'image' | 'video' | 'audio' | 'markdown' | 'pdf' | 'json' | 'html' | 'unknown';
 
 const EXT_MAP: Record<string, FileType> = {
-    // Text
     txt: 'text', log: 'text', csv: 'text', ini: 'text', cfg: 'text', env: 'text', yml: 'text', yaml: 'text', toml: 'text', xml: 'text',
-    // Markdown
     md: 'markdown', mdx: 'markdown',
-    // Code
     js: 'code', jsx: 'code', ts: 'code', tsx: 'code', py: 'code', rb: 'code', go: 'code', rs: 'code',
     java: 'code', c: 'code', cpp: 'code', h: 'code', hpp: 'code', cs: 'code', php: 'code',
     swift: 'code', kt: 'code', scala: 'code', lua: 'code', sh: 'code', bash: 'code', zsh: 'code',
     bat: 'code', ps1: 'code', sql: 'code', r: 'code', dart: 'code', vue: 'code', svelte: 'code',
     css: 'code', scss: 'code', less: 'code', sass: 'code', styl: 'code',
-    // JSON
     json: 'json', jsonc: 'json', jsonl: 'json',
-    // HTML
     html: 'html', htm: 'html', svg: 'html',
-    // Images
     png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image', bmp: 'image', ico: 'image', avif: 'image',
-    // Video
     mp4: 'video', webm: 'video', mkv: 'video', avi: 'video', mov: 'video', ogv: 'video',
-    // Audio
     mp3: 'audio', wav: 'audio', ogg: 'audio', flac: 'audio', aac: 'audio', m4a: 'audio', wma: 'audio',
-    // PDF
     pdf: 'pdf',
 };
 
@@ -58,6 +51,19 @@ function getFileName(path: string): string {
     return path.replace(/\\/g, '/').split('/').pop() || path;
 }
 
+function getPathSegments(path: string): string[] {
+    const normalized = path.replace(/\\/g, '/');
+    return normalized.split('/').filter(Boolean);
+}
+
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
 // ─── Component ──────────────────────────────────────
 interface FileViewerProps {
     windowData: OSAppWindow;
@@ -67,23 +73,24 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
     const { readFile } = useFileSystem();
     const { updateWindow } = useOS();
 
-    const [content, setContent] = useState<string>('');
-    const [blobUrl, setBlobUrl] = useState<string>('');
+    const [content, setContent] = useState('');
+    const [blobUrl, setBlobUrl] = useState('');
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string>('');
+    const [error, setError] = useState('');
     const [wordWrap, setWordWrap] = useState(true);
     const [zoom, setZoom] = useState(100);
     const [lineNumbers, setLineNumbers] = useState(true);
+    const [copied, setCopied] = useState(false);
+    const [fileSize, setFileSize] = useState(0);
     const lastLoadedRef = useRef<number>(0);
+    const codeContainerRef = useRef<HTMLDivElement>(null);
 
-    // Get file path from lastAction
     const filePath = windowData.lastAction?.payload?.path || '';
     const fileName = getFileName(filePath);
     const fileType = getFileType(fileName);
     const ext = getExt(fileName);
     const lang = LANG_MAP[ext] || ext;
 
-    // Load file content
     const loadFile = useCallback(async () => {
         if (!filePath) {
             setError('No file specified');
@@ -93,25 +100,23 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
 
         setLoading(true);
         setError('');
+        setContent('');
+        setBlobUrl('');
 
         try {
-            // ensure the file actually exists before trying to read it
             const stat = await window.electron!.fileSystem.stat(filePath).catch(() => null);
-            if (!stat) {
-                throw new Error('not found');
-            }
+            if (!stat) throw new Error('not found');
+            if (stat.size) setFileSize(stat.size);
 
             if (fileType === 'image' || fileType === 'video' || fileType === 'audio' || fileType === 'pdf') {
-                // Binary files — use file:// protocol in Electron
                 const fileUrl = filePath.startsWith('/') ? `file://${filePath}` : `file:///${filePath.replace(/\\/g, '/')}`;
                 setBlobUrl(fileUrl);
             } else {
-                // Text-based files
                 const text = await readFile(filePath);
                 setContent(text);
+                if (!stat.size) setFileSize(new TextEncoder().encode(text).length);
             }
         } catch (e: any) {
-            // more user-friendly message and keep original error logged
             setError('Could not open file – it may have been moved or deleted.');
             console.error('readFile error', e);
         } finally {
@@ -119,7 +124,6 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
         }
     }, [filePath, fileType, readFile]);
 
-    // Load on mount and when file changes
     useEffect(() => {
         const actionTs = windowData.lastAction?.timestamp || 0;
         if (actionTs > lastLoadedRef.current) {
@@ -128,46 +132,130 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
         }
     }, [windowData.lastAction, loadFile]);
 
-    // Update window title
     useEffect(() => {
         if (fileName && windowData.title !== fileName) {
             updateWindow(windowData.id, { title: fileName });
         }
     }, [fileName]);
 
-    // Copy content to clipboard
     const handleCopy = () => {
         navigator.clipboard.writeText(content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
+    const getTypeInfo = () => {
+        switch (fileType) {
+            case 'image': return { icon: ImageIcon, color: 'text-pink-400', bg: 'bg-pink-500/10', label: ext.toUpperCase() };
+            case 'video': return { icon: Film, color: 'text-red-400', bg: 'bg-red-500/10', label: ext.toUpperCase() };
+            case 'audio': return { icon: Music, color: 'text-violet-400', bg: 'bg-violet-500/10', label: ext.toUpperCase() };
+            case 'code': return { icon: Code, color: 'text-sky-400', bg: 'bg-sky-500/10', label: lang };
+            case 'json': return { icon: Braces, color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'JSON' };
+            case 'markdown': return { icon: Hash, color: 'text-blue-400', bg: 'bg-blue-500/10', label: 'MD' };
+            case 'html': return { icon: Globe, color: 'text-orange-400', bg: 'bg-orange-500/10', label: ext === 'svg' ? 'SVG' : 'HTML' };
+            case 'pdf': return { icon: FileType, color: 'text-red-400', bg: 'bg-red-500/10', label: 'PDF' };
+            default: return { icon: FileText, color: 'text-zinc-400', bg: 'bg-zinc-500/10', label: ext || 'TXT' };
+        }
+    };
+
+    const typeInfo = getTypeInfo();
+    const TypeIcon = typeInfo.icon;
+    const isTextType = ['text', 'code', 'json', 'markdown', 'html', 'unknown'].includes(fileType);
+    const lineCount = content ? content.split('\n').length : 0;
+    const pathSegments = getPathSegments(filePath);
+
     // ─── Renderers ──────────────────────────────────
+
+    const renderCodeView = (text: string, _language: string) => {
+        const lines = text.split('\n');
+        const gutterWidth = String(lines.length).length;
+
+        return (
+            <div
+                ref={codeContainerRef}
+                className="h-full overflow-auto font-mono"
+                style={{ fontSize: `${Math.round(13 * zoom / 100)}px`, lineHeight: '1.65' }}
+            >
+                <table className="w-full border-collapse">
+                    <tbody>
+                        {lines.map((line, i) => (
+                            <tr key={i} className="group/line hover:bg-white/[0.03] transition-colors duration-75">
+                                {lineNumbers && (
+                                    <td
+                                        className="select-none text-right pr-4 pl-3 py-0 text-zinc-600 border-r border-white/[0.04] w-[1%] group-hover/line:text-zinc-400 transition-colors"
+                                        style={{ minWidth: `${gutterWidth + 2}ch` }}
+                                    >
+                                        {i + 1}
+                                    </td>
+                                )}
+                                <td
+                                    className="pl-4 pr-4 py-0 text-zinc-300"
+                                    style={{
+                                        whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
+                                        wordBreak: wordWrap ? 'break-all' : 'normal'
+                                    }}
+                                >
+                                    {line || ' '}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
     const renderContent = () => {
         if (loading) {
             return (
-                <div className="flex items-center justify-center h-full text-zinc-400">
-                    <RotateCw size={28} className="animate-spin" />
+                <div className="flex flex-col items-center justify-center h-full gap-4">
+                    <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    >
+                        <RotateCw size={24} className="text-zinc-600" />
+                    </motion.div>
+                    <p className="text-xs text-zinc-600">Loading file...</p>
                 </div>
             );
         }
 
         if (error) {
             return (
-                <div className="flex flex-col items-center justify-center h-full text-zinc-400 gap-3">
-                    <File size={48} strokeWidth={1} />
-                    <p className="text-sm">{error}</p>
-                </div>
+                <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center h-full gap-4"
+                >
+                    <div className="w-14 h-14 rounded-2xl bg-white/[0.04] flex items-center justify-center">
+                        <File size={24} className="text-zinc-600" />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-sm text-zinc-400 mb-1">{error}</p>
+                        <button
+                            onClick={loadFile}
+                            className="text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                        >
+                            Try again
+                        </button>
+                    </div>
+                </motion.div>
             );
         }
 
         switch (fileType) {
             case 'image':
                 return (
-                    <div className="flex items-center justify-center h-full bg-[#1a1a2e] overflow-auto p-4">
-                        <img
+                    <div className="flex items-center justify-center h-full bg-zinc-950 overflow-auto p-6">
+                        <motion.img
+                            key={blobUrl}
+                            initial={{ opacity: 0, scale: 0.97 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.3 }}
                             src={blobUrl}
                             alt={fileName}
                             style={{ maxWidth: `${zoom}%`, maxHeight: `${zoom}%` }}
-                            className="object-contain rounded shadow-2xl transition-all duration-200"
+                            className="object-contain rounded-lg shadow-2xl"
                             draggable={false}
                         />
                     </div>
@@ -175,37 +263,34 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
 
             case 'video':
                 return (
-                    <div className="h-full w-full bg-zinc-950 flex items-center justify-center p-8">
-                        <div className="relative w-full max-w-5xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/5 bg-black group/player">
-                            <video
-                                src={blobUrl}
-                                controls
-                                autoPlay
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
+                    <div className="h-full w-full bg-black flex items-center justify-center p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="relative w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white/[0.06] bg-black"
+                        >
+                            <video src={blobUrl} controls autoPlay className="w-full h-full object-contain" />
+                        </motion.div>
                     </div>
                 );
 
             case 'audio':
                 return (
-                    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-[#1a1a2e] to-[#16213e] gap-6">
-                        <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-purple-500/30 to-sky-500/30 flex items-center justify-center backdrop-blur-xl border border-white/10">
-                            <Music size={56} className="text-white/70" />
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-zinc-950 via-violet-950/10 to-zinc-950 gap-5"
+                    >
+                        <div className="w-28 h-28 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-white/[0.06] flex items-center justify-center">
+                            <Music size={40} className="text-white/30" />
                         </div>
-                        <p className="text-white/80 text-sm font-medium">{fileName}</p>
+                        <p className="text-sm text-white/70 font-medium">{fileName}</p>
                         <audio src={blobUrl} controls className="w-80" />
-                    </div>
+                    </motion.div>
                 );
 
             case 'pdf':
-                return (
-                    <iframe
-                        src={blobUrl}
-                        className="w-full h-full border-0"
-                        title={fileName}
-                    />
-                );
+                return <iframe src={blobUrl} className="w-full h-full border-0" title={fileName} />;
 
             case 'html':
                 return (
@@ -213,7 +298,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                         <div className="flex-1 overflow-auto">
                             {ext === 'svg' ? (
                                 <div
-                                    className="flex items-center justify-center h-full bg-[#1a1a2e] p-4"
+                                    className="flex items-center justify-center h-full bg-zinc-950 p-6"
                                     dangerouslySetInnerHTML={{ __html: content }}
                                 />
                             ) : (
@@ -238,8 +323,19 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
 
             case 'markdown':
                 return (
-                    <div className="h-full overflow-auto bg-white p-8">
-                        <div className="max-w-4xl mx-auto prose prose-zinc prose-sm md:prose-base !text-zinc-800 font-sans">
+                    <div className="h-full overflow-auto bg-zinc-950 p-8">
+                        <div className="max-w-3xl mx-auto prose prose-invert prose-sm prose-zinc
+                            prose-headings:text-zinc-200 prose-headings:font-semibold prose-headings:border-b prose-headings:border-white/[0.06] prose-headings:pb-2
+                            prose-p:text-zinc-400 prose-p:leading-relaxed
+                            prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline
+                            prose-strong:text-zinc-300
+                            prose-code:text-pink-400 prose-code:bg-white/[0.04] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
+                            prose-pre:bg-white/[0.03] prose-pre:border prose-pre:border-white/[0.06] prose-pre:rounded-xl
+                            prose-blockquote:border-violet-500/40 prose-blockquote:text-zinc-500
+                            prose-li:text-zinc-400
+                            prose-hr:border-white/[0.06]
+                            prose-th:text-zinc-300 prose-td:text-zinc-400
+                        ">
                             <ReactMarkdown>{content}</ReactMarkdown>
                         </div>
                     </div>
@@ -254,96 +350,102 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
         }
     };
 
-    const renderCodeView = (text: string, language: string) => {
-        const lines = text.split('\n');
-        return (
-            <div
-                className="h-full overflow-auto font-mono text-[13px] leading-[1.6]"
-                style={{ fontSize: `${Math.round(13 * zoom / 100)}px` }}
-            >
-                <table className="w-full border-collapse">
-                    <tbody>
-                        {lines.map((line, i) => (
-                            <tr key={i} className="hover:bg-white/5">
-                                {lineNumbers && (
-                                    <td className="select-none text-right pr-4 pl-3 py-0 text-zinc-500 border-r border-zinc-700/50 w-[1%]">
-                                        {i + 1}
-                                    </td>
-                                )}
-                                <td className="pl-4 pr-3 py-0" style={{ whiteSpace: wordWrap ? 'pre-wrap' : 'pre', wordBreak: wordWrap ? 'break-all' : 'normal' }}>
-                                    {line || ' '}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        );
-    };
-
-    // ─── Get type icon & color ──────────────────────
-    const getTypeInfo = () => {
-        switch (fileType) {
-            case 'image': return { icon: ImageIcon, color: 'text-pink-400', bg: 'bg-pink-500/10', label: ext.toUpperCase() };
-            case 'video': return { icon: Film, color: 'text-red-400', bg: 'bg-red-500/10', label: ext.toUpperCase() };
-            case 'audio': return { icon: Music, color: 'text-purple-400', bg: 'bg-purple-500/10', label: ext.toUpperCase() };
-            case 'code': return { icon: Code, color: 'text-sky-400', bg: 'bg-sky-500/10', label: lang };
-            case 'json': return { icon: FileJson, color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'JSON' };
-            case 'markdown': return { icon: FileText, color: 'text-blue-400', bg: 'bg-blue-500/10', label: 'Markdown' };
-            case 'html': return { icon: Code, color: 'text-orange-400', bg: 'bg-orange-500/10', label: 'HTML' };
-            case 'pdf': return { icon: FileText, color: 'text-red-400', bg: 'bg-red-500/10', label: 'PDF' };
-            default: return { icon: FileText, color: 'text-zinc-400', bg: 'bg-zinc-500/10', label: ext || 'TXT' };
-        }
-    };
-
-    const typeInfo = getTypeInfo();
-    const TypeIcon = typeInfo.icon;
-    const isTextType = ['text', 'code', 'json', 'markdown', 'html', 'unknown'].includes(fileType);
-    const lineCount = content ? content.split('\n').length : 0;
-
     return (
-        <div className="flex flex-col h-full bg-[#0f0f1a] text-zinc-200">
-            {/* Top bar */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#161625] border-b border-zinc-800 min-h-[36px]">
-                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md ${typeInfo.bg}`}>
-                    <TypeIcon size={13} className={typeInfo.color} />
-                    <span className={`text-[11px] font-semibold uppercase tracking-wide ${typeInfo.color}`}>{typeInfo.label}</span>
+        <div className="flex flex-col h-full bg-zinc-950 text-zinc-200 select-none">
+            {/* Header bar */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border-b border-white/[0.06] min-h-[36px] shrink-0">
+                {/* Type badge */}
+                <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-md shrink-0", typeInfo.bg)}>
+                    <TypeIcon size={12} className={typeInfo.color} />
+                    <span className={cn("text-[10px] font-bold uppercase tracking-wider", typeInfo.color)}>{typeInfo.label}</span>
                 </div>
 
-                <span className="text-xs text-zinc-500 truncate flex-1">{filePath}</span>
+                {/* Breadcrumb path */}
+                <div className="flex items-center gap-0.5 min-w-0 flex-1 overflow-hidden text-[11px]">
+                    {pathSegments.length > 3 ? (
+                        <>
+                            <span className="text-zinc-600 truncate">{pathSegments[0]}</span>
+                            <ChevronRight size={10} className="text-zinc-700 shrink-0" />
+                            <span className="text-zinc-600">&hellip;</span>
+                            <ChevronRight size={10} className="text-zinc-700 shrink-0" />
+                            {pathSegments.slice(-2).map((seg, i) => (
+                                <React.Fragment key={i}>
+                                    {i > 0 && <ChevronRight size={10} className="text-zinc-700 shrink-0" />}
+                                    <span className={cn(
+                                        "truncate",
+                                        i === pathSegments.slice(-2).length - 1 ? "text-zinc-300 font-medium" : "text-zinc-600"
+                                    )}>
+                                        {seg}
+                                    </span>
+                                </React.Fragment>
+                            ))}
+                        </>
+                    ) : (
+                        pathSegments.map((seg, i) => (
+                            <React.Fragment key={i}>
+                                {i > 0 && <ChevronRight size={10} className="text-zinc-700 shrink-0" />}
+                                <span className={cn(
+                                    "truncate",
+                                    i === pathSegments.length - 1 ? "text-zinc-300 font-medium" : "text-zinc-600"
+                                )}>
+                                    {seg}
+                                </span>
+                            </React.Fragment>
+                        ))
+                    )}
+                </div>
 
                 {/* Controls */}
-                <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-0.5 shrink-0">
                     {isTextType && (
                         <>
                             <button
                                 onClick={() => setWordWrap(!wordWrap)}
-                                className={`p-1.5 rounded hover:bg-white/10 transition ${wordWrap ? 'text-sky-400' : 'text-zinc-500'}`}
+                                className={cn(
+                                    "p-1.5 rounded-md transition-colors",
+                                    wordWrap ? "text-sky-400 bg-sky-500/10" : "text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04]"
+                                )}
                                 title="Word Wrap"
                             >
-                                <WrapText size={14} />
+                                <WrapText size={13} />
                             </button>
                             <button
                                 onClick={() => setLineNumbers(!lineNumbers)}
-                                className={`p-1.5 rounded hover:bg-white/10 transition ${lineNumbers ? 'text-sky-400' : 'text-zinc-500'}`}
+                                className={cn(
+                                    "p-1.5 rounded-md transition-colors",
+                                    lineNumbers ? "text-sky-400 bg-sky-500/10" : "text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04]"
+                                )}
                                 title="Line Numbers"
                             >
-                                <AlignLeft size={14} />
+                                <AlignLeft size={13} />
                             </button>
-                            <button onClick={handleCopy} className="p-1.5 rounded hover:bg-white/10 text-zinc-500 transition" title="Copy">
-                                <Copy size={14} />
+                            <button
+                                onClick={handleCopy}
+                                className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04] transition-colors relative"
+                                title="Copy"
+                            >
+                                {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
                             </button>
+                            <div className="w-px h-3.5 bg-white/[0.06] mx-0.5" />
                         </>
                     )}
 
                     {(fileType === 'image' || isTextType) && (
                         <>
-                            <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1.5 rounded hover:bg-white/10 text-zinc-500 transition" title="Zoom Out">
-                                <ZoomOut size={14} />
+                            <button
+                                onClick={() => setZoom(z => Math.max(50, z - 10))}
+                                className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04] transition-colors"
+                                title="Zoom Out"
+                            >
+                                <ZoomOut size={13} />
                             </button>
-                            <span className="text-[10px] text-zinc-500 w-8 text-center">{zoom}%</span>
-                            <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1.5 rounded hover:bg-white/10 text-zinc-500 transition" title="Zoom In">
-                                <ZoomIn size={14} />
+                            <span className="text-[10px] text-zinc-600 w-8 text-center font-mono tabular-nums">{zoom}%</span>
+                            <button
+                                onClick={() => setZoom(z => Math.min(200, z + 10))}
+                                className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04] transition-colors"
+                                title="Zoom In"
+                            >
+                                <ZoomIn size={13} />
                             </button>
                         </>
                     )}
@@ -352,15 +454,30 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
 
             {/* Content */}
             <div className="flex-1 overflow-hidden">
-                {renderContent()}
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={filePath || 'empty'}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="h-full"
+                    >
+                        {renderContent()}
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
             {/* Status bar */}
             {isTextType && content && (
-                <div className="flex items-center gap-4 px-3 py-1 bg-[#161625] border-t border-zinc-800 text-[11px] text-zinc-500">
-                    <span>{lineCount} lines</span>
+                <div className="flex items-center gap-3 px-3 py-1 bg-white/[0.02] border-t border-white/[0.06] text-[10px] text-zinc-600 shrink-0">
+                    <span>{lineCount.toLocaleString()} lines</span>
+                    <span className="w-px h-2.5 bg-white/[0.06]" />
                     <span>{content.length.toLocaleString()} chars</span>
-                    <span className="uppercase">{lang}</span>
+                    <span className="w-px h-2.5 bg-white/[0.06]" />
+                    <span>{formatBytes(fileSize)}</span>
+                    <span className="w-px h-2.5 bg-white/[0.06]" />
+                    <span className="uppercase font-medium">{lang}</span>
                     <span className="ml-auto">UTF-8</span>
                 </div>
             )}
