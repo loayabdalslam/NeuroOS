@@ -184,24 +184,22 @@ registerTool({
     },
     handler: async (args): Promise<ToolResult> => {
         try {
-            const os = useOS.getState();
-            const boardWin = os.appWindows.find(w => w.component === 'board');
+            let boardWin = useOS.getState().appWindows.find(w => w.component === 'board');
 
             if (!boardWin) {
-                os.openApp('board', 'NeuroBoard');
+                useOS.getState().openApp('board', 'NeuroBoard');
             }
 
-            // Small delay to ensure board handles action if just opened
-            setTimeout(() => {
-                const targetBoard = useOS.getState().appWindows.find(w => w.component === 'board');
-                if (targetBoard) {
-                    useOS.getState().sendAppAction(targetBoard.id, 'add_card', {
-                        type: 'widget',
-                        content: args.type.toUpperCase(),
-                        metadata: { widgetType: args.type, symbol: args.symbol }
-                    });
-                }
-            }, 500);
+            await new Promise(r => setTimeout(r, 800));
+
+            boardWin = useOS.getState().appWindows.find(w => w.component === 'board');
+            if (boardWin) {
+                useOS.getState().sendAppAction(boardWin.id, 'add_card', {
+                    type: 'widget',
+                    content: args.type.toUpperCase(),
+                    metadata: { widgetType: args.type, symbol: args.symbol }
+                });
+            }
 
             return { success: true, message: `✅ Added **${args.type}** widget to NeuroBoard.` };
         } catch (e: any) {
