@@ -149,9 +149,14 @@ class ComposioClient {
             `/auth_configs?toolkit_slug=${encodeURIComponent(toolkitSlug)}`
         );
 
-        const items = data?.items || data?.auth_configs || (Array.isArray(data) ? data : []);
-        if (items.length > 0) {
-            const configId = items[0].id || items[0].nanoid;
+        const items = data?.items || (Array.isArray(data) ? data : []);
+        const config = items.find((c: any) =>
+            (c.toolkit?.slug || '').toLowerCase() === toolkitSlug.toLowerCase() ||
+            c.status === 'ENABLED'
+        ) || items[0];
+
+        if (config) {
+            const configId = config.id || config.uuid;
             if (configId) {
                 this.authConfigs.set(toolkitSlug, configId);
                 return configId;
@@ -206,15 +211,16 @@ class ComposioClient {
     async getConnections(): Promise<ComposioAppConnection[]> {
         const data = await this.makeRequest<any>('/connected_accounts');
 
-        const items = data?.items || data?.connections || data?.connected_accounts || (Array.isArray(data) ? data : []);
+        const items = data?.items || data?.connections || (Array.isArray(data) ? data : []);
         this.connections.clear();
 
         items.forEach((conn: any) => {
-            const appId = conn.toolkit_slug || conn.appId || conn.app_id || '';
-            const status = conn.status === 'active' || conn.status === 'connected' ? 'connected' : 'disconnected';
+            const appId = conn.toolkit?.slug || conn.toolkit_slug || conn.appId || conn.app_id || '';
+            const rawStatus = (conn.status || '').toUpperCase();
+            const status = rawStatus === 'ACTIVE' || rawStatus === 'CONNECTED' ? 'connected' : 'disconnected';
             this.connections.set(appId, {
                 appId,
-                appName: conn.toolkit_name || conn.appName || conn.app_name || appId,
+                appName: conn.toolkit?.name || conn.toolkit_name || conn.appName || appId,
                 status,
                 isActive: status === 'connected',
                 connectedAt: conn.created_at ? new Date(conn.created_at).getTime() : undefined,
@@ -239,9 +245,10 @@ class ComposioClient {
 
         const items = data?.items || data?.apps || (Array.isArray(data) ? data : []);
         items.forEach((app: any) => {
-            this.apps.set(app.id || app.slug, {
-                id: app.id || app.slug,
-                name: app.name,
+            const id = app.slug || app.id;
+            this.apps.set(id, {
+                id,
+                name: app.name || id,
                 description: app.description || '',
                 logo: app.logo,
                 categories: app.categories || [],
@@ -262,15 +269,16 @@ class ComposioClient {
 
         const items = data?.items || data?.tools || (Array.isArray(data) ? data : []);
         items.forEach((tool: any) => {
-            const id = tool.id || tool.slug || tool.name;
+            const id = tool.slug || tool.id || tool.name;
+            const toolkitSlug = tool.toolkit?.slug || tool.toolkit_slug || tool.appId || '';
             this.tools.set(id, {
                 id,
-                name: tool.name || tool.display_name || id,
+                name: tool.display_name || tool.name || id,
                 description: tool.description || '',
-                appId: tool.toolkit_slug || tool.appId || '',
-                appName: tool.toolkit_name || tool.appName || this.apps.get(tool.toolkit_slug)?.name || tool.toolkit_slug || '',
+                appId: toolkitSlug,
+                appName: tool.toolkit?.name || tool.toolkit_name || this.apps.get(toolkitSlug)?.name || toolkitSlug,
                 requiresAuth: tool.requires_auth !== false,
-                isAuthed: this.isToolAuthed(tool.toolkit_slug || tool.appId || ''),
+                isAuthed: this.isToolAuthed(toolkitSlug),
                 params: tool.params || tool.parameters || {},
                 category: tool.category,
                 tags: tool.tags,
@@ -324,18 +332,21 @@ class ComposioClient {
         const data = await this.makeRequest<any>(`/tools?search=${encodeURIComponent(query)}`);
 
         const items = data?.items || data?.tools || (Array.isArray(data) ? data : []);
-        return items.map((tool: any) => ({
-            id: tool.id || tool.slug || tool.name,
-            name: tool.name || tool.display_name,
-            description: tool.description || '',
-            appId: tool.toolkit_slug || tool.appId || '',
-            appName: tool.toolkit_name || tool.appName || '',
-            requiresAuth: tool.requires_auth !== false,
-            isAuthed: this.isToolAuthed(tool.toolkit_slug || tool.appId || ''),
-            params: tool.params || tool.parameters || {},
-            category: tool.category,
-            tags: tool.tags,
-        }));
+        return items.map((tool: any) => {
+            const toolkitSlug = tool.toolkit?.slug || tool.toolkit_slug || tool.appId || '';
+            return {
+                id: tool.slug || tool.id || tool.name,
+                name: tool.display_name || tool.name,
+                description: tool.description || '',
+                appId: toolkitSlug,
+                appName: tool.toolkit?.name || tool.toolkit_name || toolkitSlug,
+                requiresAuth: tool.requires_auth !== false,
+                isAuthed: this.isToolAuthed(toolkitSlug),
+                params: tool.params || tool.parameters || {},
+                category: tool.category,
+                tags: tool.tags,
+            };
+        });
     }
 
     async getToolInfo(toolId: string): Promise<ComposioTool | null> {
@@ -343,14 +354,15 @@ class ComposioClient {
 
         if (data) {
             const tool = data.tool || data;
+            const toolkitSlug = tool.toolkit?.slug || tool.toolkit_slug || tool.appId || '';
             return {
-                id: tool.id || tool.slug || toolId,
-                name: tool.name || tool.display_name || toolId,
+                id: tool.slug || tool.id || toolId,
+                name: tool.display_name || tool.name || toolId,
                 description: tool.description || '',
-                appId: tool.toolkit_slug || tool.appId || '',
-                appName: tool.toolkit_name || tool.appName || '',
+                appId: toolkitSlug,
+                appName: tool.toolkit?.name || tool.toolkit_name || toolkitSlug,
                 requiresAuth: tool.requires_auth !== false,
-                isAuthed: this.isToolAuthed(tool.toolkit_slug || tool.appId || ''),
+                isAuthed: this.isToolAuthed(toolkitSlug),
                 params: tool.params || tool.parameters || {},
                 category: tool.category,
                 tags: tool.tags,
