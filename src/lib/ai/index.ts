@@ -7,6 +7,7 @@ import './tools/fileTools';
 import './tools/shellTools';
 import './tools/browserTools';
 import './tools/generateTools';
+import './tools/automationTools';
 
 // Re-export engine for convenience
 export {

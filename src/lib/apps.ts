@@ -7,7 +7,8 @@ import {
     ViewerIcon,
     BoardIcon,
     BrowserIcon,
-    MediaIcon
+    MediaIcon,
+    TasksIcon
 } from '../components/icons/AppIcons';
 
 export interface AppConfig {
@@ -27,4 +28,5 @@ export const APPS_CONFIG: Record<string, AppConfig> = {
     board: { id: 'board', name: 'NeuroBoard', icon: BoardIcon, color: 'bg-indigo-400' },
     browser: { id: 'browser', name: 'Browser', icon: BrowserIcon, color: 'bg-sky-400' },
     media: { id: 'media', name: 'Media Viewer', icon: MediaIcon, color: 'bg-cyan-500' },
+    tasks: { id: 'tasks', name: 'Tasks', icon: TasksIcon, color: 'bg-emerald-500' },
 };

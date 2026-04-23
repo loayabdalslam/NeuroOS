@@ -2,8 +2,19 @@
   "name": "NeuroOS",
   "private": false,
   "version": "1.3.1",
-  "description": "Neuro OS -AI OS FREE Minimalist Intelligence Os For Productivity",
-  "productName": "Neuro OS™",
+  "description": "Neuro OS — Minimalist AI-powered operating system for productivity",
+  "productName": "Neuro OS",
+  "author": {
+    "name": "Loay Abdalslam",
+    "email": "loay@chatit.cloud",
+    "url": "https://chatit.cloud"
+  },
+  "homepage": "https://github.com/loayabdalslam/NeuroOS",
+  "license": "SEE LICENSE IN build/license.txt",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/loayabdalslam/NeuroOS.git"
+  },
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -17,8 +28,8 @@
   },
   "build": {
     "appId": "cloud.chatit.neuroos",
-    "productName": "Neuro OS™",
-    "copyright": "Copyright © 2026 Neuro OS",
+    "productName": "Neuro OS",
+    "copyright": "Copyright © 2026 Loay Abdalslam. All rights reserved.",
     "directories": {
       "output": "release/${version}"
     },
@@ -28,6 +39,8 @@
     ],
     "win": {
       "icon": "build/icon.ico",
+      "publisherName": "Loay Abdalslam",
+      "legalTrademarks": "Neuro OS is a trademark of Loay Abdalslam",
       "target": [
         {
           "target": "nsis",
@@ -52,13 +65,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "allowElevation": true,
-      "displayLanguageSelector": true,
-      "installerLanguages": [
-        "en_US"
-      ],
+      "displayLanguageSelector": false,
       "perMachine": true,
       "differentialPackage": true,
-      "deleteAppDataOnUninstall": true,
+      "deleteAppDataOnUninstall": false,
       "runAfterFinish": true
     },
     "publish": [

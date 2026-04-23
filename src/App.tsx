@@ -47,7 +47,7 @@ export default function App() {
         >
           <div className="flex flex-col items-center gap-2 pt-12">
             <h1 className="text-3xl font-light tracking-tighter text-zinc-900">
-              Neuro OS<span className="align-top text-[10px] ml-1 font-bold">TM</span>
+              Neuro OS
             </h1>
             <div className="w-12 h-[1px] bg-zinc-200 overflow-hidden">
               <motion.div
@@ -135,7 +135,7 @@ export default function App() {
               className="flex flex-col items-center gap-2 text-zinc-900 pt-12"
             >
               <h1 className="text-4xl font-light tracking-tighter">
-                Neuro OS<span className="align-top text-[12px] ml-1 font-bold">TM</span>
+                Neuro OS
               </h1>
               <div className="h-[1px] w-8 bg-zinc-200 mt-2" />
             </motion.div>

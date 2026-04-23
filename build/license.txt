@@ -1,0 +1,45 @@
+Neuro OS — End User License Agreement (EULA)
+
+Copyright (c) 2026 Loay Abdalslam. All rights reserved.
+
+Published by: Loay Abdalslam (chatit.cloud)
+Contact: loay@chatit.cloud
+Website: https://github.com/loayabdalslam/NeuroOS
+
+1. ACCEPTANCE OF TERMS
+By installing, copying, or using Neuro OS ("Software"), you agree to the terms of this Agreement. If you do not agree, do not install or use the Software.
+
+2. LICENSE GRANT
+The author grants you a personal, non-transferable, non-exclusive, revocable license to install and use the Software on your devices for personal and commercial productivity purposes, subject to the terms of this Agreement.
+
+3. RESTRICTIONS
+You may not:
+  - Reverse engineer, decompile, or disassemble the Software.
+  - Redistribute, sublicense, or sell copies of the Software without written permission.
+  - Remove or alter any proprietary notices, labels, or marks.
+  - Use the Software for unlawful purposes.
+
+4. INTELLECTUAL PROPERTY
+The Software, its design, branding, source code, and all related assets are the intellectual property of Loay Abdalslam. This license does not transfer any ownership rights.
+
+5. UPDATES
+The Software may check for and install updates automatically. Updates are subject to the same terms as this Agreement.
+
+6. PRIVACY
+The Software does not collect personal data without your consent. AI features process data locally or via third-party API providers you configure. You are responsible for the API keys and data you provide.
+
+7. DISCLAIMER OF WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. THE ENTIRE RISK ARISING OUT OF USE OF THE SOFTWARE REMAINS WITH YOU.
+
+8. LIMITATION OF LIABILITY
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
+
+9. TERMINATION
+This Agreement is effective until terminated. It terminates automatically if you fail to comply with any term. Upon termination, you must destroy all copies of the Software.
+
+10. GOVERNING LAW
+This Agreement shall be governed by applicable international copyright laws.
+
+---
+Trusted Publisher: Loay Abdalslam
+Application: Neuro OS v1.3.1

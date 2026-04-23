@@ -10,6 +10,7 @@ import { FileViewer } from '../apps/FileViewer';
 import { BoardApp } from '../apps/Board';
 import { BrowserApp } from '../apps/Browser';
 import { MediaViewer } from '../apps/MediaViewer';
+import { TasksApp } from '../apps/TasksApp';
 
 // Component Registry
 const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
@@ -21,6 +22,7 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
     board: BoardApp,
     browser: BrowserApp,
     media: MediaViewer,
+    tasks: TasksApp,
 };
 
 const AppNotFound: React.FC<{ windowData?: any }> = () => (

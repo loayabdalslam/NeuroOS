@@ -4,6 +4,7 @@ import { useOS } from '../hooks/useOS';
 import { useContextMenu } from './ContextMenu';
 import { RefreshCw, Image, Settings, Info, Monitor, FolderOpen } from 'lucide-react';
 import { DesktopIcons } from './DesktopIcons';
+import { NotificationCenter } from './NotificationCenter';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useFileSystem } from '../hooks/useFileSystem';
 import { useAuthStore } from '../stores/authStore';
@@ -86,6 +87,7 @@ export const Desktop: React.FC<DesktopProps> = ({ children }) => {
         }}
       >
         <DesktopIcons />
+        <NotificationCenter />
         {children}
       </div>
     </div>

@@ -511,18 +511,18 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
                   <span className="text-3xl font-light text-white tracking-tighter">N</span>
                 </div>
                 <h1 className="text-3xl font-light tracking-tighter text-zinc-900">
-                  Neuro OS<span className="align-top text-[10px] ml-0.5 font-bold">TM</span>
+                  Neuro OS
                 </h1>
-                <p className="text-zinc-400 text-xs mt-1">Intelligent Operating Environment</p>
+                <p className="text-zinc-400 text-xs mt-1">Minimalist AI-Powered OS for Productivity</p>
               </div>
               <div className="space-y-3">
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-50 rounded-full border border-zinc-100">
                   <span className="text-xs font-mono text-zinc-500">Version {version}</span>
                 </div>
                 <div className="flex items-center justify-center gap-4 text-[10px] text-zinc-300">
-                  <span>MIT License</span>
+                  <span>By Loay Abdalslam</span>
                   <span>•</span>
-                  <span>Open Source</span>
+                  <span>chatit.cloud</span>
                   <span>•</span>
                   <span>2026</span>
                 </div>
@@ -530,6 +530,7 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
               <div className="pt-4 border-t border-zinc-100">
                 <p className="text-[11px] text-zinc-400">Built with React, TypeScript, Electron & Tailwind CSS</p>
                 <a href="https://github.com/loayabdalslam/NeuroOS" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-500 hover:text-blue-600 mt-1 inline-block">github.com/loayabdalslam/NeuroOS</a>
+                <p className="text-[10px] text-zinc-300 mt-2">Copyright &copy; 2026 Loay Abdalslam. All rights reserved.</p>
               </div>
             </div>
           )}

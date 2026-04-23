@@ -139,6 +139,17 @@ export const MediaIcon: React.FC<IconProps> = ({ className, size = 24 }) => (
   </svg>
 );
 
+// Tasks Icon - Checklist with checkmark
+export const TasksIcon: React.FC<IconProps> = ({ className, size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={cn("text-current", className)}>
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+    <path d="M7 8L9 10L13 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M7 14L9 16L13 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M15 8H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M15 14H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
 // Map app IDs to icons
 export const APP_ICONS: Record<string, React.FC<IconProps>> = {
   terminal: TerminalIcon,
@@ -152,6 +163,7 @@ export const APP_ICONS: Record<string, React.FC<IconProps>> = {
   mcp: MCPIcon,
   music: MusicIcon,
   media: MediaIcon,
+  tasks: TasksIcon,
 };
 
 // Helper to get icon component by app ID

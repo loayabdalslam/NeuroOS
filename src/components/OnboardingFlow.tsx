@@ -102,7 +102,7 @@ export const OnboardingFlow: React.FC = () => {
             <div className="w-full max-w-lg relative z-10 px-6 pt-16 transition-all duration-700">
                 <div className="text-center mb-16">
                     <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-light tracking-tighter text-zinc-900">
-                        Neuro OS<span className="align-top text-[12px] ml-1 font-bold">TM</span>
+                        Neuro OS
                     </motion.h1>
                     <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.5, duration: 0.8 }} className="h-[1px] w-12 bg-zinc-900 mx-auto mt-4 origin-center" />
                 </div>
