@@ -148,6 +148,16 @@ async function duckDuckGoSearch(query: string): Promise<{ results: string[]; htm
     return { results, html: data.html };
 }
 
+/** Extract domain from URL */
+function extractDomain(url: string): string {
+    try {
+        const u = new URL(url);
+        return u.hostname.replace('www.', '');
+    } catch {
+        return url.split('/')[2]?.replace('www.', '') || url;
+    }
+}
+
 /** Convert raw HTML/text to clean markdown */
 function htmlToMarkdown(html: string, text: string, url: string): string {
     const lines: string[] = [];
