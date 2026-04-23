@@ -150,15 +150,18 @@ registerTool({
         }
 
         const fileName = fullPath.replace(/\\/g, '/').split('/').pop() || path;
+        const ext = (fileName.split('.').pop() || '').toLowerCase();
+        const mediaExts = ['png','jpg','jpeg','gif','webp','svg','bmp','ico','avif','mp4','webm','avi','mov','mkv','wmv','ogv','mp3','wav','ogg','flac','aac','m4a','wma'];
+        const appType = mediaExts.includes(ext) ? 'media' : 'viewer';
 
         try {
-            // Open a new viewer window
-            ctx.openApp('viewer', fileName);
+            // Open the appropriate viewer window
+            ctx.openApp(appType, fileName);
 
             // Send the file path to the viewer after it's created
             setTimeout(() => {
                 const allWindows = ctx.getAppWindows();
-                const viewerWin = allWindows.filter((w: any) => w.component === 'viewer').pop();
+                const viewerWin = allWindows.filter((w: any) => w.component === appType).pop();
                 if (viewerWin) {
                     ctx.sendAppAction(viewerWin.id, 'open_file', { path: fullPath, name: fileName });
                 }

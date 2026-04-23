@@ -283,7 +283,6 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
             <div
                 ref={containerRef}
                 className="flex-1 overflow-hidden relative"
-                onMouseMove={fileType === 'video' ? resetControlsTimer : undefined}
             >
                 {/* Empty state */}
                 {!filePath && !error && (
@@ -366,12 +365,10 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
 
                 {/* Video view */}
                 {fileType === 'video' && filePath && !error && (
-                    <div className="h-full w-full bg-black flex items-center justify-center relative group">
-                        <motion.video
+                    <div className="h-full w-full bg-black flex items-center justify-center relative group"
+                         onMouseMove={resetControlsTimer}>
+                        <video
                             key={filePath}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.3 }}
                             ref={videoRef}
                             src={getFileUrl()}
                             className="max-w-full max-h-full object-contain"

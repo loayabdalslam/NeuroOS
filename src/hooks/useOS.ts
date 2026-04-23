@@ -41,7 +41,7 @@ export const useOS = create<OSState>((set, get) => ({
     const { appWindows, nextZIndex } = get();
 
     // Multi-instance apps (viewer) always open a new window
-    const isMultiInstance = component === 'viewer';
+    const isMultiInstance = component === 'viewer' || component === 'media';
 
     if (!isMultiInstance) {
       // Check if app is already open

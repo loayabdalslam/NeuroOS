@@ -40,10 +40,13 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
             return;
         }
 
-        // Use viewer for "Read Full" as requested by user
-        openApp('viewer', name);
+        // Route media files to MediaViewer, others to FileViewer
+        const ext = (path.split('.').pop() || '').toLowerCase();
+        const mediaExts = ['png','jpg','jpeg','gif','webp','svg','bmp','ico','avif','mp4','webm','avi','mov','mkv','wmv','ogv','mp3','wav','ogg','flac','aac','m4a','wma'];
+        const appType = mediaExts.includes(ext) ? 'media' : 'viewer';
+        openApp(appType, name);
         setTimeout(() => {
-            const viewerWin = useOS.getState().appWindows.filter(w => w.component === 'viewer').pop();
+            const viewerWin = useOS.getState().appWindows.filter(w => w.component === appType).pop();
             if (viewerWin) {
                 sendAppAction(viewerWin.id, 'open_file', { path, name });
             }

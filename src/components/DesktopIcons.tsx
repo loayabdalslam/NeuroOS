@@ -93,11 +93,14 @@ export const DesktopIcons: React.FC = () => {
             openApp('files');
             // Additional logic to navigate File Explorer could go here
         } else {
-            openApp('viewer', file.name);
+            const ext = file.name.split('.').pop()?.toLowerCase() || '';
+            const mediaExts = ['png','jpg','jpeg','gif','webp','svg','bmp','ico','avif','mp4','webm','avi','mov','mkv','wmv','ogv','mp3','wav','ogg','flac','aac','m4a','wma'];
+            const appType = mediaExts.includes(ext) ? 'media' : 'viewer';
+            openApp(appType, file.name);
             setTimeout(() => {
-                const viewerWin = useOS.getState().appWindows.filter(w => w.component === 'viewer').pop();
-                if (viewerWin) {
-                    sendAppAction(viewerWin.id, 'open_file', { path: file.path, name: file.name });
+                const win = useOS.getState().appWindows.filter(w => w.component === appType).pop();
+                if (win) {
+                    sendAppAction(win.id, 'open_file', { path: file.path, name: file.name });
                 }
             }, 100);
         }

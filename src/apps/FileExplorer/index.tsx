@@ -83,11 +83,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ windowData }) => {
     };
 
     const openFileInViewer = useCallback((filePath: string, fileName: string) => {
-        openApp('viewer', fileName);
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        const mediaExts = ['png','jpg','jpeg','gif','webp','svg','bmp','ico','avif','mp4','webm','avi','mov','mkv','wmv','ogv','mp3','wav','ogg','flac','aac','m4a','wma'];
+        const appType = mediaExts.includes(ext) ? 'media' : 'viewer';
+        openApp(appType, fileName);
         setTimeout(() => {
             const all = useOS.getState().appWindows;
-            const viewer = all.filter(w => w.component === 'viewer').pop();
-            if (viewer) sendAppAction(viewer.id, 'open_file', { path: filePath, name: fileName });
+            const win = all.filter(w => w.component === appType).pop();
+            if (win) sendAppAction(win.id, 'open_file', { path: filePath, name: fileName });
         }, 50);
     }, [openApp, sendAppAction]);
 
