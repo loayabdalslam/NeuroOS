@@ -39,7 +39,7 @@ export interface AutomationRule {
         event?: string;
     };
     action: {
-        type: 'open_app' | 'run_command' | 'send_notification' | 'create_task' | 'navigate_url' | 'send_to_board';
+        type: 'open_app' | 'run_command' | 'send_notification' | 'create_task' | 'navigate_url' | 'send_to_board' | 'authorize_app';
         params: Record<string, any>;
     };
     lastRun: number | null;
@@ -362,6 +362,24 @@ export const useTasksStore = create<TasksState>()(
                                     content: action.params.content || `Triggered by automation: ${rule.name}`,
                                     color: action.params.color || 'blue',
                                 });
+                            }
+                            break;
+                        }
+                        case 'authorize_app': {
+                            const appId = action.params.app_id || action.params.appId;
+                            if (appId) {
+                                const { useOS } = require('../hooks/useOS');
+                                const os = useOS.getState();
+                                let intWin = os.appWindows.find((w: any) => w.component === 'integrations');
+                                if (!intWin) {
+                                    os.openApp('integrations', 'Integrations');
+                                    setTimeout(() => {
+                                        intWin = useOS.getState().appWindows.find((w: any) => w.component === 'integrations');
+                                        if (intWin) useOS.getState().sendAppAction(intWin.id, 'connect_app', { appId });
+                                    }, 400);
+                                } else {
+                                    os.sendAppAction(intWin.id, 'connect_app', { appId });
+                                }
                             }
                             break;
                         }

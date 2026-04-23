@@ -211,19 +211,19 @@ export const TerminalApp: React.FC<TerminalProps> = ({ windowData }) => {
     const cwdDisplay = activeTab?.cwd.replace(/\\/g, '/').split('/').slice(-2).join('/') || '~';
 
     return (
-        <div className="flex flex-col h-full bg-zinc-950 text-zinc-300 font-mono text-sm" onClick={() => inputRef.current?.focus()}>
+        <div className="flex flex-col h-full bg-white text-zinc-700 font-mono text-sm" onClick={() => inputRef.current?.focus()}>
             {/* Tab bar */}
-            <div className="flex items-center bg-zinc-900/60 border-b border-white/[0.06] shrink-0">
+            <div className="flex items-center bg-zinc-50 border-b border-black/[0.06] shrink-0">
                 <div className="flex-1 flex items-center overflow-x-auto">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTabId(tab.id)}
                             className={cn(
-                                'flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-white/[0.04] min-w-0 shrink-0 group',
+                                'flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-black/[0.04] min-w-0 shrink-0 group',
                                 tab.id === activeTabId
-                                    ? 'bg-zinc-950 text-zinc-200'
-                                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+                                    ? 'bg-white text-zinc-700'
+                                    : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100/60'
                             )}
                         >
                             <TerminalIcon size={11} />
@@ -232,13 +232,13 @@ export const TerminalApp: React.FC<TerminalProps> = ({ windowData }) => {
                                 <X
                                     size={11}
                                     onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
-                                    className="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity ml-1"
+                                    className="opacity-0 group-hover:opacity-100 hover:text-rose-500 transition-opacity ml-1"
                                 />
                             )}
                         </button>
                     ))}
                 </div>
-                <button onClick={addTab} className="p-1.5 text-zinc-600 hover:text-zinc-300 transition-colors mx-1">
+                <button onClick={addTab} className="p-1.5 text-zinc-400 hover:text-zinc-600 transition-colors mx-1">
                     <Plus size={13} />
                 </button>
             </div>
@@ -249,27 +249,27 @@ export const TerminalApp: React.FC<TerminalProps> = ({ windowData }) => {
                     <div key={i} className="whitespace-pre-wrap break-all">
                         {line.type === 'input' ? (
                             <span>
-                                <span className="text-emerald-400">neuro@os</span>
-                                <span className="text-zinc-600">:</span>
-                                <span className="text-sky-400">{cwdDisplay}</span>
-                                <span className="text-zinc-600">$ </span>
-                                <span className="text-zinc-200">{line.text}</span>
+                                <span className="text-emerald-600">neuro@os</span>
+                                <span className="text-zinc-400">:</span>
+                                <span className="text-sky-600">{cwdDisplay}</span>
+                                <span className="text-zinc-400">$ </span>
+                                <span className="text-zinc-800">{line.text}</span>
                             </span>
                         ) : line.type === 'error' ? (
-                            <span className="text-rose-400/80">{line.text}</span>
+                            <span className="text-rose-500">{line.text}</span>
                         ) : line.type === 'system' ? (
-                            <span className="text-zinc-500">{line.text}</span>
+                            <span className="text-zinc-400">{line.text}</span>
                         ) : (
-                            <span className="text-zinc-300">{line.text}</span>
+                            <span className="text-zinc-600">{line.text}</span>
                         )}
                     </div>
                 ))}
                 {isRunning && (
-                    <div className="flex items-center gap-2 text-zinc-500">
+                    <div className="flex items-center gap-2 text-zinc-400">
                         <motion.div
                             animate={{ opacity: [0.3, 1, 0.3] }}
                             transition={{ duration: 1.2, repeat: Infinity }}
-                            className="w-1.5 h-1.5 bg-emerald-400 rounded-full"
+                            className="w-1.5 h-1.5 bg-emerald-500 rounded-full"
                         />
                         Running...
                     </div>
@@ -277,11 +277,11 @@ export const TerminalApp: React.FC<TerminalProps> = ({ windowData }) => {
             </div>
 
             {/* Input */}
-            <div className="flex items-center gap-0 px-3 py-2 border-t border-white/[0.06] shrink-0">
-                <span className="text-emerald-400">neuro@os</span>
-                <span className="text-zinc-600">:</span>
-                <span className="text-sky-400">{cwdDisplay}</span>
-                <span className="text-zinc-600">$ </span>
+            <div className="flex items-center gap-0 px-3 py-2 border-t border-black/[0.06] shrink-0">
+                <span className="text-emerald-600">neuro@os</span>
+                <span className="text-zinc-400">:</span>
+                <span className="text-sky-600">{cwdDisplay}</span>
+                <span className="text-zinc-400">$ </span>
                 <input
                     ref={inputRef}
                     type="text"
@@ -289,7 +289,7 @@ export const TerminalApp: React.FC<TerminalProps> = ({ windowData }) => {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     disabled={isRunning}
-                    className="flex-1 bg-transparent border-none outline-none focus:ring-0 p-0 ml-1 text-zinc-200 placeholder:text-zinc-700 disabled:opacity-50"
+                    className="flex-1 bg-transparent border-none outline-none focus:ring-0 p-0 ml-1 text-zinc-800 placeholder:text-zinc-400 disabled:opacity-50"
                     placeholder={isRunning ? 'Running...' : ''}
                     autoFocus
                     spellCheck={false}

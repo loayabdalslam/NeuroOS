@@ -202,7 +202,7 @@ registerTool({
         name: { type: 'string', description: 'Rule name', required: true },
         trigger_type: { type: 'string', description: 'Trigger type', enum: ['schedule', 'event'], required: true },
         trigger_value: { type: 'string', description: 'For schedule: interval in minutes. For event: event name (task_completed, task_created, pomodoro_done, pomodoro_break_done, reminder_fired, app_opened)', required: true },
-        action_type: { type: 'string', description: 'Action type', enum: ['send_notification', 'open_app', 'create_task', 'run_command', 'navigate_url', 'send_to_board'], required: true },
+        action_type: { type: 'string', description: 'Action type', enum: ['send_notification', 'open_app', 'create_task', 'run_command', 'navigate_url', 'send_to_board', 'authorize_app'], required: true },
         action_params: { type: 'string', description: 'JSON string of action parameters', required: false },
     },
     handler: async (args): Promise<ToolResult> => {

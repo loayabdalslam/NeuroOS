@@ -160,15 +160,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
 
     const getTypeInfo = () => {
         switch (fileType) {
-            case 'image': return { icon: ImageIcon, color: 'text-pink-400', bg: 'bg-pink-500/10', label: ext.toUpperCase() };
-            case 'video': return { icon: Film, color: 'text-red-400', bg: 'bg-red-500/10', label: ext.toUpperCase() };
-            case 'audio': return { icon: Music, color: 'text-violet-400', bg: 'bg-violet-500/10', label: ext.toUpperCase() };
-            case 'code': return { icon: Code, color: 'text-sky-400', bg: 'bg-sky-500/10', label: lang };
-            case 'json': return { icon: Braces, color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'JSON' };
-            case 'markdown': return { icon: Hash, color: 'text-blue-400', bg: 'bg-blue-500/10', label: 'MD' };
-            case 'html': return { icon: Globe, color: 'text-orange-400', bg: 'bg-orange-500/10', label: ext === 'svg' ? 'SVG' : 'HTML' };
-            case 'pdf': return { icon: FileType, color: 'text-red-400', bg: 'bg-red-500/10', label: 'PDF' };
-            default: return { icon: FileText, color: 'text-zinc-400', bg: 'bg-zinc-500/10', label: ext || 'TXT' };
+            case 'image': return { icon: ImageIcon, color: 'text-pink-500', bg: 'bg-pink-50', label: ext.toUpperCase() };
+            case 'video': return { icon: Film, color: 'text-red-500', bg: 'bg-red-50', label: ext.toUpperCase() };
+            case 'audio': return { icon: Music, color: 'text-violet-500', bg: 'bg-violet-50', label: ext.toUpperCase() };
+            case 'code': return { icon: Code, color: 'text-sky-500', bg: 'bg-sky-50', label: lang };
+            case 'json': return { icon: Braces, color: 'text-amber-500', bg: 'bg-amber-50', label: 'JSON' };
+            case 'markdown': return { icon: Hash, color: 'text-blue-500', bg: 'bg-blue-50', label: 'MD' };
+            case 'html': return { icon: Globe, color: 'text-orange-500', bg: 'bg-orange-50', label: ext === 'svg' ? 'SVG' : 'HTML' };
+            case 'pdf': return { icon: FileType, color: 'text-red-500', bg: 'bg-red-50', label: 'PDF' };
+            default: return { icon: FileText, color: 'text-zinc-500', bg: 'bg-zinc-100', label: ext || 'TXT' };
         }
     };
 
@@ -193,17 +193,17 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                 <table className="w-full border-collapse">
                     <tbody>
                         {lines.map((line, i) => (
-                            <tr key={i} className="group/line hover:bg-white/[0.03] transition-colors duration-75">
+                            <tr key={i} className="group/line hover:bg-black/[0.02] transition-colors duration-75">
                                 {lineNumbers && (
                                     <td
-                                        className="select-none text-right pr-4 pl-3 py-0 text-zinc-600 border-r border-white/[0.04] w-[1%] group-hover/line:text-zinc-400 transition-colors"
+                                        className="select-none text-right pr-4 pl-3 py-0 text-zinc-400 border-r border-black/[0.04] w-[1%] group-hover/line:text-zinc-500 transition-colors"
                                         style={{ minWidth: `${gutterWidth + 2}ch` }}
                                     >
                                         {i + 1}
                                     </td>
                                 )}
                                 <td
-                                    className="pl-4 pr-4 py-0 text-zinc-300"
+                                    className="pl-4 pr-4 py-0 text-zinc-700"
                                     style={{
                                         whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
                                         wordBreak: wordWrap ? 'break-all' : 'normal'
@@ -241,14 +241,14 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex flex-col items-center justify-center h-full gap-4"
                 >
-                    <div className="w-14 h-14 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-                        <File size={24} className="text-zinc-600" />
+                    <div className="w-14 h-14 rounded-2xl bg-black/[0.03] flex items-center justify-center">
+                        <File size={24} className="text-zinc-400" />
                     </div>
                     <div className="text-center">
-                        <p className="text-sm text-zinc-400 mb-1">{error}</p>
+                        <p className="text-sm text-zinc-500 mb-1">{error}</p>
                         <button
                             onClick={loadFile}
-                            className="text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                            className="text-xs text-sky-500 hover:text-sky-600 transition-colors"
                         >
                             Try again
                         </button>
@@ -260,7 +260,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
         switch (fileType) {
             case 'image':
                 return (
-                    <div className="flex items-center justify-center h-full bg-zinc-950 overflow-auto p-6">
+                    <div className="flex items-center justify-center h-full bg-zinc-50 overflow-auto p-6">
                         <motion.img
                             key={blobUrl}
                             initial={{ opacity: 0, scale: 0.97 }}
@@ -281,7 +281,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="relative w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white/[0.06] bg-black"
+                            className="relative w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-black/[0.06] bg-black"
                         >
                             <video src={blobUrl} controls autoPlay className="w-full h-full object-contain" />
                         </motion.div>
@@ -293,12 +293,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-zinc-950 via-violet-950/10 to-zinc-950 gap-5"
+                        className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-50 gap-5"
                     >
-                        <div className="w-28 h-28 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-white/[0.06] flex items-center justify-center">
-                            <Music size={40} className="text-white/30" />
+                        <div className="w-28 h-28 rounded-2xl bg-gradient-to-br from-violet-100 to-fuchsia-100 border border-black/[0.06] flex items-center justify-center">
+                            <Music size={40} className="text-violet-400" />
                         </div>
-                        <p className="text-sm text-white/70 font-medium">{fileName}</p>
+                        <p className="text-sm text-zinc-700 font-medium">{fileName}</p>
                         <audio src={blobUrl} controls className="w-80" />
                     </motion.div>
                 );
@@ -312,7 +312,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                         <div className="flex-1 overflow-auto">
                             {ext === 'svg' ? (
                                 <div
-                                    className="flex items-center justify-center h-full bg-zinc-950 p-6"
+                                    className="flex items-center justify-center h-full bg-zinc-50 p-6"
                                     dangerouslySetInnerHTML={{ __html: content }}
                                 />
                             ) : (
@@ -337,18 +337,18 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
 
             case 'markdown':
                 return (
-                    <div className="h-full overflow-auto bg-zinc-950 p-8">
-                        <div className="max-w-3xl mx-auto prose prose-invert prose-sm prose-zinc
-                            prose-headings:text-zinc-200 prose-headings:font-semibold prose-headings:border-b prose-headings:border-white/[0.06] prose-headings:pb-2
-                            prose-p:text-zinc-400 prose-p:leading-relaxed
-                            prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline
-                            prose-strong:text-zinc-300
-                            prose-code:text-pink-400 prose-code:bg-white/[0.04] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
-                            prose-pre:bg-white/[0.03] prose-pre:border prose-pre:border-white/[0.06] prose-pre:rounded-xl
-                            prose-blockquote:border-violet-500/40 prose-blockquote:text-zinc-500
-                            prose-li:text-zinc-400
-                            prose-hr:border-white/[0.06]
-                            prose-th:text-zinc-300 prose-td:text-zinc-400
+                    <div className="h-full overflow-auto bg-white p-8">
+                        <div className="max-w-3xl mx-auto prose prose-sm prose-zinc
+                            prose-headings:text-zinc-800 prose-headings:font-semibold prose-headings:border-b prose-headings:border-black/[0.06] prose-headings:pb-2
+                            prose-p:text-zinc-600 prose-p:leading-relaxed
+                            prose-a:text-sky-500 prose-a:no-underline hover:prose-a:underline
+                            prose-strong:text-zinc-700
+                            prose-code:text-pink-600 prose-code:bg-black/[0.03] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
+                            prose-pre:bg-zinc-50 prose-pre:border prose-pre:border-black/[0.06] prose-pre:rounded-xl
+                            prose-blockquote:border-violet-400 prose-blockquote:text-zinc-500
+                            prose-li:text-zinc-600
+                            prose-hr:border-black/[0.06]
+                            prose-th:text-zinc-700 prose-td:text-zinc-600
                         ">
                             <ReactMarkdown>{content}</ReactMarkdown>
                         </div>
@@ -365,9 +365,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-zinc-950 text-zinc-200 select-none">
+        <div className="flex flex-col h-full bg-white text-zinc-700 select-none">
             {/* Header bar */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border-b border-white/[0.06] min-h-[36px] shrink-0">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50 border-b border-black/[0.06] min-h-[36px] shrink-0">
                 {/* Type badge */}
                 <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-md shrink-0", typeInfo.bg)}>
                     <TypeIcon size={12} className={typeInfo.color} />
@@ -378,16 +378,16 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                 <div className="flex items-center gap-0.5 min-w-0 flex-1 overflow-hidden text-[11px]">
                     {pathSegments.length > 3 ? (
                         <>
-                            <span className="text-zinc-600 truncate">{pathSegments[0]}</span>
-                            <ChevronRight size={10} className="text-zinc-700 shrink-0" />
-                            <span className="text-zinc-600">&hellip;</span>
-                            <ChevronRight size={10} className="text-zinc-700 shrink-0" />
+                            <span className="text-zinc-400 truncate">{pathSegments[0]}</span>
+                            <ChevronRight size={10} className="text-zinc-300 shrink-0" />
+                            <span className="text-zinc-400">&hellip;</span>
+                            <ChevronRight size={10} className="text-zinc-300 shrink-0" />
                             {pathSegments.slice(-2).map((seg, i) => (
                                 <React.Fragment key={i}>
-                                    {i > 0 && <ChevronRight size={10} className="text-zinc-700 shrink-0" />}
+                                    {i > 0 && <ChevronRight size={10} className="text-zinc-300 shrink-0" />}
                                     <span className={cn(
                                         "truncate",
-                                        i === pathSegments.slice(-2).length - 1 ? "text-zinc-300 font-medium" : "text-zinc-600"
+                                        i === pathSegments.slice(-2).length - 1 ? "text-zinc-700 font-medium" : "text-zinc-400"
                                     )}>
                                         {seg}
                                     </span>
@@ -397,10 +397,10 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                     ) : (
                         pathSegments.map((seg, i) => (
                             <React.Fragment key={i}>
-                                {i > 0 && <ChevronRight size={10} className="text-zinc-700 shrink-0" />}
+                                {i > 0 && <ChevronRight size={10} className="text-zinc-300 shrink-0" />}
                                 <span className={cn(
                                     "truncate",
-                                    i === pathSegments.length - 1 ? "text-zinc-300 font-medium" : "text-zinc-600"
+                                    i === pathSegments.length - 1 ? "text-zinc-700 font-medium" : "text-zinc-400"
                                 )}>
                                     {seg}
                                 </span>
@@ -417,7 +417,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                                 onClick={() => setWordWrap(!wordWrap)}
                                 className={cn(
                                     "p-1.5 rounded-md transition-colors",
-                                    wordWrap ? "text-sky-400 bg-sky-500/10" : "text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04]"
+                                    wordWrap ? "text-sky-500 bg-sky-50" : "text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.04]"
                                 )}
                                 title="Word Wrap"
                             >
@@ -427,7 +427,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                                 onClick={() => setLineNumbers(!lineNumbers)}
                                 className={cn(
                                     "p-1.5 rounded-md transition-colors",
-                                    lineNumbers ? "text-sky-400 bg-sky-500/10" : "text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04]"
+                                    lineNumbers ? "text-sky-500 bg-sky-50" : "text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.04]"
                                 )}
                                 title="Line Numbers"
                             >
@@ -435,12 +435,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                             </button>
                             <button
                                 onClick={handleCopy}
-                                className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04] transition-colors relative"
+                                className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.04] transition-colors relative"
                                 title="Copy"
                             >
-                                {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                                {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
                             </button>
-                            <div className="w-px h-3.5 bg-white/[0.06] mx-0.5" />
+                            <div className="w-px h-3.5 bg-black/[0.06] mx-0.5" />
                         </>
                     )}
 
@@ -448,15 +448,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
                         <>
                             <button
                                 onClick={() => setZoom(z => Math.max(50, z - 10))}
-                                className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04] transition-colors"
+                                className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.04] transition-colors"
                                 title="Zoom Out"
                             >
                                 <ZoomOut size={13} />
                             </button>
-                            <span className="text-[10px] text-zinc-600 w-8 text-center font-mono tabular-nums">{zoom}%</span>
+                            <span className="text-[10px] text-zinc-400 w-8 text-center font-mono tabular-nums">{zoom}%</span>
                             <button
                                 onClick={() => setZoom(z => Math.min(200, z + 10))}
-                                className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.04] transition-colors"
+                                className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 hover:bg-black/[0.04] transition-colors"
                                 title="Zoom In"
                             >
                                 <ZoomIn size={13} />
@@ -484,13 +484,13 @@ export const FileViewer: React.FC<FileViewerProps> = ({ windowData }) => {
 
             {/* Status bar */}
             {isTextType && content && (
-                <div className="flex items-center gap-3 px-3 py-1 bg-white/[0.02] border-t border-white/[0.06] text-[10px] text-zinc-600 shrink-0">
+                <div className="flex items-center gap-3 px-3 py-1 bg-zinc-50 border-t border-black/[0.06] text-[10px] text-zinc-400 shrink-0">
                     <span>{lineCount.toLocaleString()} lines</span>
-                    <span className="w-px h-2.5 bg-white/[0.06]" />
+                    <span className="w-px h-2.5 bg-black/[0.06]" />
                     <span>{content.length.toLocaleString()} chars</span>
-                    <span className="w-px h-2.5 bg-white/[0.06]" />
+                    <span className="w-px h-2.5 bg-black/[0.06]" />
                     <span>{formatBytes(fileSize)}</span>
-                    <span className="w-px h-2.5 bg-white/[0.06]" />
+                    <span className="w-px h-2.5 bg-black/[0.06]" />
                     <span className="uppercase font-medium">{lang}</span>
                     <span className="ml-auto">UTF-8</span>
                 </div>

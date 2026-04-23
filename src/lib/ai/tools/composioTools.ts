@@ -5,6 +5,7 @@
 
 import { ToolDefinition, ToolContext, ToolResult, registerTool } from '../toolEngine';
 import { useComposioStore } from '../../../stores/composioStore';
+import { useOS } from '../../../hooks/useOS';
 
 /**
  * Register a Composio tool dynamically
@@ -258,32 +259,83 @@ registerTool({
     },
     handler: async (args): Promise<ToolResult> => {
         const store = useComposioStore.getState();
-        
+
         if (!store.isAuthenticated) {
             return {
                 success: false,
                 message: 'Composio is not authenticated.'
             };
         }
-        
+
         const tools = await store.searchTools(args.query);
-        
+
         if (tools.length === 0) {
             return {
                 success: true,
                 message: `No tools found for "${args.query}".`
             };
         }
-        
+
         const toolList = tools.map(tool => {
             const authStatus = store.authorizedTools.has(tool.id) ? '✅' : '🔒';
             return `${authStatus} **${tool.name}** (${tool.appName}): ${tool.description}`;
         }).join('\n');
-        
+
         return {
             success: true,
             message: `Found ${tools.length} tools matching "${args.query}":\n${toolList}`,
             data: tools
+        };
+    }
+});
+
+// ─── Connect Integration ────────────────────────────────────────
+registerTool({
+    name: 'connect_integration',
+    description: 'Opens the Integrations app and triggers a connection flow for a specific service (e.g., gmail, slack, github, googlesheets, notion, hubspot, googlecalendar). Use this when the user wants to connect a service.',
+    category: 'automation',
+    parameters: {
+        app_name: {
+            type: 'string',
+            description: 'The service to connect (e.g., gmail, slack, github, googlesheets, notion, hubspot, googlecalendar)',
+            required: true
+        }
+    },
+    handler: async (args): Promise<ToolResult> => {
+        const store = useComposioStore.getState();
+        const os = useOS.getState();
+        const appId = args.app_name.toLowerCase().replace(/\s+/g, '');
+
+        if (!store.isAuthenticated) {
+            os.openApp('integrations', 'Integrations');
+            return {
+                success: false,
+                message: 'Composio API key not configured. I opened the Integrations app — please add your API key first.'
+            };
+        }
+
+        const conn = store.connections.find(c => c.appId === appId);
+        if (conn?.status === 'connected') {
+            return {
+                success: true,
+                message: `${args.app_name} is already connected and ready to use.`
+            };
+        }
+
+        let intWin = os.appWindows.find(w => w.component === 'integrations');
+        if (!intWin) {
+            os.openApp('integrations', 'Integrations');
+            await new Promise(r => setTimeout(r, 400));
+            intWin = useOS.getState().appWindows.find(w => w.component === 'integrations');
+        }
+
+        if (intWin) {
+            useOS.getState().sendAppAction(intWin.id, 'connect_app', { appId });
+        }
+
+        return {
+            success: true,
+            message: `Opening ${args.app_name} connection flow. Please complete the authorization in your browser, then come back — the status will update automatically.`
         };
     }
 });

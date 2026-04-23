@@ -238,29 +238,29 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
     const showCheckerboard = fileType === 'image' && TRANSPARENT_EXTS.includes(fileExt);
 
     return (
-        <div className="flex flex-col h-full bg-zinc-950 text-white select-none">
+        <div className="flex flex-col h-full bg-white text-zinc-900 select-none">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06] shrink-0">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 border-b border-black/[0.06] shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                     <div className={cn(
                         "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                        fileType === 'image' && "bg-pink-500/15",
-                        fileType === 'video' && "bg-red-500/15",
-                        fileType === 'audio' && "bg-violet-500/15",
-                        fileType === 'unknown' && "bg-zinc-500/15"
+                        fileType === 'image' && "bg-pink-50",
+                        fileType === 'video' && "bg-red-50",
+                        fileType === 'audio' && "bg-violet-50",
+                        fileType === 'unknown' && "bg-zinc-100"
                     )}>
-                        {fileType === 'image' && <Image size={14} className="text-pink-400" />}
-                        {fileType === 'video' && <Video size={14} className="text-red-400" />}
-                        {fileType === 'audio' && <Music size={14} className="text-violet-400" />}
+                        {fileType === 'image' && <Image size={14} className="text-pink-500" />}
+                        {fileType === 'video' && <Video size={14} className="text-red-500" />}
+                        {fileType === 'audio' && <Music size={14} className="text-violet-500" />}
                         {fileType === 'unknown' && <FileText size={14} className="text-zinc-400" />}
                     </div>
                     <div className="min-w-0">
-                        <p className="text-[13px] font-medium truncate">{fileName || 'Media Viewer'}</p>
+                        <p className="text-[13px] font-medium truncate text-zinc-900">{fileName || 'Media Viewer'}</p>
                         {fileType === 'image' && imgDimensions.w > 0 && (
-                            <p className="text-[10px] text-zinc-500">{imgDimensions.w} x {imgDimensions.h} &middot; {fileExt.toUpperCase()}</p>
+                            <p className="text-[10px] text-zinc-400">{imgDimensions.w} x {imgDimensions.h} &middot; {fileExt.toUpperCase()}</p>
                         )}
                         {(fileType === 'video' || fileType === 'audio') && duration > 0 && (
-                            <p className="text-[10px] text-zinc-500">{formatTime(duration)} &middot; {fileExt.toUpperCase()}</p>
+                            <p className="text-[10px] text-zinc-400">{formatTime(duration)} &middot; {fileExt.toUpperCase()}</p>
                         )}
                     </div>
                 </div>
@@ -269,7 +269,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                     {fileType === 'image' && (
                         <button
                             onClick={handleSetAsWallpaper}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-[11px] font-medium transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-500 rounded-lg text-[11px] font-medium transition-colors"
                         >
                             <Upload size={12} />
                             Wallpaper
@@ -280,19 +280,19 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
 
             {/* Image toolbar */}
             {fileType === 'image' && mediaSrc && (
-                <div className="flex items-center justify-center gap-1 px-3 py-1.5 bg-white/[0.02] border-b border-white/[0.04] shrink-0">
-                    <button onClick={() => setZoom(z => Math.max(0.1, z - 0.25))} className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white">
+                <div className="flex items-center justify-center gap-1 px-3 py-1.5 bg-zinc-50 border-b border-black/[0.04] shrink-0">
+                    <button onClick={() => setZoom(z => Math.max(0.1, z - 0.25))} className="p-1.5 hover:bg-black/[0.04] rounded-md transition-colors text-zinc-400 hover:text-zinc-700">
                         <ZoomOut size={15} />
                     </button>
-                    <span className="text-[11px] text-zinc-500 w-14 text-center font-mono tabular-nums">{Math.round(zoom * 100)}%</span>
-                    <button onClick={() => setZoom(z => Math.min(5, z + 0.25))} className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white">
+                    <span className="text-[11px] text-zinc-400 w-14 text-center font-mono tabular-nums">{Math.round(zoom * 100)}%</span>
+                    <button onClick={() => setZoom(z => Math.min(5, z + 0.25))} className="p-1.5 hover:bg-black/[0.04] rounded-md transition-colors text-zinc-400 hover:text-zinc-700">
                         <ZoomIn size={15} />
                     </button>
-                    <div className="w-px h-4 bg-white/[0.08] mx-1" />
-                    <button onClick={() => setRotation(r => (r + 90) % 360)} className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white">
+                    <div className="w-px h-4 bg-black/[0.06] mx-1" />
+                    <button onClick={() => setRotation(r => (r + 90) % 360)} className="p-1.5 hover:bg-black/[0.04] rounded-md transition-colors text-zinc-400 hover:text-zinc-700">
                         <RotateCw size={15} />
                     </button>
-                    <button onClick={resetView} className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors text-zinc-400 hover:text-white" title="Reset view">
+                    <button onClick={resetView} className="p-1.5 hover:bg-black/[0.04] rounded-md transition-colors text-zinc-400 hover:text-zinc-700" title="Reset view">
                         <Minimize2 size={15} />
                     </button>
                 </div>
@@ -306,12 +306,12 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                 {/* Empty state */}
                 {!filePath && !error && (
                     <div className="flex flex-col items-center justify-center h-full gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-                            <Image size={28} className="text-zinc-600" />
+                        <div className="w-16 h-16 rounded-2xl bg-black/[0.03] flex items-center justify-center">
+                            <Image size={28} className="text-zinc-400" />
                         </div>
                         <div className="text-center">
                             <p className="text-sm text-zinc-500 font-medium">No media file open</p>
-                            <p className="text-xs text-zinc-600 mt-1">Open a file from the file explorer</p>
+                            <p className="text-xs text-zinc-400 mt-1">Open a file from the file explorer</p>
                         </div>
                     </div>
                 )}
@@ -325,13 +325,13 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                             exit={{ opacity: 0, scale: 0.95 }}
                             className="flex flex-col items-center justify-center h-full gap-4"
                         >
-                            <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
-                                <FileText size={28} className="text-red-400" />
+                            <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center">
+                                <FileText size={28} className="text-red-500" />
                             </div>
-                            <p className="text-sm text-zinc-400">{error}</p>
+                            <p className="text-sm text-zinc-500">{error}</p>
                             <button
                                 onClick={() => filePath && loadFile(filePath, fileName)}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.06] hover:bg-white/[0.1] rounded-lg text-xs text-zinc-300 transition-colors"
+                                className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.04] hover:bg-black/[0.06] rounded-lg text-xs text-zinc-600 transition-colors"
                             >
                                 <RefreshCw size={12} />
                                 Retry
@@ -348,11 +348,11 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                             showCheckerboard && "bg-[length:20px_20px] bg-[position:0_0,10px_10px]"
                         )}
                         style={showCheckerboard ? {
-                            backgroundColor: '#18181b',
-                            backgroundImage: 'linear-gradient(45deg, #27272a 25%, transparent 25%), linear-gradient(-45deg, #27272a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #27272a 75%), linear-gradient(-45deg, transparent 75%, #27272a 75%)',
+                            backgroundColor: '#f4f4f5',
+                            backgroundImage: 'linear-gradient(45deg, #e4e4e7 25%, transparent 25%), linear-gradient(-45deg, #e4e4e7 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e4e4e7 75%), linear-gradient(-45deg, transparent 75%, #e4e4e7 75%)',
                             backgroundSize: '20px 20px',
                             backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
-                        } : { backgroundColor: '#09090b' }}
+                        } : { backgroundColor: '#f4f4f5' }}
                         onWheel={handleWheel}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
@@ -499,24 +499,24 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                         key={filePath}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="h-full w-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-950 via-violet-950/20 to-zinc-950 p-8"
+                        className="h-full w-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-50 p-8"
                     >
                         {/* Album art placeholder with equalizer */}
                         <div className="relative mb-8">
-                            <div className="w-40 h-40 rounded-3xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-white/[0.06] flex items-center justify-center overflow-hidden">
+                            <div className="w-40 h-40 rounded-3xl bg-gradient-to-br from-violet-100 to-fuchsia-100 border border-black/[0.06] flex items-center justify-center overflow-hidden">
                                 {isPlaying ? (
                                     <div className="flex items-end gap-[3px] h-12">
                                         {[0, 1, 2, 3, 4].map(i => (
                                             <motion.div
                                                 key={i}
-                                                className="w-[5px] bg-gradient-to-t from-violet-400 to-fuchsia-400 rounded-full"
+                                                className="w-[5px] bg-gradient-to-t from-violet-500 to-fuchsia-500 rounded-full"
                                                 animate={{ height: ['12px', `${20 + Math.random() * 28}px`, '8px', `${16 + Math.random() * 32}px`, '12px'] }}
                                                 transition={{ duration: 0.8 + i * 0.1, repeat: Infinity, ease: 'easeInOut' }}
                                             />
                                         ))}
                                     </div>
                                 ) : (
-                                    <Music size={48} className="text-white/30" />
+                                    <Music size={48} className="text-violet-300" />
                                 )}
                             </div>
                             {/* Progress ring */}
@@ -540,14 +540,14 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                             </svg>
                         </div>
 
-                        <p className="text-sm font-medium text-white/80 mb-1 truncate max-w-xs">{fileName}</p>
-                        <p className="text-[11px] text-zinc-500 font-mono tabular-nums mb-6">
+                        <p className="text-sm font-medium text-zinc-700 mb-1 truncate max-w-xs">{fileName}</p>
+                        <p className="text-[11px] text-zinc-400 font-mono tabular-nums mb-6">
                             {formatTime(currentTime)} / {formatTime(duration)}
                         </p>
 
                         {/* Seek bar */}
                         <div
-                            className="w-72 h-1 bg-white/[0.08] rounded-full mb-6 cursor-pointer relative group/seek hover:h-1.5 transition-all"
+                            className="w-72 h-1 bg-black/[0.06] rounded-full mb-6 cursor-pointer relative group/seek hover:h-1.5 transition-all"
                             onClick={(e) => {
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 const pct = (e.clientX - rect.left) / rect.width;
@@ -566,23 +566,23 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
 
                         {/* Controls */}
                         <div className="flex items-center gap-4">
-                            <button onClick={() => skipTime(-10)} className="p-2 text-zinc-400 hover:text-white transition-colors">
+                            <button onClick={() => skipTime(-10)} className="p-2 text-zinc-400 hover:text-zinc-700 transition-colors">
                                 <SkipBack size={20} />
                             </button>
                             <button
                                 onClick={togglePlay}
-                                className="w-14 h-14 rounded-full bg-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                                className="w-14 h-14 rounded-full bg-zinc-900 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
                             >
-                                {isPlaying ? <Pause size={24} className="text-zinc-900" /> : <Play size={24} className="text-zinc-900 ml-1" />}
+                                {isPlaying ? <Pause size={24} className="text-white" /> : <Play size={24} className="text-white ml-1" />}
                             </button>
-                            <button onClick={() => skipTime(10)} className="p-2 text-zinc-400 hover:text-white transition-colors">
+                            <button onClick={() => skipTime(10)} className="p-2 text-zinc-400 hover:text-zinc-700 transition-colors">
                                 <SkipForward size={20} />
                             </button>
                         </div>
 
                         {/* Volume */}
                         <div className="flex items-center gap-2 mt-6">
-                            <button onClick={toggleMute} className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors">
+                            <button onClick={toggleMute} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
                                 {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
                             </button>
                             <input
@@ -592,7 +592,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                                 step={0.01}
                                 value={isMuted ? 0 : volume}
                                 onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                                className="w-24 h-1 appearance-none bg-white/10 rounded-full cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
+                                className="w-24 h-1 appearance-none bg-black/10 rounded-full cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:bg-zinc-700 [&::-webkit-slider-thumb]:rounded-full"
                             />
                         </div>
 
@@ -613,11 +613,11 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({ windowData }) => {
                 {/* Unknown type */}
                 {fileType === 'unknown' && filePath && !error && (
                     <div className="flex flex-col items-center justify-center h-full gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-                            <FileText size={28} className="text-zinc-600" />
+                        <div className="w-16 h-16 rounded-2xl bg-black/[0.03] flex items-center justify-center">
+                            <FileText size={28} className="text-zinc-400" />
                         </div>
                         <p className="text-sm text-zinc-500">Unsupported file format</p>
-                        <p className="text-xs text-zinc-600">{fileName}</p>
+                        <p className="text-xs text-zinc-400">{fileName}</p>
                     </div>
                 )}
             </div>

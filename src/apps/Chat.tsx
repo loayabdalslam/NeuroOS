@@ -123,7 +123,7 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
   const allTools = useMemo(() => getAllTools(), []);
   const toolsP = useMemo(() => getToolsForPrompt(), []);
   const compP = useMemo(() => getComposioToolsForPrompt(), [isComp]);
-  const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const dark = false;
 
   // Get current model info
   const currentProvider = aiConfig.providers?.find((p: any) => p.id === aiConfig.activeProviderId);

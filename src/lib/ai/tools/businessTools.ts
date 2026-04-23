@@ -8,11 +8,19 @@ import { useComposioStore } from '../../../stores/composioStore';
 function requireApp(appId: string): ToolResult | null {
     const store = useComposioStore.getState();
     if (!store.isAuthenticated) {
-        return { success: false, message: 'Composio not configured. Add your API key in Settings or the Integrations app.' };
+        return {
+            success: false,
+            message: 'Composio not configured. Add your API key in Settings or the Integrations app.',
+            data: { action: 'connect_integration', appId }
+        };
     }
     const conn = store.connections.find(c => c.appId === appId);
     if (!conn || conn.status !== 'connected') {
-        return { success: false, message: `${appId} is not connected. Ask me to "connect ${appId}" or open the Integrations app to authorize it.` };
+        return {
+            success: false,
+            message: `${appId} is not connected. Use the connect_integration tool to connect it, or open the Integrations app.`,
+            data: { action: 'connect_integration', appId }
+        };
     }
     return null;
 }
