@@ -13,7 +13,7 @@ export interface ToolParameter {
 export interface ToolDefinition {
     name: string;
     description: string;
-    category: 'os' | 'file' | 'shell' | 'browser' | 'generate' | 'automation';
+    category: 'os' | 'file' | 'shell' | 'browser' | 'generate' | 'automation' | 'business';
     parameters: Record<string, ToolParameter>;
     requiresConfirmation?: boolean;
     handler: (args: Record<string, any>, context: ToolContext) => Promise<ToolResult>;

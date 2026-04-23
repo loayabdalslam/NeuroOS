@@ -11,6 +11,7 @@ import { BoardApp } from '../apps/Board';
 import { BrowserApp } from '../apps/Browser';
 import { MediaViewer } from '../apps/MediaViewer';
 import { TasksApp } from '../apps/TasksApp';
+import { IntegrationsApp } from '../apps/Integrations';
 
 // Component Registry
 const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
@@ -23,6 +24,7 @@ const COMPONENT_REGISTRY: Record<string, React.FC<any>> = {
     browser: BrowserApp,
     media: MediaViewer,
     tasks: TasksApp,
+    integrations: IntegrationsApp,
 };
 
 const AppNotFound: React.FC<{ windowData?: any }> = () => (

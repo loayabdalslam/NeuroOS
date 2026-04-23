@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, User, Shield, Bot, Check, Sparkles, X, ChevronDown, FolderOpen } from 'lucide-react';
+import { ArrowRight, User, Shield, Check, Sparkles, X, ChevronDown, FolderOpen, Blocks, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { cn } from '../lib/utils';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
+import { useComposioStore } from '../stores/composioStore';
 import { ProviderLogos } from './icons/ProviderIcons';
 
 const STEPS = [
@@ -12,7 +13,8 @@ const STEPS = [
     { id: 'profile', title: 'Profile', icon: User },
     { id: 'security', title: 'Security', icon: Shield },
     { id: 'workspace', title: 'Workspace', icon: FolderOpen },
-    { id: 'ai', title: 'Intelligence', icon: Bot },
+    { id: 'integrations', title: 'Integrations', icon: Blocks },
+    { id: 'ai', title: 'AI Provider', icon: Sparkles },
 ];
 
 export const OnboardingFlow: React.FC = () => {
@@ -25,14 +27,18 @@ export const OnboardingFlow: React.FC = () => {
     const [workspacePath, setWorkspacePath] = useState<string>('');
 
     const providers = aiConfig.providers;
-    const [selectedProviderId, setSelectedProviderId] = useState<string>(aiConfig.activeProviderId || providers[0]?.id);
+    const ollamaProvider = providers.find(p => p.type === 'ollama');
+    const [selectedProviderId, setSelectedProviderId] = useState<string>(ollamaProvider?.id || aiConfig.activeProviderId || providers[0]?.id);
     const currentProvider = providers.find(p => p.id === selectedProviderId);
 
     const [baseUrl, setBaseUrl] = useState(currentProvider?.baseUrl || '');
     const [apiKey, setApiKey] = useState(currentProvider?.apiKey || '');
     const [selectedModel, setSelectedModel] = useState(currentProvider?.selectedModel || '');
     const [customModel, setCustomModel] = useState('');
-    const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
+
+    const [composioKey, setComposioKeyInput] = useState('');
+    const [composioLoading, setComposioLoading] = useState(false);
+    const [composioError, setComposioError] = useState<string | null>(null);
 
     React.useEffect(() => {
         const p = providers.find(p => p.id === selectedProviderId);
@@ -56,7 +62,24 @@ export const OnboardingFlow: React.FC = () => {
         }
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
+        if (currentStep === 4 && composioKey.trim()) {
+            setComposioLoading(true);
+            setComposioError(null);
+            try {
+                const ok = await useComposioStore.getState().setApiKey(composioKey.trim());
+                if (!ok) {
+                    setComposioError('Invalid API key. Please check and try again.');
+                    setComposioLoading(false);
+                    return;
+                }
+            } catch (e: any) {
+                setComposioError(e.message || 'Verification failed');
+                setComposioLoading(false);
+                return;
+            }
+            setComposioLoading(false);
+        }
         if (currentStep < STEPS.length - 1) setCurrentStep(prev => prev + 1);
         else handleComplete();
     };
@@ -123,7 +146,8 @@ export const OnboardingFlow: React.FC = () => {
                             {currentStep === 1 && "Create your personal profile within the Neuro environment."}
                             {currentStep === 2 && "Configure access control and security protocols."}
                             {currentStep === 3 && "Choose where to store your files and projects."}
-                            {currentStep === 4 && "Finalize intelligence core integration."}
+                            {currentStep === 4 && "Connect Gmail, Slack, GitHub and more via Composio."}
+                            {currentStep === 5 && "Choose your AI provider to power the assistant."}
                         </p>
                     </div>
 
@@ -197,95 +221,103 @@ export const OnboardingFlow: React.FC = () => {
                             </div>
                         )}
 
-                        {/* AI Provider */}
+                        {/* Integrations (Composio) */}
                         {currentStep === 4 && (
-                            <div className="space-y-8">
-                                <div className="relative group">
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 to-zinc-100 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-                                    <div className="relative p-5 bg-white rounded-2xl border border-zinc-100 flex items-start gap-4 shadow-sm">
-                                        <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center shrink-0">
-                                            <Bot size={20} className="text-white" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <h3 className="text-sm font-semibold text-zinc-900">Intelligence Core</h3>
-                                            <p className="text-[11px] text-zinc-500 leading-relaxed">
-                                                Select your primary neural engine. <span className="font-semibold text-emerald-600">OpenCode</span> and local instances are zero-cost. Enterprise APIs require a key.
-                                            </p>
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Composio API Key</label>
+                                    <input
+                                        type="password"
+                                        autoFocus
+                                        value={composioKey}
+                                        onChange={e => { setComposioKeyInput(e.target.value); setComposioError(null); }}
+                                        className="w-full p-4 bg-zinc-50/50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all font-mono text-[10px] text-zinc-900 placeholder:text-zinc-300"
+                                        placeholder="••••••••••••••••"
+                                    />
+                                    <p className="text-[10px] text-zinc-400 ml-1">
+                                        Get your key at{' '}
+                                        <a href="https://composio.dev" target="_blank" rel="noopener noreferrer" className="text-zinc-900 underline hover:text-blue-600 transition-colors">composio.dev</a>
+                                    </p>
+                                </div>
+
+                                {composioError && (
+                                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2">
+                                        <X size={14} className="text-red-500 shrink-0" />
+                                        <span className="text-xs text-red-700">{composioError}</span>
+                                    </motion.div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Available Services</label>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { name: 'Gmail', color: 'text-red-400 bg-red-50' },
+                                            { name: 'Slack', color: 'text-purple-400 bg-purple-50' },
+                                            { name: 'GitHub', color: 'text-zinc-600 bg-zinc-100' },
+                                            { name: 'Sheets', color: 'text-emerald-400 bg-emerald-50' },
+                                            { name: 'Notion', color: 'text-zinc-500 bg-zinc-50' },
+                                            { name: 'HubSpot', color: 'text-orange-400 bg-orange-50' },
+                                            { name: 'Calendar', color: 'text-sky-400 bg-sky-50' },
+                                            { name: 'More...', color: 'text-zinc-300 bg-zinc-50' },
+                                        ].map(s => (
+                                            <div key={s.name} className={cn("flex items-center justify-center py-2 rounded-xl text-[10px] font-bold border border-zinc-100", s.color)}>
+                                                {s.name}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => { setComposioKeyInput(''); setComposioError(null); handleNext(); }}
+                                    className="w-full text-center text-[10px] font-bold text-zinc-300 hover:text-zinc-500 uppercase tracking-[0.2em] transition-colors py-1"
+                                >
+                                    Skip for now
+                                </button>
+                            </div>
+                        )}
+
+                        {/* AI Provider */}
+                        {currentStep === 5 && (
+                            <div className="space-y-5">
+                                <div className="space-y-2">
+                                    <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Select Provider</label>
+                                    <div className="bg-zinc-50/50 border border-zinc-100 rounded-2xl p-2 max-h-[200px] overflow-y-auto">
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            {providers.map(p => {
+                                                const Icon = ProviderLogos[p.type] || ProviderLogos.custom;
+                                                const isFree = ['opencode', 'ollama', 'lmstudio'].includes(p.type);
+                                                const isSelected = selectedProviderId === p.id;
+                                                return (
+                                                    <button
+                                                        key={p.id}
+                                                        onClick={() => {
+                                                            setSelectedProviderId(p.id);
+                                                            if (p.type === 'ollama' || p.type === 'lmstudio') {
+                                                                refreshProviderModels(p.id);
+                                                            }
+                                                        }}
+                                                        className={cn(
+                                                            "flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all text-left",
+                                                            isSelected ? "bg-zinc-900 text-white shadow-lg" : "bg-white hover:bg-zinc-100 border border-zinc-100"
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                                                            isSelected ? "bg-white/10" : "bg-zinc-50"
+                                                        )}>
+                                                            <Icon size={14} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="text-[11px] font-bold truncate block">{p.name}</span>
+                                                            {isFree && <span className={cn("text-[6px] font-black tracking-wider", isSelected ? "text-emerald-300" : "text-emerald-600")}>FREE</span>}
+                                                        </div>
+                                                        {isSelected && <Check size={10} className="text-white shrink-0" />}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="space-y-5">
-                                    <div className="space-y-2">
-                                        <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Core Provider</label>
-                                        <div className="relative">
-                                            <button
-                                                onClick={() => setProviderDropdownOpen(!providerDropdownOpen)}
-                                                className="w-full p-4 bg-zinc-50/50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-zinc-900/5 focus:border-zinc-900 transition-all text-zinc-700 flex items-center justify-between text-left shadow-sm group"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {currentProvider && (() => {
-                                                        const Icon = ProviderLogos[currentProvider.type] || ProviderLogos.custom;
-                                                        return (
-                                                            <div className="w-8 h-8 rounded-lg bg-white shadow-sm border border-zinc-100 flex items-center justify-center">
-                                                                <Icon size={18} className="text-zinc-900" />
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                    <div>
-                                                        <span className="text-sm font-semibold">{currentProvider?.name || 'Select Provider'}</span>
-                                                        {['opencode', 'ollama', 'lmstudio'].includes(currentProvider?.type || '') && (
-                                                            <span className="ml-2 text-[7px] font-black tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <ChevronDown size={14} className={cn("text-zinc-300 transition-transform duration-500", providerDropdownOpen && "rotate-180")} />
-                                            </button>
-
-                                            {providerDropdownOpen && (
-                                                <motion.div 
-                                                    initial={{ opacity: 0, scale: 0.98, y: -4 }} 
-                                                    animate={{ opacity: 1, scale: 1, y: 0 }} 
-                                                    className="absolute top-full left-0 right-0 mt-3 bg-white/80 backdrop-blur-xl border border-zinc-200/50 rounded-2xl shadow-2xl z-[100] overflow-hidden max-h-[320px] overflow-y-auto p-1.5"
-                                                >
-                                                    {providers.map(p => {
-                                                        const Icon = ProviderLogos[p.type] || ProviderLogos.custom;
-                                                        const isFree = ['opencode', 'ollama', 'lmstudio'].includes(p.type);
-                                                        const isSelected = selectedProviderId === p.id;
-                                                        return (
-                                                            <button
-                                                                key={p.id}
-                                                                onClick={() => { 
-                                                                    setSelectedProviderId(p.id); 
-                                                                    setProviderDropdownOpen(false);
-                                                                    if (p.type === 'ollama' || p.type === 'lmstudio') {
-                                                                        refreshProviderModels(p.id);
-                                                                    }
-                                                                }}
-                                                                className={cn(
-                                                                    "w-full px-3 py-2.5 flex items-center gap-3 rounded-xl transition-all text-left",
-                                                                    isSelected ? "bg-zinc-900 text-white" : "hover:bg-zinc-50"
-                                                                )}
-                                                            >
-                                                                <div className={cn(
-                                                                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                                                                    isSelected ? "bg-white/10" : "bg-zinc-100"
-                                                                )}>
-                                                                    <Icon size={16} />
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-xs font-bold truncate">{p.name}</span>
-                                                                        {isFree && <span className={cn("text-[6px] font-black px-1.5 py-0.5 rounded-full", isSelected ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-50 text-emerald-600")}>FREE</span>}
-                                                                    </div>
-                                                                </div>
-                                                                {isSelected && <Check size={12} className="text-white" />}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </motion.div>
-                                            )}
-                                        </div>
-                                    </div>
 
                                     {/* API Key or Base URL Container */}
                                     <div className="space-y-4">
@@ -344,15 +376,17 @@ export const OnboardingFlow: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
-                                </div>
                             </div>
                         )}
                     </div>
 
                     <div className="flex flex-col items-center gap-6">
-                        <button onClick={handleNext} className="group flex items-center gap-3 bg-zinc-900 text-white px-10 py-4 rounded-full font-medium hover:bg-zinc-800 active:scale-95 transition-all shadow-xl shadow-zinc-200">
-                            <span className="text-sm tracking-tight">{currentStep === STEPS.length - 1 ? "Complete Configuration" : "Continue"}</span>
-                            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                        <button onClick={handleNext} disabled={composioLoading} className="group flex items-center gap-3 bg-zinc-900 text-white px-10 py-4 rounded-full font-medium hover:bg-zinc-800 active:scale-95 transition-all shadow-xl shadow-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {composioLoading ? (
+                                <><Loader2 size={16} className="animate-spin" /><span className="text-sm tracking-tight">Verifying...</span></>
+                            ) : (
+                                <><span className="text-sm tracking-tight">{currentStep === STEPS.length - 1 ? "Complete Configuration" : "Continue"}</span><ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" /></>
+                            )}
                         </button>
                         <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.3em]">0{currentStep + 1} / 0{STEPS.length}</span>
                     </div>

@@ -112,13 +112,18 @@ const Toast: React.FC<{ notification: AppNotification }> = ({ notification }) =>
 export const NotificationCenter: React.FC = () => {
     const notifications = useNotificationStore((s) => s.notifications);
     const checkReminders = useTasksStore((s) => s.checkReminders);
+    const checkScheduledRules = useTasksStore((s) => s.checkScheduledRules);
     const visible = notifications.filter((n) => !n.read).slice(0, 4);
 
     useEffect(() => {
-        const interval = setInterval(checkReminders, 30000);
+        const interval = setInterval(() => {
+            checkReminders();
+            checkScheduledRules();
+        }, 30000);
         checkReminders();
+        checkScheduledRules();
         return () => clearInterval(interval);
-    }, [checkReminders]);
+    }, [checkReminders, checkScheduledRules]);
 
     return (
         <div className="fixed top-4 right-4 z-[9998] flex flex-col gap-2 pointer-events-auto">

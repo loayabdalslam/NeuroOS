@@ -8,7 +8,8 @@ import {
     BoardIcon,
     BrowserIcon,
     MediaIcon,
-    TasksIcon
+    TasksIcon,
+    IntegrationsIcon
 } from '../components/icons/AppIcons';
 
 export interface AppConfig {
@@ -29,4 +30,5 @@ export const APPS_CONFIG: Record<string, AppConfig> = {
     browser: { id: 'browser', name: 'Browser', icon: BrowserIcon, color: 'bg-sky-400' },
     media: { id: 'media', name: 'Media Viewer', icon: MediaIcon, color: 'bg-cyan-500' },
     tasks: { id: 'tasks', name: 'Tasks', icon: TasksIcon, color: 'bg-emerald-500' },
+    integrations: { id: 'integrations', name: 'Integrations', icon: IntegrationsIcon, color: 'bg-violet-500' },
 };

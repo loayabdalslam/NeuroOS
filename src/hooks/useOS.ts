@@ -84,6 +84,11 @@ export const useOS = create<OSState>((set, get) => ({
       nextZIndex: nextZIndex + 1,
       isStartMenuOpen: false,
     });
+
+    try {
+      const { useTasksStore } = require('../stores/tasksStore');
+      useTasksStore.getState().emitEvent('app_opened', { appId: component, title: title || component });
+    } catch {}
   },
 
   closeWindow: (id) => {

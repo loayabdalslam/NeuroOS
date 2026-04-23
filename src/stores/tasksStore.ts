@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useNotificationStore } from './notificationStore';
 
+export type AutomationEvent = 'task_completed' | 'task_created' | 'pomodoro_done' | 'pomodoro_break_done' | 'reminder_fired' | 'app_opened';
+
 export interface Task {
     id: string;
     title: string;
@@ -37,7 +39,7 @@ export interface AutomationRule {
         event?: string;
     };
     action: {
-        type: 'open_app' | 'run_command' | 'send_notification' | 'create_task';
+        type: 'open_app' | 'run_command' | 'send_notification' | 'create_task' | 'navigate_url' | 'send_to_board';
         params: Record<string, any>;
     };
     lastRun: number | null;
@@ -75,6 +77,10 @@ interface TasksState {
     updateRule: (id: string, updates: Partial<AutomationRule>) => void;
     removeRule: (id: string) => void;
     toggleRule: (id: string) => void;
+
+    emitEvent: (event: AutomationEvent, data?: Record<string, any>) => void;
+    checkScheduledRules: () => void;
+    executeRule: (rule: AutomationRule, eventData?: Record<string, any>) => void;
 
     startPomodoro: (taskId?: string) => void;
     pausePomodoro: () => void;
@@ -123,6 +129,7 @@ export const useTasksStore = create<TasksState>()(
                     pomodorosEstimated: partial.pomodorosEstimated || 0,
                 };
                 set((state) => ({ tasks: [task, ...state.tasks] }));
+                get().emitEvent('task_created', { taskId: task.id, title: task.title });
                 return task;
             },
 
@@ -152,6 +159,7 @@ export const useTasksStore = create<TasksState>()(
                         message: task.title,
                         autoDismissMs: 4000,
                     });
+                    get().emitEvent('task_completed', { taskId: task.id, title: task.title });
                 }
             },
 
@@ -189,6 +197,8 @@ export const useTasksStore = create<TasksState>()(
                         reminder.message
                     );
                 } catch {}
+
+                get().emitEvent('reminder_fired', { reminderId: reminder.id, title: reminder.title });
 
                 if (reminder.repeat === 'none') {
                     set((state) => ({
@@ -236,6 +246,130 @@ export const useTasksStore = create<TasksState>()(
                     r.id === id ? { ...r, enabled: !r.enabled } : r
                 ),
             })),
+
+            emitEvent: (event, data) => {
+                const { automationRules, executeRule } = get();
+                automationRules
+                    .filter((r) => r.enabled && r.trigger.type === 'event' && r.trigger.event === event)
+                    .forEach((r) => executeRule(r, data));
+            },
+
+            checkScheduledRules: () => {
+                const now = Date.now();
+                const { automationRules, executeRule, updateRule } = get();
+                automationRules
+                    .filter((r) => r.enabled && r.trigger.type === 'schedule' && r.trigger.intervalMinutes)
+                    .forEach((r) => {
+                        const intervalMs = (r.trigger.intervalMinutes!) * 60 * 1000;
+                        const lastRun = r.lastRun || 0;
+                        if (now - lastRun >= intervalMs) {
+                            executeRule(r);
+                            updateRule(r.id, { lastRun: now });
+                        }
+                    });
+            },
+
+            executeRule: (rule, eventData) => {
+                const { action } = rule;
+                const notify = useNotificationStore.getState().addNotification;
+
+                try {
+                    switch (action.type) {
+                        case 'open_app': {
+                            const { useOS } = require('../hooks/useOS');
+                            const appId = action.params.app_id || action.params.appId || 'chat';
+                            useOS.getState().openApp(appId, action.params.title);
+                            break;
+                        }
+                        case 'send_notification': {
+                            notify({
+                                type: 'info',
+                                title: action.params.title || rule.name,
+                                message: action.params.message || action.params.body || `Rule "${rule.name}" triggered`,
+                                autoDismissMs: action.params.autoDismissMs || 5000,
+                            });
+                            try {
+                                (window as any).electron?.system?.notification?.(
+                                    action.params.title || rule.name,
+                                    action.params.message || `Rule "${rule.name}" triggered`
+                                );
+                            } catch {}
+                            break;
+                        }
+                        case 'create_task': {
+                            get().createTask({
+                                title: action.params.title || `Auto: ${rule.name}`,
+                                description: action.params.description || '',
+                                priority: action.params.priority || 'medium',
+                            });
+                            break;
+                        }
+                        case 'run_command': {
+                            const cmd = action.params.command || action.params.cmd;
+                            if (cmd) {
+                                const { useOS } = require('../hooks/useOS');
+                                const os = useOS.getState();
+                                let termWin = os.appWindows.find((w: any) => w.component === 'terminal');
+                                if (!termWin) {
+                                    os.openApp('terminal', 'Terminal');
+                                    setTimeout(() => {
+                                        termWin = useOS.getState().appWindows.find((w: any) => w.component === 'terminal');
+                                        if (termWin) useOS.getState().sendAppAction(termWin.id, 'execute_command', cmd);
+                                    }, 300);
+                                } else {
+                                    os.sendAppAction(termWin.id, 'execute_command', cmd);
+                                }
+                            }
+                            break;
+                        }
+                        case 'navigate_url': {
+                            const url = action.params.url;
+                            if (url) {
+                                const { useOS } = require('../hooks/useOS');
+                                const os = useOS.getState();
+                                let browserWin = os.appWindows.find((w: any) => w.component === 'browser');
+                                if (!browserWin) {
+                                    os.openApp('browser', 'Browser');
+                                    setTimeout(() => {
+                                        browserWin = useOS.getState().appWindows.find((w: any) => w.component === 'browser');
+                                        if (browserWin) useOS.getState().sendAppAction(browserWin.id, 'navigate', { url });
+                                    }, 300);
+                                } else {
+                                    os.sendAppAction(browserWin.id, 'navigate', { url });
+                                }
+                            }
+                            break;
+                        }
+                        case 'send_to_board': {
+                            const { useOS } = require('../hooks/useOS');
+                            const os = useOS.getState();
+                            let boardWin = os.appWindows.find((w: any) => w.component === 'board');
+                            if (!boardWin) {
+                                os.openApp('board', 'NeuroBoard');
+                                setTimeout(() => {
+                                    boardWin = useOS.getState().appWindows.find((w: any) => w.component === 'board');
+                                    if (boardWin) useOS.getState().sendAppAction(boardWin.id, 'add_card', {
+                                        type: 'note',
+                                        title: action.params.title || rule.name,
+                                        content: action.params.content || `Triggered by automation: ${rule.name}`,
+                                        color: action.params.color || 'blue',
+                                    });
+                                }, 500);
+                            } else {
+                                os.sendAppAction(boardWin.id, 'add_card', {
+                                    type: 'note',
+                                    title: action.params.title || rule.name,
+                                    content: action.params.content || `Triggered by automation: ${rule.name}`,
+                                    color: action.params.color || 'blue',
+                                });
+                            }
+                            break;
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Automation rule "${rule.name}" failed:`, err);
+                }
+            },
 
             startPomodoro: (taskId) => set((state) => ({
                 pomodoro: {
@@ -298,6 +432,7 @@ export const useTasksStore = create<TasksState>()(
                             isRunning: true,
                         },
                     }));
+                    get().emitEvent('pomodoro_done', { sessionsCompleted: newSessions });
                 } else {
                     notify({
                         type: 'pomodoro',
@@ -314,6 +449,7 @@ export const useTasksStore = create<TasksState>()(
                             isRunning: true,
                         },
                     }));
+                    get().emitEvent('pomodoro_break_done');
                 }
             },
 

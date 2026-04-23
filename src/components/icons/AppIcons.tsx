@@ -150,6 +150,15 @@ export const TasksIcon: React.FC<IconProps> = ({ className, size = 24 }) => (
   </svg>
 );
 
+// Integrations Icon - Puzzle piece connections
+export const IntegrationsIcon: React.FC<IconProps> = ({ className, size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={cn("text-current", className)}>
+    <path d="M12 2v4m0 12v4M2 12h4m12 0h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" fill="none"/>
+    <path d="M7.8 7.8 5.6 5.6m12.8 12.8-2.2-2.2M7.8 16.2l-2.2 2.2M18.4 5.6l-2.2 2.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
 // Map app IDs to icons
 export const APP_ICONS: Record<string, React.FC<IconProps>> = {
   terminal: TerminalIcon,
@@ -164,6 +173,7 @@ export const APP_ICONS: Record<string, React.FC<IconProps>> = {
   music: MusicIcon,
   media: MediaIcon,
   tasks: TasksIcon,
+  integrations: IntegrationsIcon,
 };
 
 // Helper to get icon component by app ID

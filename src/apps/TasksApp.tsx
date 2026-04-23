@@ -353,13 +353,38 @@ const AutomationTab: React.FC = () => {
         intervalMinutes: 60,
         event: 'task_completed',
         actionType: 'send_notification' as AutomationRule['action']['type'],
-        actionParams: '{}',
+        params: {
+            title: '',
+            message: '',
+            app_id: '',
+            command: '',
+            url: '',
+            content: '',
+            color: '',
+            priority: 'medium',
+        },
     });
 
     const handleSubmit = () => {
         if (!form.name.trim()) return;
-        let params: Record<string, any> = {};
-        try { params = JSON.parse(form.actionParams); } catch {}
+        const params: Record<string, any> = {};
+        if (form.actionType === 'send_notification') {
+            if (form.params.title) params.title = form.params.title;
+            if (form.params.message) params.message = form.params.message;
+        } else if (form.actionType === 'open_app') {
+            if (form.params.app_id) params.app_id = form.params.app_id;
+        } else if (form.actionType === 'create_task') {
+            if (form.params.title) params.title = form.params.title;
+            if (form.params.priority) params.priority = form.params.priority;
+        } else if (form.actionType === 'run_command') {
+            if (form.params.command) params.command = form.params.command;
+        } else if (form.actionType === 'navigate_url') {
+            if (form.params.url) params.url = form.params.url;
+        } else if (form.actionType === 'send_to_board') {
+            if (form.params.title) params.title = form.params.title;
+            if (form.params.content) params.content = form.params.content;
+            if (form.params.color) params.color = form.params.color;
+        }
         addRule({
             name: form.name,
             enabled: true,
@@ -370,7 +395,67 @@ const AutomationTab: React.FC = () => {
             action: { type: form.actionType, params },
         });
         setShowForm(false);
-        setForm({ name: '', triggerType: 'event', intervalMinutes: 60, event: 'task_completed', actionType: 'send_notification', actionParams: '{}' });
+        setForm({ name: '', triggerType: 'event', intervalMinutes: 60, event: 'task_completed', actionType: 'send_notification', params: { title: '', message: '', app_id: '', command: '', url: '', content: '', color: '', priority: 'medium' } });
+    };
+
+    const renderParamFields = () => {
+        switch (form.actionType) {
+            case 'send_notification':
+                return (
+                    <>
+                        <input value={form.params.title} onChange={(e) => setForm({ ...form, params: { ...form.params, title: e.target.value } })} placeholder="Notification title" className="w-full bg-white/[0.04] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]" />
+                        <input value={form.params.message} onChange={(e) => setForm({ ...form, params: { ...form.params, message: e.target.value } })} placeholder="Notification message" className="w-full bg-white/[0.04] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]" />
+                    </>
+                );
+            case 'open_app':
+                return (
+                    <select value={form.params.app_id} onChange={(e) => setForm({ ...form, params: { ...form.params, app_id: e.target.value } })} className="w-full bg-white/[0.04] rounded-lg px-2 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]">
+                        <option value="">Select app...</option>
+                        <option value="chat">Chat</option>
+                        <option value="terminal">Terminal</option>
+                        <option value="browser">Browser</option>
+                        <option value="board">Board</option>
+                        <option value="tasks">Tasks</option>
+                        <option value="settings">Settings</option>
+                    </select>
+                );
+            case 'create_task':
+                return (
+                    <>
+                        <input value={form.params.title} onChange={(e) => setForm({ ...form, params: { ...form.params, title: e.target.value } })} placeholder="Task title" className="w-full bg-white/[0.04] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]" />
+                        <select value={form.params.priority} onChange={(e) => setForm({ ...form, params: { ...form.params, priority: e.target.value } })} className="w-full bg-white/[0.04] rounded-lg px-2 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]">
+                            <option value="low">Low Priority</option>
+                            <option value="medium">Medium Priority</option>
+                            <option value="high">High Priority</option>
+                        </select>
+                    </>
+                );
+            case 'run_command':
+                return (
+                    <input value={form.params.command} onChange={(e) => setForm({ ...form, params: { ...form.params, command: e.target.value } })} placeholder="Shell command (e.g. npm run build)" className="w-full bg-white/[0.04] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06] font-mono" />
+                );
+            case 'navigate_url':
+                return (
+                    <input value={form.params.url} onChange={(e) => setForm({ ...form, params: { ...form.params, url: e.target.value } })} placeholder="URL (e.g. https://example.com)" className="w-full bg-white/[0.04] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]" />
+                );
+            case 'send_to_board':
+                return (
+                    <>
+                        <input value={form.params.title} onChange={(e) => setForm({ ...form, params: { ...form.params, title: e.target.value } })} placeholder="Card title" className="w-full bg-white/[0.04] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]" />
+                        <input value={form.params.content} onChange={(e) => setForm({ ...form, params: { ...form.params, content: e.target.value } })} placeholder="Card content" className="w-full bg-white/[0.04] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]" />
+                        <select value={form.params.color} onChange={(e) => setForm({ ...form, params: { ...form.params, color: e.target.value } })} className="w-full bg-white/[0.04] rounded-lg px-2 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]">
+                            <option value="">Default color</option>
+                            <option value="blue">Blue</option>
+                            <option value="green">Green</option>
+                            <option value="yellow">Yellow</option>
+                            <option value="red">Red</option>
+                            <option value="purple">Purple</option>
+                        </select>
+                    </>
+                );
+            default:
+                return null;
+        }
     };
 
     return (
@@ -417,7 +502,10 @@ const AutomationTab: React.FC = () => {
                                         className="flex-1 bg-white/[0.04] rounded-lg px-2 py-1.5 text-xs text-zinc-300 outline-none border border-white/[0.06]"
                                     >
                                         <option value="task_completed">Task Completed</option>
+                                        <option value="task_created">Task Created</option>
                                         <option value="pomodoro_done">Pomodoro Done</option>
+                                        <option value="pomodoro_break_done">Break Done</option>
+                                        <option value="reminder_fired">Reminder Fired</option>
                                         <option value="app_opened">App Opened</option>
                                     </select>
                                 ) : (
@@ -442,7 +530,10 @@ const AutomationTab: React.FC = () => {
                                 <option value="open_app">Open App</option>
                                 <option value="create_task">Create Task</option>
                                 <option value="run_command">Run Command</option>
+                                <option value="navigate_url">Navigate URL</option>
+                                <option value="send_to_board">Send to Board</option>
                             </select>
+                            {renderParamFields()}
                             <div className="flex gap-2">
                                 <button onClick={() => setShowForm(false)} className="flex-1 px-2.5 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 rounded-lg bg-white/[0.04]">
                                     Cancel
