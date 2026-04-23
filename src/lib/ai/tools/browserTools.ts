@@ -474,9 +474,13 @@ registerTool({
         const topic = String(args.topic ?? '').trim();
         const depth = Math.min(Math.max(Number(args.depth ?? 2), 1), 3);
         const aiStore = useAIStore.getState();
-        
+
         aiStore.addBrowserLog({ type: 'info', message: `🚀 Initiating Deep Research: "${topic}" (Depth ${depth})` });
-        
+
+        // Ensure browser is open and ready for agentic research
+        ensureBrowserOpen();
+        await new Promise(r => setTimeout(r, 1200));
+
         const findings: Array<{source: string, content: string, url: string}> = [];
         const seenUrls = new Set<string>();
 
