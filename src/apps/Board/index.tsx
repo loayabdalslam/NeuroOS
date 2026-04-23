@@ -66,7 +66,9 @@ export const BoardApp: React.FC<BoardProps> = ({ windowData }) => {
             const { type, payload } = windowData.lastAction;
             if (type === 'add_card') {
                 addCard(payload.type as CType, {
+                    title: payload.title,
                     content: payload.content,
+                    color: payload.color,
                     metadata: payload.metadata
                 });
             }
