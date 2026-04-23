@@ -85,6 +85,8 @@ const createWindow = () => {
         },
     });
 
+    mainWindow.maximize();
+
     // LOAD THE APP
     const loadURL = async () => {
         if (process.env.VITE_DEV_SERVER_URL) {

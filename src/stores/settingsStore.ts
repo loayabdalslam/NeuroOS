@@ -252,12 +252,34 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'neuro-os-settings',
-            version: 2,
+            version: 3,
             migrate: (persisted: any, version) => {
                 if (version < 2) {
-                    // Remove p2pServerUrl from old settings
                     const { p2pServerUrl, ...rest } = persisted || {};
-                    return { ...rest };
+                    persisted = { ...rest };
+                }
+                if (version < 3) {
+                    // Update models and providers to 2026 standards
+                    if (persisted?.aiConfig?.providers) {
+                        persisted.aiConfig.providers = persisted.aiConfig.providers.map((p: any) => {
+                            const d = DEFAULT_PROVIDERS.find(dp => dp.id === p.id);
+                            if (d) {
+                                // Keep user's custom baseUrl and apiKey, but update models
+                                return {
+                                    ...p,
+                                    name: d.name,
+                                    models: d.models,
+                                    // Update selected model if it was an old default
+                                    selectedModel: (p.selectedModel === 'opencode-mini' || 
+                                                  p.selectedModel === 'gpt-4o' || 
+                                                  p.selectedModel === 'claude-3-5-sonnet' ||
+                                                  p.selectedModel === 'llama-3-8b' ||
+                                                  p.selectedModel === 'llama-4-8b') ? d.selectedModel : p.selectedModel
+                                };
+                            }
+                            return p;
+                        });
+                    }
                 }
                 return persisted;
             }

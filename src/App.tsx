@@ -45,7 +45,7 @@ export default function App() {
           animate={{ opacity: 1 }}
           className="flex flex-col items-center gap-6"
         >
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2 pt-12">
             <h1 className="text-3xl font-light tracking-tighter text-zinc-900">
               Neuro OS<span className="align-top text-[10px] ml-1 font-bold">TM</span>
             </h1>
@@ -132,7 +132,7 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="flex flex-col items-center gap-2 text-zinc-900"
+              className="flex flex-col items-center gap-2 text-zinc-900 pt-12"
             >
               <h1 className="text-4xl font-light tracking-tighter">
                 Neuro OS<span className="align-top text-[12px] ml-1 font-bold">TM</span>

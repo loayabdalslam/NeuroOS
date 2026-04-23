@@ -99,7 +99,7 @@ export const OnboardingFlow: React.FC = () => {
                 </button>
             )}
 
-            <div className="w-full max-w-lg relative z-10 px-6">
+            <div className="w-full max-w-lg relative z-10 px-6 pt-16 transition-all duration-700">
                 <div className="text-center mb-16">
                     <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-light tracking-tighter text-zinc-900">
                         Neuro OS<span className="align-top text-[12px] ml-1 font-bold">TM</span>
@@ -133,7 +133,7 @@ export const OnboardingFlow: React.FC = () => {
                             <div className="text-center">
                                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-50 rounded-full border border-zinc-100 text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-400">
                                     <Sparkles size={12} className="text-zinc-900" />
-                                    Version 1.3.0
+                                    Version 2.7.0 "Frontier"
                                 </motion.div>
                             </div>
                         )}

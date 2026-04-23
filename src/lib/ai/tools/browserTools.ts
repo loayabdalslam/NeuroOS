@@ -349,133 +349,71 @@ registerTool({
 // 4. SEARCH WEB — Smart web search with auto-content extraction
 registerTool({
     name: 'search_web',
-    description: 'Search the web and get real results. Automatically fetches content from top results to provide detailed information.',
+    description: 'Search the web using the live agentic browser for real-time results. Automatically falls back to headless APIs if needed.',
     category: 'browser',
     parameters: {
         query: { type: 'string', description: 'What to search for', required: true },
-        fetch_content: { type: 'boolean', description: 'Auto-fetch content from top result (default: true)', required: false },
     },
     handler: async (args): Promise<ToolResult> => {
         const query = String(args.query ?? '').trim();
         if (!query) return { success: false, message: 'Search query is required' };
 
-        useAIStore.getState().addBrowserLog({ type: 'info', message: `Searching: "${query}"` });
-        
         const results: Array<{title: string; url: string; snippet?: string}> = [];
         let contentFromTopResult = '';
         
         try {
-            // Strategy 1: DuckDuckGo Instant Answer API
+            // Strategy 1: Browser-based Agentic Search (Priority: REAL DATA)
             try {
-                const ddgApiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-                const ddgRes = await fetch(ddgApiUrl);
-                const ddgData = await ddgRes.json() as any;
-                
-                // Get abstract if available
-                if (ddgData.AbstractText) {
-                    contentFromTopResult = ddgData.AbstractText;
-                    if (ddgData.AbstractSource) {
-                        results.push({ title: ddgData.Heading || query, url: ddgData.AbstractURL, snippet: ddgData.AbstractText });
-                    }
-                }
-                
-                // Get related topics
-                if (ddgData.RelatedTopics && ddgData.RelatedTopics.length > 0) {
-                    for (const topic of ddgData.RelatedTopics.slice(0, 5)) {
-                        if (topic.Text && topic.FirstURL) {
-                            results.push({
-                                title: topic.Text.split(' - ')[0] || topic.Text.slice(0, 60),
-                                url: topic.FirstURL,
-                                snippet: topic.Text
-                            });
-                        }
-                    }
-                }
-            } catch (e) {}
-
-            // Strategy 2: Wikipedia for factual info (with origin=* to prevent CORS)
-            try {
-                const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&utf8=1&srlimit=5&origin=*`;
-                const wikiRes = await fetch(wikiUrl);
-                const wikiData = await wikiRes.json() as any;
-
-                if (wikiData.query?.search && wikiData.query.search.length > 0) {
-                    for (const r of wikiData.query.search.slice(0, 3)) {
-                        const title = r.title;
-                        const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
-                        // Clean snippet from HTML tags
-                        const snippet = r.snippet?.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&') || '';
-                        results.push({ title, url, snippet });
-                    }
-                    
-                    // Fetch first Wikipedia article content
-                    if (!contentFromTopResult && wikiData.query.search[0]) {
-                        const pageTitle = wikiData.query.search[0].title;
-                        const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts&exintro=1&explaintext=1&format=json&origin=*`;
-                        try {
-                            const contentRes = await fetch(contentUrl);
-                            const contentData = await contentRes.json() as any;
-                            const pages = contentData.query?.pages;
-                            if (pages) {
-                                const page = Object.values(pages)[0] as any;
-                                if (page?.extract) {
-                                    contentFromTopResult = page.extract.slice(0, 1500);
-                                }
+                const searchUrl = `https://www.google.com/search?igu=1&q=${encodeURIComponent(query)}`;
+                const searchResult = await sendBrowserAction('navigate_and_wait', { url: searchUrl });
+                if (searchResult.success) {
+                    const scrapeResult = await sendBrowserAction('scrape_page', { maxLength: 5000 });
+                    if (scrapeResult.success && scrapeResult.data.links?.length > 0) {
+                        scrapeResult.data.links.slice(0, 8).forEach((l: any) => {
+                            if (l.href && l.href.startsWith('http')) {
+                                results.push({ 
+                                    title: l.text || extractDomain(l.href), 
+                                    url: l.href, 
+                                    snippet: 'Retrieved via live agentic browser discovery' 
+                                });
                             }
-                        } catch {}
+                        });
+                        contentFromTopResult = scrapeResult.data.cleanText?.slice(0, 2000) || '';
                     }
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error('Browser search failed', e);
+            }
 
-            // Strategy 3: DuckDuckGo HTML scraping (Very reliable fallback)
-            if (results.length < 2) {
+            // Strategy 2: Wikipedia Fallback
+            if (results.length < 3) {
                 try {
-                    const ddgHtml = await duckDuckGoSearch(query);
-                    if (ddgHtml.results && ddgHtml.results.length > 0) {
-                        for (const url of ddgHtml.results.slice(0, 5)) {
-                            results.push({ title: extractDomain(url), url, snippet: `Search result for ${query}` });
+                    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&utf8=1&srlimit=5&origin=*`;
+                    const wikiRes = await fetch(wikiUrl);
+                    const wikiData = await wikiRes.json() as any;
+                    if (wikiData.query?.search) {
+                        for (const r of wikiData.query.search.slice(0, 3)) {
+                            results.push({ 
+                                title: r.title, 
+                                url: `https://en.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g, '_'))}`, 
+                                snippet: r.snippet?.replace(/<[^>]+>/g, '') || '' 
+                            });
                         }
                     }
                 } catch (e) {}
             }
 
-            // Strategy 4: Browser-based search fallback (if nothing found or explicit browser focus)
-            if (results.length === 0) {
-                useAIStore.getState().addBrowserLog({ type: 'info', message: `No headless results. Switching to browser-based search...` });
-                const searchUrl = `https://www.google.com/search?igu=1&q=${encodeURIComponent(query)}`;
-                const searchResult = await sendBrowserAction('navigate_and_wait', { url: searchUrl });
-                if (searchResult.success) {
-                    const scrapeResult = await sendBrowserAction('scrape_page', { maxLength: 4000 });
-                    if (scrapeResult.success && scrapeResult.data.links?.length > 0) {
-                        scrapeResult.data.links.slice(0, 5).forEach((l: any) => {
-                            results.push({ title: l.text, url: l.href, snippet: 'Extracted from live browser search' });
-                        });
-                        contentFromTopResult = scrapeResult.data.cleanText?.slice(0, 1000) || '';
-                    }
-                }
-            }
-
-            // Strategy 5: Try direct fetch of known sites for the query
+            // Strategy 3: DuckDuckGo API fallback
             if (results.length < 3) {
-                const directUrls = [
-                    `https://www.britannica.com/search?query=${encodeURIComponent(query)}`,
-                    `https://stackoverflow.com/search?q=${encodeURIComponent(query)}`,
-                    `https://github.com/search?q=${encodeURIComponent(query)}`,
-                ];
-                for (const url of directUrls) {
-                    if (results.length >= 8) break;
-                    try {
-                        const data = await ipcFetch(url);
-                        if (data.text.length > 500) {
-                            const titleMatch = data.html.match(/<title>([^<]+)<\/title>/i);
-                            results.push({
-                                title: titleMatch ? titleMatch[1].replace(/ - .*/, '').trim() : extractDomain(url),
-                                url,
-                                snippet: `Direct resource search for ${query} on ${extractDomain(url)}`
-                            });
-                        }
-                    } catch {}
-                }
+                try {
+                    const ddgApiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+                    const ddgRes = await fetch(ddgApiUrl);
+                    const ddgData = await ddgRes.json() as any;
+                    if (ddgData.AbstractText) {
+                        contentFromTopResult = contentFromTopResult || ddgData.AbstractText;
+                        results.push({ title: ddgData.Heading || query, url: ddgData.AbstractURL, snippet: ddgData.AbstractText });
+                    }
+                } catch (e) {}
             }
 
             // Results synthesis
@@ -484,7 +422,7 @@ registerTool({
                 let message = `### 🔍 Analysis for "${query}"\n\n`;
                 
                 if (contentFromTopResult) {
-                    message += `${contentFromTopResult.slice(0, 3000)}\n\n---\n`;
+                    message += `${contentFromTopResult}\n\n---\n`;
                 }
 
                 message += `#### 🌐 Relevant Sources\n`;
@@ -495,18 +433,13 @@ registerTool({
                 return {
                     success: true,
                     message: message.trim(),
-                    data: {
-                        query,
-                        results: uniqueResults,
-                        content: contentFromTopResult,
-                        count: uniqueResults.length
-                    }
+                    data: { query, results: uniqueResults, content: contentFromTopResult }
                 };
             }
             
             return {
                 success: false,
-                message: `❌ No results found for "${query}" across multiple knowledge layers. Try adjusting your query.`
+                message: `❌ No results found for "${query}".`
             };
         } catch (e: any) {
             return { success: false, message: `❌ Search operation failed: ${e.message}` };
@@ -534,9 +467,24 @@ registerTool({
         const seenUrls = new Set<string>();
 
         try {
-            // Step 1: Initial broad search
-            const initialSearch = await duckDuckGoSearch(topic);
-            const targetUrls = initialSearch.results.slice(0, depth * 3);
+            // Step 1: Initial broad search via live agentic browser
+            aiStore.addBrowserLog({ type: 'info', message: `🔍 Seeding research with live agentic discovery...` });
+            const searchUrl = `https://www.google.com/search?igu=1&q=${encodeURIComponent(topic)}`;
+            const searchResult = await sendBrowserAction('navigate_and_wait', { url: searchUrl });
+            let targetUrls: string[] = [];
+            
+            if (searchResult.success) {
+                const scrape = await sendBrowserAction('scrape_page', { maxLength: 2000 });
+                if (scrape.success && scrape.data.links) {
+                    targetUrls = scrape.data.links.slice(0, depth * 3).map((l: any) => l.href).filter((h: string) => h && h.startsWith('http'));
+                }
+            }
+
+            // Fallback if browser seeding fails
+            if (targetUrls.length === 0) {
+                const initialSearch = await duckDuckGoSearch(topic);
+                targetUrls = initialSearch.results.slice(0, depth * 3);
+            }
 
             // Step 2: Iterate and extract
             for (const url of targetUrls) {
