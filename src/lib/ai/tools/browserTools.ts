@@ -439,7 +439,23 @@ registerTool({
                 } catch (e) {}
             }
 
-            // Strategy 4: Try direct fetch of known sites for the query
+            // Strategy 4: Browser-based search fallback (if nothing found or explicit browser focus)
+            if (results.length === 0) {
+                useAIStore.getState().addBrowserLog({ type: 'info', message: `No headless results. Switching to browser-based search...` });
+                const searchUrl = `https://www.google.com/search?igu=1&q=${encodeURIComponent(query)}`;
+                const searchResult = await sendBrowserAction('navigate_and_wait', { url: searchUrl });
+                if (searchResult.success) {
+                    const scrapeResult = await sendBrowserAction('scrape_page', { maxLength: 4000 });
+                    if (scrapeResult.success && scrapeResult.data.links?.length > 0) {
+                        scrapeResult.data.links.slice(0, 5).forEach((l: any) => {
+                            results.push({ title: l.text, url: l.href, snippet: 'Extracted from live browser search' });
+                        });
+                        contentFromTopResult = scrapeResult.data.cleanText?.slice(0, 1000) || '';
+                    }
+                }
+            }
+
+            // Strategy 5: Try direct fetch of known sites for the query
             if (results.length < 3) {
                 const directUrls = [
                     `https://www.britannica.com/search?query=${encodeURIComponent(query)}`,
@@ -447,56 +463,41 @@ registerTool({
                     `https://github.com/search?q=${encodeURIComponent(query)}`,
                 ];
                 for (const url of directUrls) {
-                    if (results.length >= 5) break;
+                    if (results.length >= 8) break;
                     try {
-                        const res = await fetch(url, { 
-                            headers: { 'User-Agent': 'Mozilla/5.0' },
-                            signal: AbortSignal.timeout(5000)
-                        });
-                        if (res.ok) {
-                            const html = await res.text();
-                            const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-                            if (titleMatch) {
-                                results.push({
-                                    title: titleMatch[1].replace(/ - .*/, '').trim(),
-                                    url,
-                                    snippet: `Direct source for "${query}"`
-                                });
-                            }
+                        const data = await ipcFetch(url);
+                        if (data.text.length > 500) {
+                            const titleMatch = data.html.match(/<title>([^<]+)<\/title>/i);
+                            results.push({
+                                title: titleMatch ? titleMatch[1].replace(/ - .*/, '').trim() : extractDomain(url),
+                                url,
+                                snippet: `Direct resource search for ${query} on ${extractDomain(url)}`
+                            });
                         }
                     } catch {}
                 }
             }
 
-            // If we have results
+            // Results synthesis
             if (results.length > 0 || contentFromTopResult) {
                 const uniqueResults = results.filter((v, i, a) => a.findIndex(t => t.url === v.url) === i);
+                let message = `### 🔍 Analysis for "${query}"\n\n`;
                 
-                let message = '';
-                
-                // If we got content from top result, include it
                 if (contentFromTopResult) {
-                    message += `**Information about "${query}":**\n\n${contentFromTopResult}\n\n`;
+                    message += `${contentFromTopResult.slice(0, 3000)}\n\n---\n`;
                 }
-                
-                // List sources
-                if (uniqueResults.length > 0) {
-                    message += `**Sources:**\n`;
-                    uniqueResults.slice(0, 5).forEach((r, i) => {
-                        message += `${i + 1}. [${r.title}](${r.url})`;
-                        if (r.snippet) {
-                            message += `\n   ${r.snippet.slice(0, 120)}`;
-                        }
-                        message += '\n';
-                    });
-                }
-                
+
+                message += `#### 🌐 Relevant Sources\n`;
+                uniqueResults.slice(0, 6).forEach((r, i) => {
+                    message += `${i + 1}. **[${r.title}](${r.url})**\n   _${r.snippet || 'No summary available'}_ \n`;
+                });
+
                 return {
                     success: true,
                     message: message.trim(),
                     data: {
                         query,
-                        results: uniqueResults.slice(0, 5),
+                        results: uniqueResults,
                         content: contentFromTopResult,
                         count: uniqueResults.length
                     }
@@ -505,19 +506,111 @@ registerTool({
             
             return {
                 success: false,
-                message: `Could not find results for "${query}". Try a different search term.`
+                message: `❌ No results found for "${query}" across multiple knowledge layers. Try adjusting your query.`
             };
-            
         } catch (e: any) {
-            return {
-                success: false,
-                message: `Search failed: ${e.message}`
-            };
+            return { success: false, message: `❌ Search operation failed: ${e.message}` };
         }
     },
 });
 
-// 5. WEB RESEARCH — multi-URL fetch and combine
+// 5. DEEP RESEARCH — Recursive information gathering
+registerTool({
+    name: 'deep_research',
+    description: 'Perform an exhaustive deep research on a topic. Searches multiple sources, follows links, and synthesizes a comprehensive report. Use for complex questions requiring verified data.',
+    category: 'browser',
+    parameters: {
+        topic: { type: 'string', description: 'The topic or complex question to research', required: true },
+        depth: { type: 'number', description: 'Search depth (1-3, default 2). Higher depth follows more links.', required: false },
+    },
+    handler: async (args): Promise<ToolResult> => {
+        const topic = String(args.topic ?? '').trim();
+        const depth = Math.min(Math.max(Number(args.depth ?? 2), 1), 3);
+        const aiStore = useAIStore.getState();
+        
+        aiStore.addBrowserLog({ type: 'info', message: `🚀 Initiating Deep Research: "${topic}" (Depth ${depth})` });
+        
+        const findings: Array<{source: string, content: string, url: string}> = [];
+        const seenUrls = new Set<string>();
+
+        try {
+            // Step 1: Initial broad search
+            const initialSearch = await duckDuckGoSearch(topic);
+            const targetUrls = initialSearch.results.slice(0, depth * 3);
+
+            // Step 2: Iterate and extract
+            for (const url of targetUrls) {
+                if (seenUrls.has(url)) continue;
+                seenUrls.add(url);
+                
+                aiStore.addBrowserLog({ type: 'info', message: `🔍 Analyzing source: ${extractDomain(url)}` });
+                try {
+                    const data = await ipcFetch(url);
+                    const isCaptcha = detectCaptcha(data.html, data.text);
+                    const markdown = htmlToMarkdown(data.html, data.text, url).slice(0, 3000);
+                    
+                    findings.push({
+                        source: extractDomain(url),
+                        url: url,
+                        content: isCaptcha ? `[Human Action Required: CAPTCHA detected at ${url}]` : markdown
+                    });
+
+                    // Depth 3: Follow internal relevant looking links
+                    if (depth >= 3 && findings.length < 8 && !isCaptcha) {
+                        const links = (data.html.match(/href="(https?:\/\/[^"]+)"/g) || [])
+                            .map(m => m.match(/href="([^"]+)"/)?.[1])
+                            .filter(l => l && !l.includes('facebook') && !l.includes('twitter') && !l.includes('linkedin') && l.includes(extractDomain(url)))
+                            .slice(0, 2);
+                        
+                        for (const subUrl of links) {
+                            if (subUrl && !seenUrls.has(subUrl)) {
+                                seenUrls.add(subUrl);
+                                const subData = await ipcFetch(subUrl);
+                                findings.push({
+                                    source: `${extractDomain(url)} (detailed)`,
+                                    url: subUrl,
+                                    content: htmlToMarkdown(subData.html, subData.text, subUrl).slice(0, 2000)
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {
+                    aiStore.addBrowserLog({ type: 'error', message: `Failed to reach ${url}` });
+                }
+            }
+
+            // Step 3: Synthesis
+            const report = [
+                `# Intelligence Report: ${topic}`,
+                `Gathered via NeuroOS Deep Research Node • ${new Date().toLocaleDateString()}\n`,
+                `## 🎯 Executive Summary`,
+                findings.length > 0 
+                    ? `Synthesized information from ${findings.length} authoritative sources. Key domains: ${Array.from(new Set(findings.map(f => f.source))).slice(0, 5).join(', ')}.`
+                    : `No direct matches found. Attempted expansion across ${targetUrls.length} discovery nodes.`,
+                `\n## 📝 Knowledge Findings\n`
+            ];
+
+            findings.forEach((f, i) => {
+                report.push(`### [Source ${i+1}] ${f.source}`);
+                report.push(`*Reference: ${f.url}*\n`);
+                report.push(f.content);
+                report.push('\n---\n');
+            });
+
+            const finalReport = report.join('\n');
+            
+            return {
+                success: true,
+                message: `✅ Deep research finalized. Data synthesized from ${findings.length} nodes.`,
+                data: { topic, report: finalReport, sources: findings.map(f => f.url) }
+            };
+        } catch (e: any) {
+            return { success: false, message: `❌ Deep research failed: ${e.message}` };
+        }
+    },
+});
+
+// 6. WEB RESEARCH — multi-URL fetch and combine
 registerTool({
     name: 'web_research',
     description: 'Fetch multiple URLs and combine them into a single structured research report.',

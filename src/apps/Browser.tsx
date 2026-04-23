@@ -319,7 +319,7 @@ export const BrowserApp: React.FC<BrowserProps> = ({ windowData }) => {
         } else {
             if (requestId) fail(`Unknown action: ${type}`);
         }
-    }, [windowData.lastAction]);
+    }, [windowData.lastAction, isWebviewReady, activeTabId]);
 
     const navigateTo = (tabId: string, url: string) => {
         const wv = webviewRefs.current[tabId];

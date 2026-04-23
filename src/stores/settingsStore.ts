@@ -204,30 +204,34 @@ export const useSettingsStore = create<SettingsState>()(
                 }
             })),
 
-            refreshProviderModels: async (providerId) => {
+            refreshProviderModels: async (providerId, overrideUrl) => {
                 const provider = get().aiConfig.providers.find(p => p.id === providerId);
                 if (!provider) return;
 
                 try {
                     if (provider.type === 'ollama') {
-                        const baseUrl = provider.baseUrl || 'http://localhost:11434';
+                        const baseUrl = (overrideUrl || provider.baseUrl || 'http://localhost:11434').replace(/\/$/, '');
                         const response = await fetch(`${baseUrl}/api/tags`);
                         const data = await response.json();
-                        if (data.models) {
+                        if (data && data.models) {
                             const modelNames = data.models.map((m: any) => m.name);
                             get().updateProvider(providerId, { models: modelNames });
+                            return { success: true, count: modelNames.length };
                         }
                     } else if (provider.type === 'lmstudio') {
-                        const baseUrl = provider.baseUrl || 'http://localhost:1234/v1';
+                        const baseUrl = (overrideUrl || provider.baseUrl || 'http://localhost:1234/v1').replace(/\/$/, '');
                         const response = await fetch(`${baseUrl}/models`);
                         const data = await response.json();
-                        if (data.data) {
+                        if (data && data.data) {
                             const modelNames = data.data.map((m: any) => m.id);
                             get().updateProvider(providerId, { models: modelNames });
+                            return { success: true, count: modelNames.length };
                         }
                     }
-                } catch (error) {
+                    return { success: false, error: 'Malformed response' };
+                } catch (error: any) {
                     console.error(`Failed to refresh models for ${providerId}:`, error);
+                    return { success: false, error: error.message };
                 }
             },
 

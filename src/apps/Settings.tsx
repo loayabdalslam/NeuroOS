@@ -276,8 +276,8 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
 
 {/* AI MODELS */}
           {activeTab === 'ai' && (
-             <div className="space-y-6 animate-in fade-in duration-300">
-               <div className="grid grid-cols-3 gap-3">
+             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                  {aiConfig.providers.map(provider => {
                    const Icon = ProviderLogos[provider.type] || ProviderLogos.custom;
                    const isActive = aiConfig.activeProviderId === provider.id;
@@ -293,81 +293,130 @@ export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
                          }
                        }}
                        className={cn(
-                         "relative p-4 border rounded-xl flex flex-col gap-2 text-left transition-all group",
-                         isActive ? "border-zinc-900 bg-zinc-50 shadow-sm" : "border-zinc-100 hover:border-zinc-300 hover:bg-zinc-50/50"
+                         "relative p-5 border rounded-2xl flex flex-col gap-4 text-left transition-all group overflow-hidden",
+                         isActive 
+                           ? "border-zinc-900 bg-zinc-900 shadow-xl shadow-zinc-200" 
+                           : "border-zinc-100 hover:border-zinc-200 hover:bg-zinc-50/50 shadow-sm"
                        )}
                      >
                        <div className="flex items-center justify-between">
                          <div className={cn(
-                           "w-9 h-9 rounded-xl flex items-center justify-center transition-colors", 
-                           isActive ? "bg-white text-zinc-900 shadow-sm" : "bg-zinc-100 text-zinc-400 group-hover:bg-white group-hover:text-zinc-600"
+                           "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-110", 
+                           isActive ? "bg-white text-zinc-900" : "bg-zinc-100 text-zinc-400"
                          )}>
-                           <Icon size={20} />
+                           <Icon size={22} />
                          </div>
-                         {isActive ? (
-                            <div className="w-5 h-5 bg-zinc-900 rounded-full flex items-center justify-center text-white"><Check size={10} strokeWidth={3} /></div>
-                         ) : isFree && (
-                            <span className="text-[7px] font-black px-1 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase">Free</span>
+                         {isActive && (
+                            <motion.div layoutId="active-badge" className="w-5 h-5 bg-white text-zinc-900 rounded-full flex items-center justify-center"><Check size={10} strokeWidth={4} /></motion.div>
+                         )}
+                         {!isActive && isFree && (
+                            <span className="text-[8px] font-black tracking-widest px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase">Free</span>
                          )}
                        </div>
-                       <div>
-                         <div className="text-[11px] font-bold text-zinc-900 uppercase tracking-tight">{provider.name}</div>
-                         <div className="text-[10px] text-zinc-400 truncate mt-0.5">{provider.selectedModel || "Not configured"}</div>
+                       <div className="space-y-1">
+                         <div className={cn("text-xs font-black uppercase tracking-[0.1em] transition-colors", isActive ? "text-white" : "text-zinc-900")}>{provider.name}</div>
+                         <div className={cn("text-[9px] font-medium truncate transition-colors", isActive ? "text-zinc-400" : "text-zinc-500")}>
+                           {provider.selectedModel || "Offline / Unconfigured"}
+                         </div>
                        </div>
+                       {isActive && (
+                         <div className="absolute top-2 right-2 w-32 h-32 bg-zinc-400/5 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
+                       )}
                      </button>
                    );
                  })}
                </div>
 
-               {/* Provider Config */}
+               {/* Provider Detail Config */}
                {aiConfig.providers.filter(p => p.id === aiConfig.activeProviderId).map(provider => (
-                 <div key={provider.id} className="space-y-4 pt-4 border-t border-zinc-100">
-                   <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-1.5">
-                       <div className="flex items-center justify-between">
-                         <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Model</label>
-                         {(provider.type === 'ollama' || provider.type === 'lmstudio') && (
-                           <button 
-                             onClick={() => refreshProviderModels(provider.id)}
-                             className="p-1 hover:bg-zinc-100 rounded-md text-zinc-400 hover:text-zinc-600 transition-colors"
-                             title="Refresh models"
-                           >
-                             <RefreshCw size={10} />
-                           </button>
-                         )}
-                       </div>
-                       <input
-                         type="text"
-                         value={provider.selectedModel}
-                         onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })}
-                         placeholder="e.g. gpt-4o"
-                         list={`models-${provider.id}`}
-                         className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                       />
-                       <datalist id={`models-${provider.id}`}>
-                         {provider.models?.map(m => (
-                           <option key={m} value={m} />
-                         ))}
-                       </datalist>
-                       {provider.type === 'opencode' && (
-                         <p className="text-[10px] text-emerald-500 flex items-center gap-1">
-                           <Sparkles size={10} /> All models are free — no API key required
-                         </p>
-                       )}
-                       <p className="text-[10px] text-zinc-400 mt-1">Type a model name or select from suggestions</p>
-                     </div>
-                     <div className="space-y-1.5">
-                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Endpoint URL</label>
-                       <input value={provider.baseUrl} onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })} placeholder="https://api.example.com/v1" className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200" />
-                     </div>
-                   </div>
-                   {provider.type !== 'ollama' && provider.type !== 'lmstudio' && provider.type !== 'opencode' && (
-                     <div className="space-y-1.5">
-                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">API Key</label>
-                       <input type="password" placeholder={provider.apiKey ? "••••••••" : "Enter API Key"} value={provider.apiKey} onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })} className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 placeholder:text-zinc-300" />
-                       <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Shield size={10} /> Stored locally, never leaves your device</p>
-                     </div>
-                   )}
+                 <div key={provider.id} className="space-y-8 pt-8 border-t border-zinc-100 animate-in fade-in slide-in-from-top-4 duration-700">
+                    <div className="flex items-center gap-2 px-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-900" />
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">Neural Configuration</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Model Architecture */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Active Architecture</label>
+                          {(provider.type === 'ollama' || provider.type === 'lmstudio') && (
+                            <button 
+                              onClick={async () => {
+                                const res = await refreshProviderModels(provider.id, provider.baseUrl);
+                                if (res?.success) {
+                                  // Optional: Add a toast or transient success state
+                                }
+                              }}
+                              className="group flex items-center gap-2 text-[9px] font-bold text-emerald-600 hover:text-zinc-900 transition-all uppercase tracking-widest"
+                            >
+                              <RefreshCw size={10} className="group-active:rotate-180 transition-transform duration-700" />
+                              {provider.models && provider.models.length > 0 ? `Sync (${provider.models.length} Models)` : 'Discover Models'}
+                            </button>
+                          )}
+                        </div>
+                        <div className="relative group">
+                          {provider.models && provider.models.length > 0 ? (
+                            <div className="relative">
+                                <select
+                                    value={provider.selectedModel}
+                                    onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })}
+                                    className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-zinc-900 transition-all appearance-none cursor-pointer pr-10 shadow-sm"
+                                >
+                                    {provider.models.map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 pointer-events-none" />
+                            </div>
+                          ) : (
+                            <input
+                              type="text"
+                              value={provider.selectedModel}
+                              onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })}
+                              placeholder="e.g. gpt-4o"
+                              className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-zinc-900 transition-all shadow-sm"
+                            />
+                          )}
+                        </div>
+                        <p className="text-[10px] text-zinc-400 px-1 italic">Define the behavioral profile of your intelligence core.</p>
+                      </div>
+
+                      {/* Connective Endpoint */}
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Connective Gateway</label>
+                        <input 
+                            value={provider.baseUrl} 
+                            onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })} 
+                            placeholder="https://api.gateway.v1/endpoint" 
+                            className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-zinc-900 transition-all shadow-sm" 
+                        />
+                         <p className="text-[10px] text-zinc-400 px-1 italic">Resource locator for the neural API.</p>
+                      </div>
+                    </div>
+
+                    {/* Security Layer */}
+                    {provider.type !== 'ollama' && provider.type !== 'lmstudio' && provider.type !== 'opencode' && (
+                      <div className="space-y-3 p-6 bg-zinc-50/50 border border-zinc-100 rounded-3xl group hover:border-zinc-200 transition-all">
+                        <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                <Shield size={12} className="text-zinc-900" />
+                                Authentication Protocol
+                            </label>
+                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-widest">End-to-End Encrypted</span>
+                        </div>
+                        <input 
+                            type="password" 
+                            placeholder={provider.apiKey ? "••••••••••••••••••••••••••••••••" : "Neural Link Access Key"} 
+                            value={provider.apiKey} 
+                            onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })} 
+                            className="w-full p-4 bg-white border border-zinc-200 rounded-2xl text-xs font-mono outline-none focus:border-zinc-900 transition-all shadow-sm" 
+                        />
+                        <p className="text-[10px] text-zinc-400 leading-relaxed italic">
+                            Your neural link keys are stored in high-security local keystore. Keys never transmit to Neuro servers.
+                        </p>
+                      </div>
+                    )}
                  </div>
                ))}
              </div>

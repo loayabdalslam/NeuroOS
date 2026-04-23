@@ -199,134 +199,155 @@ export const OnboardingFlow: React.FC = () => {
 
                         {/* AI Provider */}
                         {currentStep === 4 && (
-                            <div className="space-y-6">
-                                <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-2">
-                                    <div className="flex items-center gap-2 text-zinc-900">
-                                        <Bot size={14} />
-                                        <span className="text-[11px] font-bold uppercase tracking-wider">Intelligence Core</span>
+                            <div className="space-y-8">
+                                <div className="relative group">
+                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 to-zinc-100 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                                    <div className="relative p-5 bg-white rounded-2xl border border-zinc-100 flex items-start gap-4 shadow-sm">
+                                        <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center shrink-0">
+                                            <Bot size={20} className="text-white" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h3 className="text-sm font-semibold text-zinc-900">Intelligence Core</h3>
+                                            <p className="text-[11px] text-zinc-500 leading-relaxed">
+                                                Select your primary neural engine. <span className="font-semibold text-emerald-600">OpenCode</span> and local instances are zero-cost. Enterprise APIs require a key.
+                                            </p>
+                                        </div>
                                     </div>
-                                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                                        Choose your primary AI brain. <strong>OpenCode</strong> and <strong>Local</strong> models are free. Flagship providers require an API key.
-                                    </p>
                                 </div>
+                                <div className="space-y-5">
+                                    <div className="space-y-2">
+                                        <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Core Provider</label>
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setProviderDropdownOpen(!providerDropdownOpen)}
+                                                className="w-full p-4 bg-zinc-50/50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-zinc-900/5 focus:border-zinc-900 transition-all text-zinc-700 flex items-center justify-between text-left shadow-sm group"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {currentProvider && (() => {
+                                                        const Icon = ProviderLogos[currentProvider.type] || ProviderLogos.custom;
+                                                        return (
+                                                            <div className="w-8 h-8 rounded-lg bg-white shadow-sm border border-zinc-100 flex items-center justify-center">
+                                                                <Icon size={18} className="text-zinc-900" />
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                    <div>
+                                                        <span className="text-sm font-semibold">{currentProvider?.name || 'Select Provider'}</span>
+                                                        {['opencode', 'ollama', 'lmstudio'].includes(currentProvider?.type || '') && (
+                                                            <span className="ml-2 text-[7px] font-black tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">FREE</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <ChevronDown size={14} className={cn("text-zinc-300 transition-transform duration-500", providerDropdownOpen && "rotate-180")} />
+                                            </button>
 
-                                {/* Custom Provider Dropdown */}
-                                <div className="space-y-1">
-                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">AI PROVIDER</label>
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setProviderDropdownOpen(!providerDropdownOpen)}
-                                            className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700 flex items-center justify-between text-left shadow-sm hover:shadow-md"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                {currentProvider && (() => {
-                                                    const Icon = ProviderLogos[currentProvider.type] || ProviderLogos.custom;
-                                                    return <Icon size={20} className="text-zinc-900" />;
-                                                })()}
-                                                <div>
-                                                    <span className="text-sm font-medium">{currentProvider?.name || 'Select Provider'}</span>
-                                                    {['opencode', 'ollama', 'lmstudio'].includes(currentProvider?.type || '') && (
-                                                        <span className="ml-2 text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">FREE</span>
-                                                    )}
+                                            {providerDropdownOpen && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, scale: 0.98, y: -4 }} 
+                                                    animate={{ opacity: 1, scale: 1, y: 0 }} 
+                                                    className="absolute top-full left-0 right-0 mt-3 bg-white/80 backdrop-blur-xl border border-zinc-200/50 rounded-2xl shadow-2xl z-[100] overflow-hidden max-h-[320px] overflow-y-auto p-1.5"
+                                                >
+                                                    {providers.map(p => {
+                                                        const Icon = ProviderLogos[p.type] || ProviderLogos.custom;
+                                                        const isFree = ['opencode', 'ollama', 'lmstudio'].includes(p.type);
+                                                        const isSelected = selectedProviderId === p.id;
+                                                        return (
+                                                            <button
+                                                                key={p.id}
+                                                                onClick={() => { 
+                                                                    setSelectedProviderId(p.id); 
+                                                                    setProviderDropdownOpen(false);
+                                                                    if (p.type === 'ollama' || p.type === 'lmstudio') {
+                                                                        refreshProviderModels(p.id);
+                                                                    }
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full px-3 py-2.5 flex items-center gap-3 rounded-xl transition-all text-left",
+                                                                    isSelected ? "bg-zinc-900 text-white" : "hover:bg-zinc-50"
+                                                                )}
+                                                            >
+                                                                <div className={cn(
+                                                                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                                                                    isSelected ? "bg-white/10" : "bg-zinc-100"
+                                                                )}>
+                                                                    <Icon size={16} />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-xs font-bold truncate">{p.name}</span>
+                                                                        {isFree && <span className={cn("text-[6px] font-black px-1.5 py-0.5 rounded-full", isSelected ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-50 text-emerald-600")}>FREE</span>}
+                                                                    </div>
+                                                                </div>
+                                                                {isSelected && <Check size={12} className="text-white" />}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </motion.div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* API Key or Base URL Container */}
+                                    <div className="space-y-4">
+                                        {currentProvider && !['ollama', 'lmstudio', 'opencode'].includes(currentProvider.type) && (
+                                            <div className="space-y-2">
+                                                <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Access Key</label>
+                                                <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} className="w-full p-4 bg-zinc-50/50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all font-mono text-[10px] text-zinc-900 placeholder:text-zinc-300" placeholder="••••••••••••••••" />
+                                            </div>
+                                        )}
+
+                                        {currentProvider && ['ollama', 'lmstudio'].includes(currentProvider.type) && (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between ml-1">
+                                                     <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Instance URL</label>
+                                                     {['ollama', 'lmstudio'].includes(currentProvider.type) && (
+                                                         <button 
+                                                             onClick={() => refreshProviderModels(currentProvider.id, baseUrl)}
+                                                             className="text-[8px] font-bold text-zinc-400 hover:text-emerald-500 transition-colors uppercase tracking-[0.1em]"
+                                                         >
+                                                             Confirm URL & Sync
+                                                         </button>
+                                                     )}
+                                                 </div>
+                                                 <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} className="w-full p-4 bg-zinc-50/50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-sm font-medium text-zinc-900" placeholder="http://localhost:11434" />
+                                             </div>
+                                         )}
+
+                                         {/* Model Selection */}
+                                         {currentProvider && currentProvider.models && currentProvider.models.length > 0 && (
+                                             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-500">
+                                                 <div className="flex items-center justify-between ml-1">
+                                                     <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em]">Neural Architecture</label>
+                                                     {['ollama', 'lmstudio'].includes(currentProvider.type) && (
+                                                         <button 
+                                                             onClick={() => refreshProviderModels(currentProvider.id, baseUrl)}
+                                                             className="text-[9px] font-bold text-zinc-400 hover:text-zinc-900 transition-colors uppercase tracking-widest flex items-center gap-1"
+                                                         >
+                                                             Sync Models
+                                                         </button>
+                                                     )}
+                                                 </div>
+                                                <div className="relative">
+                                                    <select
+                                                        value={customModel || selectedModel}
+                                                        onChange={e => { setCustomModel(''); setSelectedModel(e.target.value); }}
+                                                        className="w-full p-4 bg-zinc-50/50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-sm font-medium text-zinc-700 appearance-none cursor-pointer pr-10 shadow-sm"
+                                                    >
+                                                        {currentProvider.models.map(m => (
+                                                            <option key={m} value={m}>{m}</option>
+                                                        ))}
+                                                    </select>
+                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-300">
+                                                        <ChevronDown size={14} />
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <ChevronDown size={16} className={cn("text-zinc-400 transition-transform duration-300", providerDropdownOpen && "rotate-180")} />
-                                        </button>
-
-                                        {providerDropdownOpen && (
-                                            <motion.div 
-                                                initial={{ opacity: 0, scale: 0.95, y: -10 }} 
-                                                animate={{ opacity: 1, scale: 1, y: 0 }} 
-                                                className="absolute top-full left-0 right-0 mt-2 bg-white border border-zinc-200 rounded-2xl shadow-2xl z-[100] overflow-hidden max-h-[320px] overflow-y-auto p-1.5"
-                                            >
-                                                {providers.map(p => {
-                                                    const Icon = ProviderLogos[p.type] || ProviderLogos.custom;
-                                                    const isFree = ['opencode', 'ollama', 'lmstudio'].includes(p.type);
-                                                    return (
-                                                        <button
-                                                            key={p.id}
-                                                            onClick={() => { 
-                                                                setSelectedProviderId(p.id); 
-                                                                setProviderDropdownOpen(false);
-                                                                if (p.type === 'ollama' || p.type === 'lmstudio') {
-                                                                    refreshProviderModels(p.id);
-                                                                }
-                                                            }}
-                                                            className={cn(
-                                                                "w-full px-3 py-2.5 flex items-center gap-3 rounded-xl transition-all text-left group",
-                                                                selectedProviderId === p.id ? "bg-zinc-900 text-white" : "hover:bg-zinc-50"
-                                                            )}
-                                                        >
-                                                            <div className={cn(
-                                                                "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
-                                                                selectedProviderId === p.id ? "bg-white/10" : "bg-zinc-100 group-hover:bg-white text-zinc-500 group-hover:text-zinc-900"
-                                                            )}>
-                                                                <Icon size={18} />
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-sm font-medium truncate">{p.name}</span>
-                                                                    {isFree && <span className={cn("text-[7px] font-black px-1 py-0.5 rounded", selectedProviderId === p.id ? "bg-emerald-500 text-white" : "bg-emerald-50 text-emerald-600")}>FREE</span>}
-                                                                </div>
-                                                                <div className={cn("text-[9px] truncate", selectedProviderId === p.id ? "text-zinc-400" : "text-zinc-400")}>
-                                                                    {p.type === 'ollama' || p.type === 'lmstudio' ? 'Local Instance' : p.baseUrl?.replace('https://', '')}
-                                                                </div>
-                                                            </div>
-                                                            {selectedProviderId === p.id && <Check size={14} className="text-emerald-400" />}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </motion.div>
                                         )}
                                     </div>
                                 </div>
-
-                                {/* API Key - hidden for opencode */}
-                                {currentProvider && !['ollama', 'lmstudio', 'opencode'].includes(currentProvider.type) && (
-                                    <div className="space-y-2">
-                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">API Key</label>
-                                        <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all font-mono text-xs text-zinc-600 placeholder:text-zinc-200" placeholder="sk-..." />
-                                    </div>
-                                )}
-
-                                {/* OpenCode free tier info */}
-                                {currentProvider?.type === 'opencode' && (
-                                    <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-                                        <p className="text-[11px] text-emerald-700 font-medium">Free tier — no API key needed</p>
-                                        <p className="text-[10px] text-emerald-500 mt-0.5">All OpenCode models are free to use</p>
-                                    </div>
-                                )}
-
-                                {/* Model selector for providers with models */}
-                                {currentProvider && currentProvider.models && currentProvider.models.length > 0 && (
-                                    <div className="space-y-2">
-                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Model</label>
-                                        <div className="relative">
-                                            <select
-                                                value={customModel || selectedModel}
-                                                onChange={e => { setCustomModel(''); setSelectedModel(e.target.value); }}
-                                                className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700 appearance-none cursor-pointer pr-10"
-                                            >
-                                                {currentProvider.models.map(m => (
-                                                    <option key={m} value={m}>{m}</option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Local provider */}
-                                {currentProvider && ['ollama', 'lmstudio'].includes(currentProvider.type) && (
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Base URL</label>
-                                            <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all text-zinc-700" placeholder="http://localhost:11434" />
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         )}
+ )}
                     </div>
 
                     <div className="flex flex-col items-center gap-6">
