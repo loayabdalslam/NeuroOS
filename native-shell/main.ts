@@ -592,6 +592,20 @@ app.on('ready', () => {
             throw error;
         }
     });
+
+    // ─── Generic API proxy (POST/GET/etc with headers & body) ───
+    ipcMain.handle('api:proxy', async (_: any, opts: { url: string; method?: string; headers?: Record<string, string>; body?: string }) => {
+        const response = await fetch(opts.url, {
+            method: opts.method || 'GET',
+            headers: opts.headers || {},
+            body: opts.body || undefined,
+        });
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await response.json()
+            : await response.text();
+        return { status: response.status, ok: response.ok, data };
+    });
 });
 
 // Allow certificate errors only in development mode

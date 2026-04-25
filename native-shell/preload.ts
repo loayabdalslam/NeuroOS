@@ -78,6 +78,10 @@ contextBridge.exposeInMainWorld('electron', {
     // Proxy Request
     proxyRequest: (url: string) => ipcRenderer.invoke('proxy-request', url),
 
+    // Generic API proxy (bypasses CORS for external API calls)
+    apiProxy: (opts: { url: string; method?: string; headers?: Record<string, string>; body?: string }) =>
+        ipcRenderer.invoke('api:proxy', opts),
+
     // Auto-Updater
     updates: {
         check: () => ipcRenderer.invoke('update:check'),
