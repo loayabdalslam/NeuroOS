@@ -6,8 +6,6 @@
 
 import { Composio, ComposioToolSet } from 'composio-core';
 
-const COMPOSIO_BASE = 'https://backend.composio.dev';
-
 interface ComposioTool {
     id: string;
     name: string;
@@ -148,58 +146,34 @@ class ComposioClient {
     // ─── Connection Flow ─────────────────────────────────────────
 
     async initiateConnection(appId: string): Promise<{ redirectUrl: string; connectionId?: string }> {
-        if (!this.apiKey) throw new Error('Composio API key not set. Add your key in Integrations settings.');
+        if (!this.sdk) throw new Error('Composio SDK not initialized. Set your API key first.');
 
-        const entityId = this.userId || this.getStableEntityId();
+        const entity = this.sdk.getEntity(this.userId || this.getStableEntityId());
 
-        // Call the v2 API directly to set useComposioAuth: true
-        // The SDK has a bug where it sets useComposioAuth: false when authMode/authConfig aren't passed,
-        // which breaks OAuth apps like Gmail that need Composio's managed credentials.
-        const resp = await fetch(`${COMPOSIO_BASE}/api/v2/connectedAccounts/initiateConnection`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-KEY': this.apiKey,
-            },
-            body: JSON.stringify({
-                app: { uniqueKey: appId },
-                config: {
-                    name: appId,
-                    useComposioAuth: true,
-                },
-                connection: {
-                    entityId,
-                    initiateData: {},
-                    extra: { redirectURL: '', labels: [] },
-                },
-            }),
-        });
-
-        if (!resp.ok) {
-            let detail = '';
-            try {
-                const err = await resp.json();
-                detail = err?.message || err?.error || JSON.stringify(err);
-            } catch {
-                detail = resp.statusText;
+        // Pass authMode + authConfig so the SDK sets useComposioAuth: true in the v2 API body.
+        // Without these, the SDK sends useComposioAuth: false which breaks OAuth apps
+        // like Gmail that need Composio's managed credentials.
+        let connReq;
+        try {
+            connReq = await entity.initiateConnection({
+                appName: appId,
+                authMode: 'OAUTH2' as any,
+                authConfig: {},
+            });
+        } catch (e: any) {
+            const msg = e?.message || String(e);
+            if (msg.includes('integration not found') || msg.includes('No integration found')) {
+                throw new Error(`No integration found for "${appId}". Configure it in your Composio dashboard first.`);
             }
-            throw new Error(`Composio connection failed (${resp.status}): ${detail}`);
+            throw new Error(`Connection failed for ${appId}: ${msg}`);
         }
 
-        const data = await resp.json();
-        const connResp = data?.connectionResponse || data;
-        const redirectUrl = connResp?.redirectUrl || connResp?.redirectUri;
-        const connectionId = connResp?.connectedAccountId;
-
+        const redirectUrl = connReq.redirectUrl;
         if (!redirectUrl) {
-            if (connResp?.connectionStatus === 'ACTIVE' || connResp?.connectionStatus === 'CONNECTED') {
-                await this.getConnections();
-                throw new Error(`${appId} is already connected! Refresh the page to see it.`);
-            }
             throw new Error(`${appId} returned no auth URL. It may need manual setup in your Composio dashboard.`);
         }
 
-        return { redirectUrl, connectionId };
+        return { redirectUrl, connectionId: connReq.connectedAccountId };
     }
 
     async getAuthUrl(appId: string): Promise<string> {
