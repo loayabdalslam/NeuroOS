@@ -60,11 +60,12 @@ export const useComposioStore = create<ComposioState>()(
                         await get().loadApps();
                         await get().loadTools();
                     } else {
-                        set({ error: 'Invalid API key' });
+                        set({ error: 'Could not initialize Composio SDK. Check your API key.' });
                     }
                     return success;
                 } catch (error: any) {
-                    set({ error: error.message || 'Authentication failed' });
+                    const msg = error.message || String(error);
+                    set({ error: msg.length > 120 ? msg.slice(0, 117) + '...' : msg });
                     return false;
                 } finally {
                     set({ isLoading: false });

@@ -212,9 +212,46 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
 
     addB('thought', 'Analyzing your request...');
 
+    const connectedApps = useComposioStore.getState().connections
+        .filter(c => c.status === 'connected')
+        .map(c => c.appId);
+    const connectedList = connectedApps.length > 0
+        ? connectedApps.join(', ')
+        : 'none';
+
     const sysPrompt = `You are Neuro AI. You are a helpful assistant that uses tools to complete tasks.
 
-═══ IMPORTANT RULES ═══
+═══ #1 RULE — INTEGRATIONS FIRST ═══
+You have direct access to connected business integrations (Gmail, Slack, GitHub, Notion, Google Sheets, Calendar, HubSpot, etc.) via Composio tools.
+
+CRITICAL: When the user asks about email, messages, calendar, contacts, repos, spreadsheets, or any service that has an integration — ALWAYS use the matching business/composio tool. NEVER open the browser for these tasks.
+
+Currently connected integrations: [${connectedList}]
+
+Integration routing — use these tools, NOT the browser:
+• Email (read, send, search) → read_emails, send_email, search_emails
+• Slack (messages, channels) → send_slack_message, list_slack_channels, read_slack_messages
+• GitHub (repos, issues, PRs) → list_github_repos, create_github_issue, list_github_prs, review_github_pr
+• Notion (pages, search) → create_notion_page, search_notion, update_notion_page
+• Google Sheets → read_spreadsheet, write_spreadsheet, create_spreadsheet
+• Calendar (events) → list_calendar_events, create_calendar_event
+• Contacts/CRM → list_contacts, create_contact, search_contacts
+• Connect new service → connect_integration(app_name)
+• List available integrations → composio_list_apps
+• Check connections → composio_list_connections
+
+If a service is not connected yet, use connect_integration to start the connection flow — do NOT open the browser to the service website.
+
+═══ WHEN TO USE BROWSER ═══
+Only use browser tools (browser_navigate, search_web, web_fetch, etc.) for:
+- General web searches for information
+- Visiting websites that have NO integration available
+- Scraping/reading public web pages
+- Research tasks that need live web data
+
+NEVER use the browser for: checking email, reading Slack, viewing GitHub repos, or any action available through an integration tool.
+
+═══ RESPONSE RULES ═══
 1. After using ANY tool, you MUST write a detailed response explaining what you found
 2. NEVER just call tools and stop - ALWAYS write your findings
 3. Format links as: [Title](URL) - use the actual page title
@@ -225,14 +262,6 @@ After calling tools, write your response like this:
 - Explain what you did
 - List findings with proper link titles
 - Provide summary
-
-Example:
-"I searched for [topic]. Here's what I found:
-
-1. [Article Title](https://example.com/article) - Summary of the article
-2. [Another Title](https://other.com/page) - What this covers
-
-Summary: [conclusion]"
 
 ═══ TOOLS ═══
 ${toolsP}
@@ -338,18 +367,40 @@ TOOL CALL FORMAT:
           }
 
           if (!result.success) {
-            for (const fb of getFallbacks(tc.tool, tc.args)) {
-              addB('thought', `Primary ${tc.tool} failed, trying fallback: ${fb.tool}`, undefined, fb.tool);
-              // Small delay before fallback
-              await new Promise(r => setTimeout(r, 1000));
-              try { 
-                result = await executeTool(fb, getCtx()); 
-                if (result.success) { 
-                  usedFB = true; 
-                  addB('tool_result', `Fallback ${fb.tool} succeeded`, result.message?.slice(0, 300), fb.tool); 
-                  break; 
-                } 
+            // If an integration tool failed because the app isn't connected, auto-trigger connection and retry
+            if (result.data?.action === 'connect_integration' && result.data?.appId) {
+              addB('thought', `${tc.tool} needs ${result.data.appId} connected. Auto-connecting...`);
+              try {
+                const connectResult = await executeTool(
+                  { tool: 'connect_integration', args: { app_name: result.data.appId }, rawMatch: '' },
+                  getCtx()
+                );
+                if (connectResult.success && connectResult.message?.includes('now connected')) {
+                  addB('tool_result', `${result.data.appId} connected! Retrying ${tc.tool}...`, connectResult.message?.slice(0, 300), 'connect_integration');
+                  try {
+                    result = await executeTool(tc, getCtx());
+                    if (result.success) usedFB = true;
+                  } catch {}
+                } else {
+                  addB('tool_result', `Connection flow started for ${result.data.appId}`, connectResult.message?.slice(0, 300), 'connect_integration');
+                  result = { success: false, message: `${result.data.appId} connection flow started. ${connectResult.message}` };
+                }
               } catch {}
+            }
+
+            if (!result.success) {
+              for (const fb of getFallbacks(tc.tool, tc.args)) {
+                addB('thought', `Primary ${tc.tool} failed, trying fallback: ${fb.tool}`, undefined, fb.tool);
+                await new Promise(r => setTimeout(r, 1000));
+                try {
+                  result = await executeTool(fb, getCtx());
+                  if (result.success) {
+                    usedFB = true;
+                    addB('tool_result', `Fallback ${fb.tool} succeeded`, result.message?.slice(0, 300), fb.tool);
+                    break;
+                  }
+                } catch {}
+              }
             }
           }
 
@@ -364,7 +415,11 @@ TOOL CALL FORMAT:
             done.push({ tool: tc.tool, success: false, message: result.message?.slice(0, 200) || 'failed' });
           }
 
-          llmMsgs.push({ role: 'user', content: result.success ? `Tool ${tc.tool} succeeded: ${result.message}` : `Tool ${tc.tool} failed: ${result.message}\n\nPlease try a more creative or deep search strategy.` });
+          const isBizTool = ['send_email','read_emails','search_emails','send_slack_message','list_slack_channels','read_slack_messages','list_github_repos','create_github_issue','list_github_prs','review_github_pr','create_notion_page','search_notion','update_notion_page','read_spreadsheet','write_spreadsheet','create_spreadsheet','list_contacts','create_contact','search_contacts','list_calendar_events','create_calendar_event'].includes(tc.tool);
+          const failHint = isBizTool
+            ? `Tool ${tc.tool} failed: ${result.message}\n\nDo NOT fall back to the browser. If the integration is not connected, tell the user to complete the connection flow. Then retry the integration tool.`
+            : `Tool ${tc.tool} failed: ${result.message}\n\nPlease try a more creative or deep search strategy.`;
+          llmMsgs.push({ role: 'user', content: result.success ? `Tool ${tc.tool} succeeded: ${result.message}` : failHint });
           upd();
         }
         full = '';

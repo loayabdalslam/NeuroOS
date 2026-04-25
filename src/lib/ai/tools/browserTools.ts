@@ -226,7 +226,7 @@ async function notifyCaptchaNeeded(url: string): Promise<void> {
 // 1. NAVIGATE AND WAIT — opens page and waits for load
 registerTool({
     name: 'browser_navigate',
-    description: 'Navigate the browser to a URL and wait for the page to finish loading. Always call this before scraping or interacting.',
+    description: 'Navigate the browser to a URL. DO NOT use this for Gmail, Slack, GitHub, Notion, Google Sheets, Calendar, or HubSpot — use the matching integration tool instead. Only use for general web browsing.',
     category: 'browser',
     parameters: {
         url: { type: 'string', description: 'Full URL (must start with http:// or https://)', required: true },
@@ -359,7 +359,7 @@ registerTool({
 // 4. SEARCH WEB — Smart web search with auto-content extraction
 registerTool({
     name: 'search_web',
-    description: 'Search the web using the live agentic browser for real-time results. Automatically falls back to headless APIs if needed.',
+    description: 'Search the web for general information. DO NOT use for email, Slack, GitHub, calendar, or any integrated service — use integration tools instead. For general research and finding information online.',
     category: 'browser',
     parameters: {
         query: { type: 'string', description: 'What to search for', required: true },

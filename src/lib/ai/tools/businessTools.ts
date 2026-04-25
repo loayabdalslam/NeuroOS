@@ -33,7 +33,7 @@ async function execComposio(actionId: string, params: Record<string, any>, appId
 
 registerTool({
     name: 'send_email',
-    description: 'Send an email via Gmail. Supports to, cc, bcc, subject, and body.',
+    description: 'Send an email via Gmail integration (NOT browser). Use for: "send email", "email someone", "write an email", "compose email". Supports to, cc, bcc, subject, and body.',
     category: 'business',
     parameters: {
         to: { type: 'string', description: 'Recipient email address', required: true },
@@ -58,7 +58,7 @@ registerTool({
 
 registerTool({
     name: 'read_emails',
-    description: 'Read recent emails from Gmail inbox or a specific folder.',
+    description: 'Read recent emails from Gmail integration (NOT browser). Use for: "get latest email", "check email", "read inbox", "show my emails", "any new emails".',
     category: 'business',
     parameters: {
         count: { type: 'string', description: 'Number of emails to fetch (default 10)', required: false },
@@ -87,7 +87,7 @@ registerTool({
 
 registerTool({
     name: 'search_emails',
-    description: 'Search Gmail emails by query (e.g. "from:alice subject:report").',
+    description: 'Search Gmail emails via integration (NOT browser). Use for: "find email from X", "search emails about Y", "email from alice".',
     category: 'business',
     parameters: {
         query: { type: 'string', description: 'Gmail search query', required: true },
@@ -112,7 +112,7 @@ registerTool({
 
 registerTool({
     name: 'send_slack_message',
-    description: 'Send a message to a Slack channel or DM.',
+    description: 'Send a Slack message via integration (NOT browser). Use for: "send slack message", "message on slack", "post to #channel", "DM someone on slack".',
     category: 'business',
     parameters: {
         channel: { type: 'string', description: 'Channel name (e.g. #general) or user ID for DM', required: true },
@@ -133,7 +133,7 @@ registerTool({
 
 registerTool({
     name: 'list_slack_channels',
-    description: 'List available Slack channels.',
+    description: 'List Slack channels via integration (NOT browser). Use for: "show slack channels", "what channels are there".',
     category: 'business',
     parameters: {},
     handler: async (): Promise<ToolResult> => {
@@ -154,7 +154,7 @@ registerTool({
 
 registerTool({
     name: 'read_slack_messages',
-    description: 'Read recent messages from a Slack channel.',
+    description: 'Read Slack messages via integration (NOT browser). Use for: "read slack messages", "what are people saying in #general", "check slack".',
     category: 'business',
     parameters: {
         channel: { type: 'string', description: 'Channel name (e.g. general)', required: true },
@@ -183,7 +183,7 @@ registerTool({
 
 registerTool({
     name: 'read_spreadsheet',
-    description: 'Read data from a Google Sheets spreadsheet.',
+    description: 'Read Google Sheets data via integration (NOT browser). Use for: "read spreadsheet", "get sheet data", "show spreadsheet".',
     category: 'business',
     parameters: {
         spreadsheet_id: { type: 'string', description: 'Spreadsheet ID (from the URL)', required: true },
@@ -206,7 +206,7 @@ registerTool({
 
 registerTool({
     name: 'write_spreadsheet',
-    description: 'Write data to a Google Sheets spreadsheet.',
+    description: 'Write to Google Sheets via integration (NOT browser). Use for: "update spreadsheet", "write to sheet", "add data to spreadsheet".',
     category: 'business',
     parameters: {
         spreadsheet_id: { type: 'string', description: 'Spreadsheet ID', required: true },
@@ -231,7 +231,7 @@ registerTool({
 
 registerTool({
     name: 'create_spreadsheet',
-    description: 'Create a new Google Sheets spreadsheet.',
+    description: 'Create a Google Sheets spreadsheet via integration (NOT browser). Use for: "create spreadsheet", "new google sheet".',
     category: 'business',
     parameters: {
         title: { type: 'string', description: 'Spreadsheet title', required: true },
@@ -249,7 +249,7 @@ registerTool({
 
 registerTool({
     name: 'create_notion_page',
-    description: 'Create a new page in Notion. Optionally specify a database ID.',
+    description: 'Create a Notion page via integration (NOT browser). Use for: "create notion page", "add to notion", "write in notion".',
     category: 'business',
     parameters: {
         title: { type: 'string', description: 'Page title', required: true },
@@ -271,7 +271,7 @@ registerTool({
 
 registerTool({
     name: 'search_notion',
-    description: 'Search Notion pages and databases by query.',
+    description: 'Search Notion via integration (NOT browser). Use for: "search notion", "find in notion", "look up notion page".',
     category: 'business',
     parameters: {
         query: { type: 'string', description: 'Search query', required: true },
@@ -316,7 +316,7 @@ registerTool({
 
 registerTool({
     name: 'list_github_repos',
-    description: 'List GitHub repositories for the authenticated user or an organization.',
+    description: 'List GitHub repos via integration (NOT browser). Use for: "show my repos", "list repositories", "my github repos".',
     category: 'business',
     parameters: {
         org: { type: 'string', description: 'Organization name (omit for personal repos)', required: false },
@@ -341,7 +341,7 @@ registerTool({
 
 registerTool({
     name: 'create_github_issue',
-    description: 'Create a new issue in a GitHub repository.',
+    description: 'Create a GitHub issue via integration (NOT browser). Use for: "create issue", "file a bug", "open issue on github".',
     category: 'business',
     parameters: {
         repo: { type: 'string', description: 'Repository (owner/repo format)', required: true },
@@ -366,7 +366,7 @@ registerTool({
 
 registerTool({
     name: 'list_github_prs',
-    description: 'List pull requests in a GitHub repository.',
+    description: 'List GitHub PRs via integration (NOT browser). Use for: "show pull requests", "list PRs", "open PRs in repo".',
     category: 'business',
     parameters: {
         repo: { type: 'string', description: 'Repository (owner/repo format)', required: true },
@@ -394,7 +394,7 @@ registerTool({
 
 registerTool({
     name: 'review_github_pr',
-    description: 'Add a review comment to a GitHub pull request.',
+    description: 'Review a GitHub PR via integration (NOT browser). Use for: "review PR", "comment on pull request".',
     category: 'business',
     parameters: {
         repo: { type: 'string', description: 'Repository (owner/repo format)', required: true },
@@ -420,7 +420,7 @@ registerTool({
 
 registerTool({
     name: 'list_contacts',
-    description: 'List contacts from HubSpot CRM.',
+    description: 'List CRM contacts via HubSpot integration (NOT browser). Use for: "show contacts", "list my contacts", "CRM contacts".',
     category: 'business',
     parameters: {
         count: { type: 'string', description: 'Number of contacts to fetch (default 20)', required: false },
@@ -475,7 +475,7 @@ registerTool({
 
 registerTool({
     name: 'search_contacts',
-    description: 'Search contacts in HubSpot CRM by name, email, or company.',
+    description: 'Search CRM contacts via HubSpot integration (NOT browser). Use for: "find contact", "search contacts", "look up person in CRM".',
     category: 'business',
     parameters: {
         query: { type: 'string', description: 'Search query', required: true },
@@ -503,7 +503,7 @@ registerTool({
 
 registerTool({
     name: 'list_calendar_events',
-    description: 'List upcoming Google Calendar events.',
+    description: 'List calendar events via integration (NOT browser). Use for: "what meetings do I have", "show my calendar", "upcoming events", "schedule today".',
     category: 'business',
     parameters: {
         count: { type: 'string', description: 'Number of events to fetch (default 10)', required: false },
@@ -536,7 +536,7 @@ registerTool({
 
 registerTool({
     name: 'create_calendar_event',
-    description: 'Create a new Google Calendar event.',
+    description: 'Create a calendar event via integration (NOT browser). Use for: "schedule a meeting", "add event to calendar", "book time for X".',
     category: 'business',
     parameters: {
         title: { type: 'string', description: 'Event title', required: true },

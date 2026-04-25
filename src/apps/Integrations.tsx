@@ -86,7 +86,8 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
         pollRef.current = setInterval(async () => {
             attempts++;
             await store.loadConnections();
-            const conn = store.connections.find(c => c.appId === appId);
+            const fresh = useComposioStore.getState();
+            const conn = fresh.connections.find(c => c.appId === appId);
             if (conn?.status === 'connected' || attempts >= 60) {
                 if (pollRef.current) clearInterval(pollRef.current);
                 pollRef.current = null;

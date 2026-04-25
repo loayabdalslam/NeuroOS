@@ -34,7 +34,7 @@ interface SettingsState {
     };
     updateAiConfig: (config: Partial<SettingsState['aiConfig']>) => void;
     updateProvider: (providerId: string, updates: Partial<ProviderConfig>) => void;
-    refreshProviderModels: (providerId: string) => Promise<void>;
+    refreshProviderModels: (providerId: string, overrideUrl?: string) => Promise<{ success: boolean; count?: number; error?: string } | undefined>;
     addProvider: (provider: ProviderConfig) => void;
     removeProvider: (providerId: string) => void;
 }
@@ -149,7 +149,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
 
 export const useSettingsStore = create<SettingsState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             wallpaper: '',
             customWallpapers: [],
             theme: 'system' as ThemeVariant,

@@ -64,6 +64,17 @@ export function getAllTools(): ToolDefinition[] {
     return Array.from(toolRegistry.values());
 }
 
+const CATEGORY_ORDER: string[] = ['business', 'automation', 'os', 'file', 'generate', 'shell', 'browser'];
+const CATEGORY_LABELS: Record<string, string> = {
+    business: 'INTEGRATIONS (USE FIRST for email, slack, github, sheets, calendar, contacts)',
+    automation: 'AUTOMATION & COMPOSIO',
+    os: 'OS',
+    file: 'FILE',
+    generate: 'GENERATE',
+    shell: 'SHELL',
+    browser: 'BROWSER (use ONLY when no integration tool fits)',
+};
+
 export function getToolsForPrompt(): string {
     const tools = getAllTools();
     const grouped: Record<string, ToolDefinition[]> = {};
@@ -73,8 +84,16 @@ export function getToolsForPrompt(): string {
     });
 
     let prompt = '';
-    for (const [category, categoryTools] of Object.entries(grouped)) {
-        prompt += `\n[${category.toUpperCase()}]\n`;
+    const orderedCategories = [
+        ...CATEGORY_ORDER.filter(c => grouped[c]),
+        ...Object.keys(grouped).filter(c => !CATEGORY_ORDER.includes(c)),
+    ];
+
+    for (const category of orderedCategories) {
+        const categoryTools = grouped[category];
+        if (!categoryTools) continue;
+        const label = CATEGORY_LABELS[category] || category.toUpperCase();
+        prompt += `\n[${label}]\n`;
         categoryTools.forEach(t => {
             const params = Object.entries(t.parameters)
                 .map(([k, v]) => `${k}: ${v.type}${v.required !== false ? ' (required)' : ''} — ${v.description}`)

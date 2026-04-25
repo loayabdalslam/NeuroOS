@@ -1,17 +1,9 @@
 /**
  * Composio Client for NeuroOS
- * Integrates Composio v3 API for tool calling, authentication, and permission management
- *
- * API Base: https://backend.composio.dev/api/v3
- * Auth: x-api-key header
+ * Uses the official composio-core SDK for reliable tool execution, auth, and connections.
  */
 
-interface ComposioAuth {
-    apiKey: string;
-    userId: string;
-    accessToken?: string;
-    expiresAt?: number;
-}
+import { Composio, ComposioToolSet } from 'composio-core';
 
 interface ComposioTool {
     id: string;
@@ -45,6 +37,11 @@ interface ComposioApp {
     toolCount: number;
 }
 
+interface ComposioAuth {
+    apiKey: string;
+    userId: string;
+}
+
 function openInSystemBrowser(url: string) {
     const electron = (window as any).electron;
     if (electron?.browser?.openExternal) {
@@ -57,11 +54,11 @@ function openInSystemBrowser(url: string) {
 class ComposioClient {
     private apiKey: string = '';
     private userId: string = '';
-    private baseUrl: string = 'https://backend.composio.dev/api/v3';
+    private sdk: Composio | null = null;
+    private toolset: ComposioToolSet | null = null;
     private connections: Map<string, ComposioAppConnection> = new Map();
     private tools: Map<string, ComposioTool> = new Map();
     private apps: Map<string, ComposioApp> = new Map();
-    private authConfigs: Map<string, string> = new Map();
 
     constructor() {
         this.loadAuthFromStorage();
@@ -74,39 +71,21 @@ class ComposioClient {
                 const auth: ComposioAuth = JSON.parse(stored);
                 this.apiKey = auth.apiKey;
                 this.userId = auth.userId;
+                if (this.apiKey) {
+                    this.initSDK(this.apiKey);
+                }
             }
         } catch (e) {
             console.warn('Failed to load Composio auth from storage');
         }
     }
 
-    private saveAuthToStorage(auth: ComposioAuth): void {
-        localStorage.setItem('composio_auth', JSON.stringify(auth));
-    }
-
-    private async makeRequest<T>(
-        endpoint: string,
-        options: RequestInit = {}
-    ): Promise<T | null> {
+    private initSDK(apiKey: string): void {
         try {
-            const response = await fetch(`${this.baseUrl}${endpoint}`, {
-                ...options,
-                headers: {
-                    'x-api-key': this.apiKey,
-                    'Content-Type': 'application/json',
-                    ...options.headers,
-                },
-            });
-
-            if (!response.ok) {
-                const body = await response.text().catch(() => '');
-                throw new Error(`HTTP ${response.status}: ${response.statusText} — ${body}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error(`Composio API error (${endpoint}):`, error);
-            return null;
+            this.sdk = new Composio({ apiKey });
+            this.toolset = new ComposioToolSet({ apiKey, entityId: this.userId || 'default' });
+        } catch (e) {
+            console.error('Failed to initialize Composio SDK:', e);
         }
     }
 
@@ -115,83 +94,63 @@ class ComposioClient {
     async initializeAuth(apiKey: string): Promise<boolean> {
         try {
             this.apiKey = apiKey;
-            const data = await this.makeRequest<any>('/auth/session/info');
+            this.initSDK(apiKey);
 
-            if (data) {
-                this.userId = data.user?.id || data.id || 'user-' + Date.now();
-                this.saveAuthToStorage({
-                    apiKey,
-                    userId: this.userId,
-                    accessToken: apiKey,
-                    expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-                });
-                return true;
+            if (!this.sdk) return false;
+
+            let clientId: string | null = null;
+            try {
+                clientId = await this.sdk.backendClient?.getClientId?.();
+            } catch {
+                // getClientId may not exist or may fail with invalid keys - that's OK
             }
-            this.apiKey = '';
-            return false;
-        } catch (e) {
+            this.userId = clientId || 'user-' + Date.now();
+            this.toolset = new ComposioToolSet({ apiKey, entityId: this.userId });
+
+            // Validate the key actually works by listing apps (lightweight call)
+            try {
+                await this.sdk.apps.list();
+            } catch (validationErr: any) {
+                const msg = validationErr?.message || String(validationErr);
+                if (msg.includes('401') || msg.includes('403') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('invalid')) {
+                    throw new Error('Invalid API key — Composio rejected the request.');
+                }
+                // Non-auth errors (network, rate-limit) — allow through
+            }
+
+            localStorage.setItem('composio_auth', JSON.stringify({
+                apiKey,
+                userId: this.userId,
+            }));
+
+            return true;
+        } catch (e: any) {
             console.error('Composio auth failed:', e);
             this.apiKey = '';
-            return false;
+            this.sdk = null;
+            this.toolset = null;
+            throw e;
         }
-    }
-
-    // ─── Auth Configs ────────────────────────────────────────────
-    // Each toolkit (gmail, slack, etc.) has an auth_config that holds
-    // the OAuth credentials. We need the auth_config_id to create a
-    // connection link.
-
-    async getAuthConfigForApp(toolkitSlug: string): Promise<string | null> {
-        const cached = this.authConfigs.get(toolkitSlug);
-        if (cached) return cached;
-
-        const data = await this.makeRequest<any>(
-            `/auth_configs?toolkit_slug=${encodeURIComponent(toolkitSlug)}`
-        );
-
-        const items = data?.items || (Array.isArray(data) ? data : []);
-        const config = items.find((c: any) =>
-            (c.toolkit?.slug || '').toLowerCase() === toolkitSlug.toLowerCase() ||
-            c.status === 'ENABLED'
-        ) || items[0];
-
-        if (config) {
-            const configId = config.id || config.uuid;
-            if (configId) {
-                this.authConfigs.set(toolkitSlug, configId);
-                return configId;
-            }
-        }
-        return null;
     }
 
     // ─── Connection Flow ─────────────────────────────────────────
-    // 1. Get auth_config_id for the toolkit
-    // 2. POST /connected_accounts/link to create a link session
-    // 3. Open the returned redirect_url in the system browser
-    // 4. User authenticates, then we poll /connected_accounts
 
     async initiateConnection(appId: string): Promise<{ redirectUrl: string; connectionId?: string } | null> {
-        const authConfigId = await this.getAuthConfigForApp(appId);
-        if (!authConfigId) {
-            console.error(`No auth config found for ${appId}`);
-            return null;
-        }
+        if (!this.sdk) return null;
 
-        const data = await this.makeRequest<any>('/connected_accounts/link', {
-            method: 'POST',
-            body: JSON.stringify({
-                auth_config_id: authConfigId,
-                user_id: this.userId,
-            }),
-        });
+        try {
+            const entity = this.sdk.getEntity(this.userId || 'default');
+            const connReq = await entity.initiateConnection({ appName: appId });
 
-        const redirectUrl = data?.redirect_url || data?.redirectUrl;
-        if (redirectUrl) {
-            return {
-                redirectUrl,
-                connectionId: data?.connected_account_id || data?.id,
-            };
+            const redirectUrl = connReq.redirectUrl;
+            if (redirectUrl) {
+                return {
+                    redirectUrl,
+                    connectionId: connReq.connectedAccountId,
+                };
+            }
+        } catch (e: any) {
+            console.error(`Failed to initiate connection for ${appId}:`, e);
         }
 
         return null;
@@ -209,83 +168,109 @@ class ComposioClient {
     // ─── Connected Accounts ──────────────────────────────────────
 
     async getConnections(): Promise<ComposioAppConnection[]> {
-        const data = await this.makeRequest<any>('/connected_accounts');
+        if (!this.sdk) return [];
 
-        const items = data?.items || data?.connections || (Array.isArray(data) ? data : []);
-        this.connections.clear();
+        try {
+            const entity = this.sdk.getEntity(this.userId || 'default');
+            const conns = await entity.getConnections();
 
-        items.forEach((conn: any) => {
-            const appId = conn.toolkit?.slug || conn.toolkit_slug || conn.appId || conn.app_id || '';
-            const rawStatus = (conn.status || '').toUpperCase();
-            const status = rawStatus === 'ACTIVE' || rawStatus === 'CONNECTED' ? 'connected' : 'disconnected';
-            this.connections.set(appId, {
-                appId,
-                appName: conn.toolkit?.name || conn.toolkit_name || conn.appName || appId,
-                status,
-                isActive: status === 'connected',
-                connectedAt: conn.created_at ? new Date(conn.created_at).getTime() : undefined,
-                id: conn.id || conn.nanoid,
+            this.connections.clear();
+
+            conns.forEach((conn: any) => {
+                const appId = conn.appUniqueId || conn.appName || '';
+                const rawStatus = (conn.status || '').toUpperCase();
+                const status = rawStatus === 'ACTIVE' || rawStatus === 'CONNECTED' || rawStatus === 'INITIATED' ? 'connected' : 'disconnected';
+                if (appId && !conn.deleted) {
+                    this.connections.set(appId, {
+                        appId,
+                        appName: conn.appName || appId,
+                        status,
+                        isActive: status === 'connected',
+                        connectedAt: conn.createdAt ? new Date(conn.createdAt).getTime() : undefined,
+                        id: conn.id,
+                    });
+                }
             });
-        });
 
-        return Array.from(this.connections.values());
+            return Array.from(this.connections.values());
+        } catch (e: any) {
+            console.error('Failed to get connections:', e);
+            return Array.from(this.connections.values());
+        }
     }
 
     async disconnectApp(connectionId: string): Promise<boolean> {
-        const data = await this.makeRequest<any>(`/connected_accounts/${connectionId}`, {
-            method: 'DELETE',
-        });
-        return data !== null;
+        if (!this.sdk) return false;
+        try {
+            await this.sdk.connectedAccounts.delete({ connectedAccountId: connectionId });
+            return true;
+        } catch (e) {
+            console.error('Failed to disconnect:', e);
+            return false;
+        }
     }
 
     // ─── Apps / Toolkits ─────────────────────────────────────────
 
     async getAvailableApps(): Promise<ComposioApp[]> {
-        const data = await this.makeRequest<any>('/apps');
+        if (!this.sdk) return [];
 
-        const items = data?.items || data?.apps || (Array.isArray(data) ? data : []);
-        items.forEach((app: any) => {
-            const id = app.slug || app.id;
-            this.apps.set(id, {
-                id,
-                name: app.name || id,
-                description: app.description || '',
-                logo: app.logo,
-                categories: app.categories || [],
-                toolCount: app.toolCount || app.tool_count || 0,
+        try {
+            const appsList = await this.sdk.apps.list();
+            const items = (appsList as any)?.items || (Array.isArray(appsList) ? appsList : []);
+
+            items.forEach((app: any) => {
+                const id = app.key || app.slug || app.id || app.appId;
+                this.apps.set(id, {
+                    id,
+                    name: app.name || id,
+                    description: app.description || '',
+                    logo: app.logo,
+                    categories: app.categories || [],
+                    toolCount: app.meta?.actionsCount || app.toolCount || 0,
+                });
             });
-        });
 
-        return Array.from(this.apps.values());
+            return Array.from(this.apps.values());
+        } catch (e) {
+            console.error('Failed to get apps:', e);
+            return [];
+        }
     }
 
     // ─── Tools ───────────────────────────────────────────────────
 
     async getAvailableTools(appId?: string): Promise<ComposioTool[]> {
-        const endpoint = appId
-            ? `/tools?toolkit_slug=${encodeURIComponent(appId)}`
-            : '/tools';
-        const data = await this.makeRequest<any>(endpoint);
+        if (!this.sdk) return [];
 
-        const items = data?.items || data?.tools || (Array.isArray(data) ? data : []);
-        items.forEach((tool: any) => {
-            const id = tool.slug || tool.id || tool.name;
-            const toolkitSlug = tool.toolkit?.slug || tool.toolkit_slug || tool.appId || '';
-            this.tools.set(id, {
-                id,
-                name: tool.display_name || tool.name || id,
-                description: tool.description || '',
-                appId: toolkitSlug,
-                appName: tool.toolkit?.name || tool.toolkit_name || this.apps.get(toolkitSlug)?.name || toolkitSlug,
-                requiresAuth: tool.requires_auth !== false,
-                isAuthed: this.isToolAuthed(toolkitSlug),
-                params: tool.params || tool.parameters || {},
-                category: tool.category,
-                tags: tool.tags,
+        try {
+            const params: any = {};
+            if (appId) params.apps = appId;
+            const actionsList = await this.sdk.actions.list(params);
+            const items = (actionsList as any)?.items || (Array.isArray(actionsList) ? actionsList : []);
+
+            items.forEach((tool: any) => {
+                const id = tool.name || tool.slug || tool.id;
+                const toolAppId = tool.appKey || tool.appId || '';
+                this.tools.set(id, {
+                    id,
+                    name: tool.display_name || tool.name || id,
+                    description: tool.description || '',
+                    appId: toolAppId,
+                    appName: tool.appName || this.apps.get(toolAppId)?.name || toolAppId,
+                    requiresAuth: true,
+                    isAuthed: this.isToolAuthed(toolAppId),
+                    params: tool.parameters?.properties || {},
+                    category: tool.category,
+                    tags: tool.tags,
+                });
             });
-        });
 
-        return Array.from(this.tools.values());
+            return Array.from(this.tools.values());
+        } catch (e) {
+            console.error('Failed to get tools:', e);
+            return [];
+        }
     }
 
     private isToolAuthed(appId: string): boolean {
@@ -293,10 +278,10 @@ class ComposioClient {
         return conn ? conn.status === 'connected' : false;
     }
 
-    // ─── Tool Execution ──────────────────────────────────────────
+    // ─── Tool Execution (via SDK) ────────────────────────────────
 
     async executeTool(
-        toolId: string,
+        actionName: string,
         params: Record<string, any>,
         appId: string
     ): Promise<{ success: boolean; data?: any; error?: string }> {
@@ -308,74 +293,72 @@ class ComposioClient {
         }
 
         const conn = this.connections.get(appId);
-        const data = await this.makeRequest<any>(
-            `/tools/execute/${encodeURIComponent(toolId)}`,
-            {
-                method: 'POST',
-                body: JSON.stringify({
-                    connected_account_id: conn?.id,
-                    input: params,
-                }),
-            }
-        );
-
-        if (data) {
-            return { success: true, data: data.result || data.output || data };
+        if (!conn?.id) {
+            return {
+                success: false,
+                error: `No connection ID for ${appId}. Try disconnecting and reconnecting.`,
+            };
         }
 
-        return { success: false, error: 'Tool execution failed' };
+        if (!this.toolset) {
+            return { success: false, error: 'Composio SDK not initialized.' };
+        }
+
+        try {
+            const result = await this.toolset.executeAction({
+                action: actionName,
+                params,
+                connectedAccountId: conn.id,
+                entityId: this.userId || 'default',
+            });
+
+            const successFlag = result?.successfull ?? result?.successful ?? true;
+            const data = result?.data || result;
+
+            if (successFlag) {
+                return { success: true, data };
+            }
+            return { success: false, error: result?.error || JSON.stringify(data) };
+        } catch (error: any) {
+            const msg = error.message || String(error);
+            console.error(`Composio execute failed (${actionName}):`, msg);
+            return { success: false, error: `Execute failed: ${msg}` };
+        }
     }
 
     // ─── Tool Search ─────────────────────────────────────────────
 
     async searchTools(query: string): Promise<ComposioTool[]> {
-        const data = await this.makeRequest<any>(`/tools?search=${encodeURIComponent(query)}`);
+        if (!this.sdk) return [];
 
-        const items = data?.items || data?.tools || (Array.isArray(data) ? data : []);
-        return items.map((tool: any) => {
-            const toolkitSlug = tool.toolkit?.slug || tool.toolkit_slug || tool.appId || '';
-            return {
-                id: tool.slug || tool.id || tool.name,
-                name: tool.display_name || tool.name,
-                description: tool.description || '',
-                appId: toolkitSlug,
-                appName: tool.toolkit?.name || tool.toolkit_name || toolkitSlug,
-                requiresAuth: tool.requires_auth !== false,
-                isAuthed: this.isToolAuthed(toolkitSlug),
-                params: tool.params || tool.parameters || {},
-                category: tool.category,
-                tags: tool.tags,
-            };
-        });
-    }
-
-    async getToolInfo(toolId: string): Promise<ComposioTool | null> {
-        const data = await this.makeRequest<any>(`/tools/${encodeURIComponent(toolId)}`);
-
-        if (data) {
-            const tool = data.tool || data;
-            const toolkitSlug = tool.toolkit?.slug || tool.toolkit_slug || tool.appId || '';
-            return {
-                id: tool.slug || tool.id || toolId,
-                name: tool.display_name || tool.name || toolId,
-                description: tool.description || '',
-                appId: toolkitSlug,
-                appName: tool.toolkit?.name || tool.toolkit_name || toolkitSlug,
-                requiresAuth: tool.requires_auth !== false,
-                isAuthed: this.isToolAuthed(toolkitSlug),
-                params: tool.params || tool.parameters || {},
-                category: tool.category,
-                tags: tool.tags,
-            };
+        try {
+            const result = await this.sdk.actions.list({ useCase: query });
+            const items = (result as any)?.items || (Array.isArray(result) ? result : []);
+            return items.map((tool: any) => {
+                const toolAppId = tool.appKey || tool.appId || '';
+                return {
+                    id: tool.name || tool.slug || tool.id,
+                    name: tool.display_name || tool.name,
+                    description: tool.description || '',
+                    appId: toolAppId,
+                    appName: tool.appName || toolAppId,
+                    requiresAuth: true,
+                    isAuthed: this.isToolAuthed(toolAppId),
+                    params: tool.parameters?.properties || {},
+                    category: tool.category,
+                    tags: tool.tags,
+                };
+            });
+        } catch (e) {
+            console.error('Search tools failed:', e);
+            return [];
         }
-
-        return null;
     }
 
     // ─── Helpers ──────────────────────────────────────────────────
 
     isAuthenticated(): boolean {
-        return !!this.apiKey && !!this.userId;
+        return !!this.apiKey && !!this.sdk;
     }
 
     getCachedTools(): ComposioTool[] {
@@ -393,10 +376,11 @@ class ComposioClient {
     logout(): void {
         this.apiKey = '';
         this.userId = '';
+        this.sdk = null;
+        this.toolset = null;
         this.connections.clear();
         this.tools.clear();
         this.apps.clear();
-        this.authConfigs.clear();
         localStorage.removeItem('composio_auth');
     }
 }

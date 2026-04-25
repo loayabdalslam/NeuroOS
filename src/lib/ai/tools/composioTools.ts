@@ -221,28 +221,41 @@ registerTool({
     requiresConfirmation: true,
     handler: async (args): Promise<ToolResult> => {
         const store = useComposioStore.getState();
-        
+
         if (!store.isAuthenticated) {
             return {
                 success: false,
                 message: 'Composio is not authenticated.'
             };
         }
-        
+
         const authUrl = await store.authorizeApp(args.app_id);
-        
-        if (authUrl) {
-            return {
-                success: true,
-                message: `Opening authorization page for ${args.app_id}. Please complete the authorization in your browser.`,
-                data: { authUrl }
-            };
-        } else {
+
+        if (!authUrl) {
             return {
                 success: false,
                 message: `Failed to get authorization URL for ${args.app_id}. Please check if the app exists.`
             };
         }
+
+        // Poll for up to 90 seconds waiting for OAuth to complete
+        for (let i = 0; i < 30; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            await useComposioStore.getState().loadConnections();
+            const conn = useComposioStore.getState().connections.find(c => c.appId === args.app_id);
+            if (conn?.status === 'connected') {
+                return {
+                    success: true,
+                    message: `${args.app_id} is now authorized and connected!`
+                };
+            }
+        }
+
+        return {
+            success: true,
+            message: `Authorization page opened for ${args.app_id}. If you've completed the sign-in, try your request again.`,
+            data: { authUrl }
+        };
     }
 });
 
@@ -314,8 +327,9 @@ registerTool({
             };
         }
 
-        const conn = store.connections.find(c => c.appId === appId);
-        if (conn?.status === 'connected') {
+        await store.loadConnections();
+        const existing = useComposioStore.getState().connections.find(c => c.appId === appId);
+        if (existing?.status === 'connected') {
             return {
                 success: true,
                 message: `${args.app_name} is already connected and ready to use.`
@@ -333,9 +347,22 @@ registerTool({
             useOS.getState().sendAppAction(intWin.id, 'connect_app', { appId });
         }
 
+        // Poll for up to 90 seconds waiting for OAuth to complete
+        for (let i = 0; i < 30; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            await useComposioStore.getState().loadConnections();
+            const conn = useComposioStore.getState().connections.find(c => c.appId === appId);
+            if (conn?.status === 'connected') {
+                return {
+                    success: true,
+                    message: `${args.app_name} is now connected! You can now use ${args.app_name} integration tools.`
+                };
+            }
+        }
+
         return {
             success: true,
-            message: `Opening ${args.app_name} connection flow. Please complete the authorization in your browser, then come back — the status will update automatically.`
+            message: `${args.app_name} authorization was opened in your browser. If you've completed the sign-in, click Refresh in the Integrations app or try your request again.`
         };
     }
 });
