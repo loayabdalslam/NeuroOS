@@ -1,9 +1,12 @@
 /**
  * Composio Client for NeuroOS
  * Uses the official composio-core SDK for reliable tool execution, auth, and connections.
+ * Connection initiation bypasses the SDK to fix the useComposioAuth flag bug.
  */
 
 import { Composio, ComposioToolSet } from 'composio-core';
+
+const COMPOSIO_BASE = 'https://backend.composio.dev';
 
 interface ComposioTool {
     id: string;
@@ -80,10 +83,20 @@ class ComposioClient {
         }
     }
 
+    private getStableEntityId(): string {
+        if (this.userId && !this.userId.startsWith('user-')) return this.userId;
+        let stored = localStorage.getItem('composio_entity_id');
+        if (!stored) {
+            stored = 'default';
+            localStorage.setItem('composio_entity_id', stored);
+        }
+        return stored;
+    }
+
     private initSDK(apiKey: string): void {
         try {
             this.sdk = new Composio({ apiKey });
-            this.toolset = new ComposioToolSet({ apiKey, entityId: this.userId || 'default' });
+            this.toolset = new ComposioToolSet({ apiKey, entityId: this.getStableEntityId() });
         } catch (e) {
             console.error('Failed to initialize Composio SDK:', e);
         }
@@ -102,12 +115,12 @@ class ComposioClient {
             try {
                 clientId = await this.sdk.backendClient?.getClientId?.();
             } catch {
-                // getClientId may not exist or may fail with invalid keys - that's OK
+                // getClientId may not exist or may fail in browser — that's OK
             }
-            this.userId = clientId || 'user-' + Date.now();
+            this.userId = clientId || this.getStableEntityId();
             this.toolset = new ComposioToolSet({ apiKey, entityId: this.userId });
 
-            // Validate the key actually works by listing apps (lightweight call)
+            // Validate the key by listing apps
             try {
                 await this.sdk.apps.list();
             } catch (validationErr: any) {
@@ -115,7 +128,6 @@ class ComposioClient {
                 if (msg.includes('401') || msg.includes('403') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('invalid')) {
                     throw new Error('Invalid API key — Composio rejected the request.');
                 }
-                // Non-auth errors (network, rate-limit) — allow through
             }
 
             localStorage.setItem('composio_auth', JSON.stringify({
@@ -135,34 +147,65 @@ class ComposioClient {
 
     // ─── Connection Flow ─────────────────────────────────────────
 
-    async initiateConnection(appId: string): Promise<{ redirectUrl: string; connectionId?: string } | null> {
-        if (!this.sdk) return null;
+    async initiateConnection(appId: string): Promise<{ redirectUrl: string; connectionId?: string }> {
+        if (!this.apiKey) throw new Error('Composio API key not set. Add your key in Integrations settings.');
 
-        try {
-            const entity = this.sdk.getEntity(this.userId || 'default');
-            const connReq = await entity.initiateConnection({ appName: appId });
+        const entityId = this.userId || this.getStableEntityId();
 
-            const redirectUrl = connReq.redirectUrl;
-            if (redirectUrl) {
-                return {
-                    redirectUrl,
-                    connectionId: connReq.connectedAccountId,
-                };
+        // Call the v2 API directly to set useComposioAuth: true
+        // The SDK has a bug where it sets useComposioAuth: false when authMode/authConfig aren't passed,
+        // which breaks OAuth apps like Gmail that need Composio's managed credentials.
+        const resp = await fetch(`${COMPOSIO_BASE}/api/v2/connectedAccounts/initiateConnection`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-KEY': this.apiKey,
+            },
+            body: JSON.stringify({
+                app: { uniqueKey: appId },
+                config: {
+                    name: appId,
+                    useComposioAuth: true,
+                },
+                connection: {
+                    entityId,
+                    initiateData: {},
+                    extra: { redirectURL: '', labels: [] },
+                },
+            }),
+        });
+
+        if (!resp.ok) {
+            let detail = '';
+            try {
+                const err = await resp.json();
+                detail = err?.message || err?.error || JSON.stringify(err);
+            } catch {
+                detail = resp.statusText;
             }
-        } catch (e: any) {
-            console.error(`Failed to initiate connection for ${appId}:`, e);
+            throw new Error(`Composio connection failed (${resp.status}): ${detail}`);
         }
 
-        return null;
+        const data = await resp.json();
+        const connResp = data?.connectionResponse || data;
+        const redirectUrl = connResp?.redirectUrl || connResp?.redirectUri;
+        const connectionId = connResp?.connectedAccountId;
+
+        if (!redirectUrl) {
+            if (connResp?.connectionStatus === 'ACTIVE' || connResp?.connectionStatus === 'CONNECTED') {
+                await this.getConnections();
+                throw new Error(`${appId} is already connected! Refresh the page to see it.`);
+            }
+            throw new Error(`${appId} returned no auth URL. It may need manual setup in your Composio dashboard.`);
+        }
+
+        return { redirectUrl, connectionId };
     }
 
-    async getAuthUrl(appId: string): Promise<string | null> {
+    async getAuthUrl(appId: string): Promise<string> {
         const result = await this.initiateConnection(appId);
-        if (result?.redirectUrl) {
-            openInSystemBrowser(result.redirectUrl);
-            return result.redirectUrl;
-        }
-        return null;
+        openInSystemBrowser(result.redirectUrl);
+        return result.redirectUrl;
     }
 
     // ─── Connected Accounts ──────────────────────────────────────

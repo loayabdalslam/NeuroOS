@@ -144,12 +144,13 @@ export const useComposioStore = create<ComposioState>()(
             },
 
             authorizeApp: async (appId: string) => {
-                set({ isLoading: true });
+                set({ isLoading: true, error: null });
                 try {
                     const authUrl = await composioClient.getAuthUrl(appId);
                     return authUrl;
                 } catch (error: any) {
-                    set({ error: error.message });
+                    const msg = error.message || String(error);
+                    set({ error: msg });
                     return null;
                 } finally {
                     set({ isLoading: false });

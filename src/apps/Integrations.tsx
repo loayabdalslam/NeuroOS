@@ -76,7 +76,8 @@ export const IntegrationsApp: React.FC<IntegrationsAppProps> = ({ windowData }) 
         const url = await store.authorizeApp(appId);
 
         if (!url) {
-            setConnectError(`Could not start ${appId} connection. Check your API key and try again.`);
+            const storeError = useComposioStore.getState().error;
+            setConnectError(storeError || `Could not start ${appId} connection. Check your API key and try again.`);
             setConnecting(null);
             return;
         }
