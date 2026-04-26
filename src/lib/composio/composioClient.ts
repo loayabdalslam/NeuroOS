@@ -97,28 +97,46 @@ class ComposioClient {
         this.apiKey = apiKey;
 
         try {
-            // Store the API key for use by Composio CLI
-            if (typeof localStorage !== 'undefined') {
-                localStorage.setItem('composio_api_key', apiKey);
+            // Validate API key by making a test request to Composio backend
+            const response = await fetch('https://backend.composio.dev/api/v1/client/auth/client_info', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-KEY': apiKey,
+                },
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.message || error.error || `API validation failed: ${response.statusText}`);
             }
 
-            // Validate key by testing API access
-            // In a real app, you'd call: composio whoami or similar
-            const clientId = this.apiKey.substring(0, 16);
+            // Validate response contains user info
+            const data = await response.json();
+            if (!data) {
+                throw new Error('Invalid response from Composio API');
+            }
+
+            // Get user ID from response
+            const clientId = data?.client?.id || data?.id || apiKey.substring(0, 16);
             this.userId = clientId;
 
-            localStorage.setItem('composio_auth', JSON.stringify({
-                apiKey,
-                userId: this.userId,
-            }));
-            localStorage.setItem('composio_entity_id', this.userId);
+            // Store credentials
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('composio_api_key', apiKey);
+                localStorage.setItem('composio_auth', JSON.stringify({
+                    apiKey,
+                    userId: this.userId,
+                }));
+                localStorage.setItem('composio_entity_id', this.userId);
+            }
 
             return true;
         } catch (e: any) {
             console.error('Composio auth failed:', e);
             this.apiKey = '';
             this.userId = '';
-            throw e;
+            throw new Error(`Invalid API key. Please check and try again. (${e.message})`);
         }
     }
 
