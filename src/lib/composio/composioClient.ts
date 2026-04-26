@@ -162,18 +162,57 @@ class ComposioClient {
         }
     }
 
+    // ─── Integration Resolution ─────────────────────────────────
+    // Mirrors composio-core SDK: getExpectedParamsForUser → initiate
+
+    private async getOrCreateIntegration(appSlug: string): Promise<string> {
+        const appName = appSlug.toLowerCase();
+
+        // 1. Try to find an existing integration by appName (SDK: integrations.list)
+        try {
+            const data = await this.api(`/api/v1/integrations?appName=${encodeURIComponent(appName)}&showDisabled=false`);
+            const items = data?.items || (Array.isArray(data) ? data : []);
+            if (items.length > 0) {
+                return items[0].id;
+            }
+        } catch {
+            // No existing integration
+        }
+
+        // 2. Create one via v2 endpoint (SDK: appConnectorV2.createConnectorV2)
+        const created = await this.api('/api/v2/integrations/create', 'POST', {
+            app: { uniqueKey: appName },
+            config: {
+                useComposioAuth: true,
+                name: `${appName}_neuroos`,
+            },
+        });
+
+        const integrationId = created?.integrationId || created?.id;
+        if (!integrationId) {
+            throw new Error(`Failed to create integration for ${appSlug}. Response: ${JSON.stringify(created).slice(0, 200)}`);
+        }
+        return integrationId;
+    }
+
     // ─── Connection Flow ─────────────────────────────────────────
 
     async initiateConnection(appId: string): Promise<{ redirectUrl: string; connectionId?: string }> {
         if (!this.apiKey) throw new Error('Composio API key not set.');
 
         const entityId = this.getStableEntityId();
+        const appName = appId.toLowerCase();
+        const integrationId = await this.getOrCreateIntegration(appName);
 
+        // SDK: connectionsV2.initiateConnectionV2 → POST /api/v2/connectedAccounts/initiateConnection
         const data = await this.api('/api/v2/connectedAccounts/initiateConnection', 'POST', {
-            app: { uniqueKey: appId },
+            app: {
+                uniqueKey: appName,
+                integrationId,
+            },
             config: {
-                name: appId,
-                useComposioAuth: true,
+                name: appName,
+                useComposioAuth: false,
             },
             connection: {
                 entityId,
@@ -190,7 +229,9 @@ class ComposioClient {
             if (connResp?.connectionStatus === 'ACTIVE' || connResp?.connectionStatus === 'CONNECTED') {
                 throw new Error(`${appId} is already connected. Refresh the page to see it.`);
             }
-            throw new Error(`${appId} returned no auth URL. Configure it in your Composio dashboard.`);
+            throw new Error(
+                `${appId}: could not get auth URL. Response: ${JSON.stringify(data).slice(0, 200)}`
+            );
         }
 
         return { redirectUrl, connectionId };

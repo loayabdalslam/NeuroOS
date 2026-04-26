@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git pull *)",
+      "Bash(git push *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(xargs cat *)",
+      "Bash(grep -E \"\\\\.ts$|\\\\.tsx$\")",
+      "Bash(xargs grep *)",
+      "Bash(grep -E \"\\(App|main|index\\)\\\\.tsx$\")",
+      "Bash(npx vite *)",
+      "Bash(node -e \"try { require\\('sharp'\\); console.log\\('sharp: yes'\\); } catch { console.log\\('sharp: no'\\); }\")",
+      "Bash(node -e \"try { require\\('canvas'\\); console.log\\('canvas: yes'\\); } catch { console.log\\('canvas: no'\\); }\")",
+      "Bash(npm install *)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const m = require\\('png-to-ico'\\); console.log\\(typeof m, Object.keys\\(m\\)\\);\")",
+      "Bash(npm uninstall *)",
+      "WebSearch",
+      "WebFetch(domain:docs.composio.dev)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(git commit *)",
+      "WebFetch(domain:backend.composio.dev)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s https://api.github.com/search/code?q=connected_accounts+repo:ComposioHQ/composio+path:js+extension:ts)",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(item['path']\\) for item in data.get\\('items',[]\\)]\")",
+      "Bash(gh api *)",
+      "Bash(curl -s -w \"\\\\n%{http_code}\" https://backend.composio.dev/api/v3/auth_configs -H \"x-api-key: test\" -H \"Content-Type: application/json\")",
+      "Bash(curl -s -w \"\\\\n%{http_code}\" https://backend.composio.dev/api/v3/connected_accounts -H \"x-api-key: test_fake_key_1234567890\")",
+      "Bash(curl -s -w \"\\\\n%{http_code}\" \"https://backend.composio.dev/api/v3/connected_accounts/link\" -X POST -H \"x-api-key: test_fake_key_1234567890\" -H \"Content-Type: application/json\" -d '{\"auth_config_id\":\"test\",\"user_id\":\"test\"}')",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}
