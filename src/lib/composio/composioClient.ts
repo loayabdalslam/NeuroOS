@@ -1,7 +1,7 @@
 /**
  * Composio Client for NeuroOS
  * Routes all API calls through Electron's main-process proxy to bypass CORS.
- * Handles API v3 endpoints for Composio
+ * Uses v1 API endpoints which are stable and supported by Composio
  */
 
 const COMPOSIO_BASE = 'https://backend.composio.dev';
@@ -134,12 +134,12 @@ class ComposioClient {
 
         try {
             // Validate key by listing apps
-            await this.api('/api/v3/apps');
+            await this.api('/api/v1/apps');
 
             // Get client info for entity ID
             let clientId = 'default';
             try {
-                const info = await this.api('/api/v3/client/auth/client_info');
+                const info = await this.api('/api/v1/client/auth/client_info');
                 clientId = info?.client?.id || info?.id || 'default';
             } catch {
                 // Non-critical — use default entity ID
@@ -162,6 +162,51 @@ class ComposioClient {
         }
     }
 
+    // ─── Integration Resolution ─────────────────────────────────
+    // Mirrors composio-core SDK: getExpectedParamsForUser → initiate
+
+    private async getOrCreateIntegration(appSlug: string): Promise<string> {
+        const appName = appSlug.toLowerCase();
+
+        // 1. Try to find an existing integration by appName (SDK: integrations.list)
+        try {
+            const data = await this.api(`/api/v1/integrations?appName=${encodeURIComponent(appName)}&showDisabled=false`);
+            const items = data?.items || (Array.isArray(data) ? data : []);
+            if (items.length > 0) {
+                return items[0].id;
+            }
+        } catch {
+            // No existing integration
+        }
+
+        // 2. Try get-or-create endpoint (newer approach, fallback to create)
+        try {
+            const created = await this.api('/api/v2/integrations/get-or-create', 'POST', {
+                appKey: appName,
+                name: `${appName}_neuroos`,
+            });
+            const integrationId = created?.integrationId || created?.id;
+            if (integrationId) return integrationId;
+        } catch (e) {
+            // Fall back to old create endpoint
+        }
+
+        // 3. Fall back to create endpoint
+        const created = await this.api('/api/v2/integrations/create', 'POST', {
+            app: { uniqueKey: appName },
+            config: {
+                useComposioAuth: true,
+                name: `${appName}_neuroos`,
+            },
+        });
+
+        const integrationId = created?.integrationId || created?.id;
+        if (!integrationId) {
+            throw new Error(`Failed to create integration for ${appSlug}. Response: ${JSON.stringify(created).slice(0, 200)}`);
+        }
+        return integrationId;
+    }
+
     // ─── Connection Flow ─────────────────────────────────────────
 
     async initiateConnection(appId: string): Promise<{ redirectUrl: string; connectionId?: string }> {
@@ -169,11 +214,23 @@ class ComposioClient {
 
         const entityId = this.getStableEntityId();
         const appName = appId.toLowerCase();
+        const integrationId = await this.getOrCreateIntegration(appName);
 
-        // SDK: connectionsV3.initiateConnectionV3 → POST /api/v3/connectedAccounts/initiateConnection
-        const data = await this.api('/api/v3/connectedAccounts/initiateConnection', 'POST', {
-            appName,
-            entityId,
+        // SDK: connectionsV2.initiateConnectionV2 → POST /api/v2/connectedAccounts/initiateConnection
+        const data = await this.api('/api/v2/connectedAccounts/initiateConnection', 'POST', {
+            app: {
+                uniqueKey: appName,
+                integrationId,
+            },
+            config: {
+                name: appName,
+                useComposioAuth: false,
+            },
+            connection: {
+                entityId,
+                initiateData: {},
+                extra: { redirectURL: '', labels: [] },
+            },
         });
 
         const connResp = data?.connectionResponse || data;
@@ -205,7 +262,7 @@ class ComposioClient {
 
         try {
             const entityId = this.getStableEntityId();
-            const data = await this.api(`/api/v3/connectedAccounts?entityId=${encodeURIComponent(entityId)}`);
+            const data = await this.api(`/api/v1/connectedAccounts?user_uuid=${encodeURIComponent(entityId)}`);
             const items = data?.items || (Array.isArray(data) ? data : []);
 
             this.connections.clear();
@@ -236,7 +293,7 @@ class ComposioClient {
 
     async disconnectApp(connectionId: string): Promise<boolean> {
         try {
-            await this.api(`/api/v3/connectedAccounts/${connectionId}`, 'DELETE');
+            await this.api(`/api/v1/connectedAccounts/${connectionId}`, 'DELETE');
             return true;
         } catch (e) {
             console.error('Failed to disconnect:', e);
@@ -250,7 +307,7 @@ class ComposioClient {
         if (!this.apiKey) return [];
 
         try {
-            const data = await this.api('/api/v3/apps');
+            const data = await this.api('/api/v1/apps');
             const items = data?.items || (Array.isArray(data) ? data : []);
 
             items.forEach((app: any) => {
@@ -279,7 +336,7 @@ class ComposioClient {
 
         try {
             const qs = appId ? `?apps=${encodeURIComponent(appId)}` : '';
-            const data = await this.api(`/api/v3/actions${qs}`);
+            const data = await this.api(`/api/v1/actions${qs}`);
             const items = data?.items || (Array.isArray(data) ? data : []);
 
             items.forEach((tool: any) => {
@@ -328,7 +385,7 @@ class ComposioClient {
         }
 
         try {
-            const result = await this.api(`/api/v3/actions/${actionName}/execute`, 'POST', {
+            const result = await this.api(`/api/v1/actions/${actionName}/execute`, 'POST', {
                 connectedAccountId: conn.id,
                 entityId: this.getStableEntityId(),
                 input: params,
@@ -352,7 +409,7 @@ class ComposioClient {
         if (!this.apiKey) return [];
 
         try {
-            const data = await this.api(`/api/v3/actions?useCase=${encodeURIComponent(query)}`);
+            const data = await this.api(`/api/v1/actions?useCase=${encodeURIComponent(query)}`);
             const items = data?.items || (Array.isArray(data) ? data : []);
             return items.map((tool: any) => {
                 const toolAppId = tool.appKey || tool.appId || '';
