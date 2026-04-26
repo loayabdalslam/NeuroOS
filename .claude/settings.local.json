@@ -33,7 +33,8 @@
       "Bash(curl -s -w \"\\\\n%{http_code}\" https://backend.composio.dev/api/v3/auth_configs -H \"x-api-key: test\" -H \"Content-Type: application/json\")",
       "Bash(curl -s -w \"\\\\n%{http_code}\" https://backend.composio.dev/api/v3/connected_accounts -H \"x-api-key: test_fake_key_1234567890\")",
       "Bash(curl -s -w \"\\\\n%{http_code}\" \"https://backend.composio.dev/api/v3/connected_accounts/link\" -X POST -H \"x-api-key: test_fake_key_1234567890\" -H \"Content-Type: application/json\" -d '{\"auth_config_id\":\"test\",\"user_id\":\"test\"}')",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(npm list *)"
     ]
   }
 }
