@@ -1,10 +1,7 @@
 /**
  * Composio Client for NeuroOS
- * Routes all API calls through Electron's main-process proxy to bypass CORS.
- * Does NOT use the composio-core SDK (it uses axios which is CORS-blocked in the renderer).
+ * Routes all API calls through Electron's main-process IPC to use composio-core natively.
  */
-
-const COMPOSIO_BASE = 'https://backend.composio.dev';
 
 interface ComposioTool {
     id: string;
@@ -59,47 +56,12 @@ class ComposioClient {
     private tools: Map<string, ComposioTool> = new Map();
     private apps: Map<string, ComposioApp> = new Map();
 
-    constructor() {
-        this.loadAuthFromStorage();
+    private get ipc() {
+        return (window as any).electron?.composio;
     }
 
-    // ─── HTTP via Electron IPC proxy ─────────────────────────────
-
-    private async api(path: string, method = 'GET', body?: any): Promise<any> {
-        const proxy = (window as any).electron?.apiProxy;
-        if (!proxy) {
-            // Fallback: try direct fetch (works in dev server / non-Electron)
-            const resp = await fetch(`${COMPOSIO_BASE}${path}`, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-KEY': this.apiKey,
-                },
-                body: body ? JSON.stringify(body) : undefined,
-            });
-            if (!resp.ok) {
-                const err = await resp.json().catch(() => ({ message: resp.statusText }));
-                throw new Error(err?.message || err?.error || `HTTP ${resp.status}`);
-            }
-            return resp.json();
-        }
-
-        const result = await proxy({
-            url: `${COMPOSIO_BASE}${path}`,
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-KEY': this.apiKey,
-            },
-            body: body ? JSON.stringify(body) : undefined,
-        });
-
-        if (!result.ok) {
-            const detail = typeof result.data === 'string' ? result.data
-                : result.data?.message || result.data?.error || JSON.stringify(result.data);
-            throw new Error(detail || `HTTP ${result.status}`);
-        }
-        return result.data;
+    constructor() {
+        this.loadAuthFromStorage();
     }
 
     // ─── Storage ─────────────────────────────────────────────────
@@ -111,6 +73,11 @@ class ComposioClient {
                 const auth: ComposioAuth = JSON.parse(stored);
                 this.apiKey = auth.apiKey;
                 this.userId = auth.userId;
+
+                // We need to initialize the main process client if we have a key
+                if (this.ipc && this.apiKey) {
+                    this.ipc.init(this.apiKey).catch(console.error);
+                }
             }
         } catch (e) {
             console.warn('Failed to load Composio auth from storage');
@@ -133,19 +100,11 @@ class ComposioClient {
         this.apiKey = apiKey;
 
         try {
-            // Validate key by listing apps
-            await this.api('/api/v1/apps');
+            if (!this.ipc) throw new Error('Electron IPC composio handler not found');
+            const success = await this.ipc.init(apiKey);
+            if (!success) throw new Error('Failed to initialize SDK');
 
-            // Get client info for entity ID
-            let clientId = 'default';
-            try {
-                const info = await this.api('/api/v1/client/auth/client_info');
-                clientId = info?.client?.id || info?.id || 'default';
-            } catch {
-                // Non-critical — use default entity ID
-            }
-
-            this.userId = clientId;
+            this.userId = this.getStableEntityId();
 
             localStorage.setItem('composio_auth', JSON.stringify({
                 apiKey,
@@ -162,71 +121,20 @@ class ComposioClient {
         }
     }
 
-    // ─── Integration Resolution ─────────────────────────────────
-    // Mirrors composio-core SDK: getExpectedParamsForUser → initiate
-
-    private async getOrCreateIntegration(appSlug: string): Promise<string> {
-        const appName = appSlug.toLowerCase();
-
-        // 1. Try to find an existing integration by appName (SDK: integrations.list)
-        try {
-            const data = await this.api(`/api/v1/integrations?appName=${encodeURIComponent(appName)}&showDisabled=false`);
-            const items = data?.items || (Array.isArray(data) ? data : []);
-            if (items.length > 0) {
-                return items[0].id;
-            }
-        } catch {
-            // No existing integration
-        }
-
-        // 2. Create one via v2 endpoint (SDK: appConnectorV2.createConnectorV2)
-        const created = await this.api('/api/v2/integrations/create', 'POST', {
-            app: { uniqueKey: appName },
-            config: {
-                useComposioAuth: true,
-                name: `${appName}_neuroos`,
-            },
-        });
-
-        const integrationId = created?.integrationId || created?.id;
-        if (!integrationId) {
-            throw new Error(`Failed to create integration for ${appSlug}. Response: ${JSON.stringify(created).slice(0, 200)}`);
-        }
-        return integrationId;
-    }
-
     // ─── Connection Flow ─────────────────────────────────────────
 
     async initiateConnection(appId: string): Promise<{ redirectUrl: string; connectionId?: string }> {
         if (!this.apiKey) throw new Error('Composio API key not set.');
+        if (!this.ipc) throw new Error('IPC not found');
 
         const entityId = this.getStableEntityId();
-        const appName = appId.toLowerCase();
-        const integrationId = await this.getOrCreateIntegration(appName);
+        const data = await this.ipc.initiateConnection(appId.toLowerCase(), entityId);
 
-        // SDK: connectionsV2.initiateConnectionV2 → POST /api/v2/connectedAccounts/initiateConnection
-        const data = await this.api('/api/v2/connectedAccounts/initiateConnection', 'POST', {
-            app: {
-                uniqueKey: appName,
-                integrationId,
-            },
-            config: {
-                name: appName,
-                useComposioAuth: false,
-            },
-            connection: {
-                entityId,
-                initiateData: {},
-                extra: { redirectURL: '', labels: [] },
-            },
-        });
-
-        const connResp = data?.connectionResponse || data;
-        const redirectUrl = connResp?.redirectUrl || connResp?.redirectUri;
-        const connectionId = connResp?.connectedAccountId;
+        const redirectUrl = data?.redirectUrl || data?.redirectUri;
+        const connectionId = data?.connectedAccountId || data?.connection?.connectedAccountId;
 
         if (!redirectUrl) {
-            if (connResp?.connectionStatus === 'ACTIVE' || connResp?.connectionStatus === 'CONNECTED') {
+            if (data?.connectionStatus === 'ACTIVE' || data?.connectionStatus === 'CONNECTED') {
                 throw new Error(`${appId} is already connected. Refresh the page to see it.`);
             }
             throw new Error(
@@ -246,11 +154,11 @@ class ComposioClient {
     // ─── Connected Accounts ──────────────────────────────────────
 
     async getConnections(): Promise<ComposioAppConnection[]> {
-        if (!this.apiKey) return [];
+        if (!this.apiKey || !this.ipc) return [];
 
         try {
             const entityId = this.getStableEntityId();
-            const data = await this.api(`/api/v1/connectedAccounts?user_uuid=${encodeURIComponent(entityId)}`);
+            const data = await this.ipc.getConnections(entityId);
             const items = data?.items || (Array.isArray(data) ? data : []);
 
             this.connections.clear();
@@ -280,8 +188,9 @@ class ComposioClient {
     }
 
     async disconnectApp(connectionId: string): Promise<boolean> {
+        if (!this.ipc) return false;
         try {
-            await this.api(`/api/v1/connectedAccounts/${connectionId}`, 'DELETE');
+            await this.ipc.disconnectApp(connectionId);
             return true;
         } catch (e) {
             console.error('Failed to disconnect:', e);
@@ -292,10 +201,10 @@ class ComposioClient {
     // ─── Apps / Toolkits ─────────────────────────────────────────
 
     async getAvailableApps(): Promise<ComposioApp[]> {
-        if (!this.apiKey) return [];
+        if (!this.apiKey || !this.ipc) return [];
 
         try {
-            const data = await this.api('/api/v1/apps');
+            const data = await this.ipc.getApps();
             const items = data?.items || (Array.isArray(data) ? data : []);
 
             items.forEach((app: any) => {
@@ -320,11 +229,10 @@ class ComposioClient {
     // ─── Tools ───────────────────────────────────────────────────
 
     async getAvailableTools(appId?: string): Promise<ComposioTool[]> {
-        if (!this.apiKey) return [];
+        if (!this.apiKey || !this.ipc) return [];
 
         try {
-            const qs = appId ? `?apps=${encodeURIComponent(appId)}` : '';
-            const data = await this.api(`/api/v1/actions${qs}`);
+            const data = await this.ipc.getTools(appId);
             const items = data?.items || (Array.isArray(data) ? data : []);
 
             items.forEach((tool: any) => {
@@ -372,12 +280,10 @@ class ComposioClient {
             return { success: false, error: `No connection ID for ${appId}. Try reconnecting.` };
         }
 
+        if (!this.ipc) return { success: false, error: 'IPC not found' };
+
         try {
-            const result = await this.api(`/api/v1/actions/${actionName}/execute`, 'POST', {
-                connectedAccountId: conn.id,
-                entityId: this.getStableEntityId(),
-                input: params,
-            });
+            const result = await this.ipc.executeTool(actionName, params, this.getStableEntityId(), conn.id);
 
             const successFlag = result?.successfull ?? result?.successful ?? true;
             const data = result?.data || result;
@@ -394,10 +300,10 @@ class ComposioClient {
     // ─── Tool Search ─────────────────────────────────────────────
 
     async searchTools(query: string): Promise<ComposioTool[]> {
-        if (!this.apiKey) return [];
+        if (!this.apiKey || !this.ipc) return [];
 
         try {
-            const data = await this.api(`/api/v1/actions?useCase=${encodeURIComponent(query)}`);
+            const data = await this.ipc.searchTools(query);
             const items = data?.items || (Array.isArray(data) ? data : []);
             return items.map((tool: any) => {
                 const toolAppId = tool.appKey || tool.appId || '';

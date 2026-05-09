@@ -12,6 +12,9 @@ import path from 'path';
 import fs from 'fs/promises';
 import http from 'http';
 import os from 'os';
+import { Composio } from 'composio-core';
+
+let composioClient: Composio | null = null;
 
 // Configure AutoUpdater
 autoUpdater.autoDownload = false; // We want to control when to download
@@ -591,6 +594,74 @@ app.on('ready', () => {
             console.error('Proxy request error:', error);
             throw error;
         }
+    });
+
+    // ─── Composio SDK Handlers ─────────────────────────────────────
+    ipcMain.handle('composio:init', async (_, apiKey: string) => {
+        try {
+            composioClient = new Composio({ apiKey });
+            // Test connection
+            await composioClient.apps.list();
+            return true;
+        } catch (error: any) {
+            console.error('Composio init error:', error);
+            return false;
+        }
+    });
+
+    ipcMain.handle('composio:getConnections', async (_, entityId: string) => {
+        if (!composioClient) throw new Error('Composio client not initialized');
+        const res = await composioClient.connectedAccounts.list({ user_uuid: entityId });
+        return res;
+    });
+
+    ipcMain.handle('composio:getApps', async () => {
+        if (!composioClient) throw new Error('Composio client not initialized');
+        const res = await composioClient.apps.list();
+        return res;
+    });
+
+    ipcMain.handle('composio:getTools', async (_, appId?: string) => {
+        if (!composioClient) throw new Error('Composio client not initialized');
+        const params: any = {};
+        if (appId) {
+            params.apps = appId;
+        }
+        const res = await composioClient.actions.list(params);
+        return res;
+    });
+
+    ipcMain.handle('composio:initiateConnection', async (_, appId: string, entityId: string) => {
+        if (!composioClient) throw new Error('Composio client not initialized');
+        const res = await composioClient.connectedAccounts.initiate({
+            appName: appId,
+            entityId,
+            redirectUri: '',
+        });
+        return res;
+    });
+
+    ipcMain.handle('composio:executeTool', async (_, actionName: string, params: any, entityId: string, connectedAccountId: string) => {
+        if (!composioClient) throw new Error('Composio client not initialized');
+        const res = await composioClient.actions.execute({
+            actionName,
+            params,
+            entityId,
+            connectedAccountId,
+        });
+        return res;
+    });
+
+    ipcMain.handle('composio:disconnectApp', async (_, connectionId: string) => {
+        if (!composioClient) throw new Error('Composio client not initialized');
+        await composioClient.connectedAccounts.delete({ connectedAccountId: connectionId });
+        return true;
+    });
+
+    ipcMain.handle('composio:searchTools', async (_, query: string) => {
+        if (!composioClient) throw new Error('Composio client not initialized');
+        const res = await composioClient.actions.list({ useCase: query });
+        return res;
     });
 
     // ─── Generic API proxy (POST/GET/etc with headers & body) ───

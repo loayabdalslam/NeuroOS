@@ -82,6 +82,18 @@ contextBridge.exposeInMainWorld('electron', {
     apiProxy: (opts: { url: string; method?: string; headers?: Record<string, string>; body?: string }) =>
         ipcRenderer.invoke('api:proxy', opts),
 
+    // Composio Client
+    composio: {
+        init: (apiKey: string) => ipcRenderer.invoke('composio:init', apiKey),
+        getConnections: (entityId: string) => ipcRenderer.invoke('composio:getConnections', entityId),
+        getApps: () => ipcRenderer.invoke('composio:getApps'),
+        getTools: (appId?: string) => ipcRenderer.invoke('composio:getTools', appId),
+        initiateConnection: (appId: string, entityId: string) => ipcRenderer.invoke('composio:initiateConnection', appId, entityId),
+        executeTool: (actionName: string, params: any, entityId: string, connectedAccountId: string) => ipcRenderer.invoke('composio:executeTool', actionName, params, entityId, connectedAccountId),
+        disconnectApp: (connectionId: string) => ipcRenderer.invoke('composio:disconnectApp', connectionId),
+        searchTools: (query: string) => ipcRenderer.invoke('composio:searchTools', query),
+    },
+
     // Auto-Updater
     updates: {
         check: () => ipcRenderer.invoke('update:check'),
