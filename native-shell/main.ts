@@ -19,6 +19,7 @@ autoUpdater.allowPrerelease = false;
 
 let mainWindow: BrowserWindow | null = null;
 let appTray: any = null;
+let composioClient: any = null;
 
 // ─── Single Instance Lock ──────────────────────────────────────────
 const gotTheLock = app.requestSingleInstanceLock();
@@ -138,7 +139,7 @@ const createWindow = () => {
 
     // ─── System Tray ───────────────────────────────────────────────
     const { Tray, Menu } = require('electron');
-    appTray = new Tray(path.join(__dirname, '../build/icon.ico'));
+    appTray = new Tray(path.join(__dirname, '../build/icon-taskbar.ico'));
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'Show',
@@ -174,10 +175,75 @@ const createWindow = () => {
     });
 };
 
+// ─── Composio IPC Handlers ─────────────────────────────
+
+    ipcMain.handle('composio:initialize', async (_, apiKey: string) => {
+        try {
+            const { Composio } = await import('composio-core');
+            composioClient = new Composio({ apiKey });
+            console.log('Composio SDK initialized in main process');
+            return { success: true };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('composio:getActions', async (_, userId: string) => {
+        try {
+            if (!composioClient) throw new Error('Composio not initialized');
+            const entity = composioClient.getEntity(userId);
+            const response = await entity.actions.list();
+            return { success: true, data: response };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('composio:executeAction', async (_, { userId, actionName, params, connectedAccountId }: any) => {
+        try {
+            if (!composioClient) throw new Error('Composio not initialized');
+            const entity = composioClient.getEntity(userId);
+            const result = await entity.execute({ actionName, params, connectedAccountId });
+            return { success: true, data: result };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('composio:getConnectedAccounts', async (_, userId: string) => {
+        try {
+            if (!composioClient) throw new Error('Composio not initialized');
+            const response = await composioClient.connectedAccounts.list({ entityId: userId });
+            return { success: true, data: response };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('composio:initiateConnection', async (_, { appName, userId }: any) => {
+        try {
+            if (!composioClient) throw new Error('Composio not initialized');
+            const result = await composioClient.connectedAccounts.initiate({ appName, entityId: userId });
+            return { success: true, data: result };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('composio:disconnectAccount', async (_, connectionId: string) => {
+        try {
+            if (!composioClient) throw new Error('Composio not initialized');
+            await composioClient.connectedAccounts.delete({ connectedAccountId: connectionId });
+            return { success: true };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+// ─── Auto-Updater IPC & Events ────────────────────────────
+
 app.on('ready', () => {
     createWindow();
-
-    // ─── Auto-Updater IPC & Events ────────────────────────────
 
     autoUpdater.on('checking-for-update', () => {
         mainWindow?.webContents.send('update:status', { state: 'checking' });
@@ -307,9 +373,15 @@ app.on('ready', () => {
     ipcMain.handle('shell:exec', async (_, command: string) => {
         return new Promise((resolve) => {
             const { spawn } = require('child_process');
+            const env = { ...process.env };
+            if (process.platform === 'win32') {
+                const pythonScripts = path.join(os.homedir(), 'AppData', 'Roaming', 'Python', 'Python312', 'Scripts');
+                env.PATH = `${env.PATH};${pythonScripts}`;
+            }
+
             const proc = spawn(process.platform === 'win32' ? 'cmd.exe' : 'sh',
                 [process.platform === 'win32' ? '/c' : '-c', command],
-                { cwd: os.homedir(), maxBuffer: 64 * 1024 }
+                { cwd: os.homedir(), maxBuffer: 64 * 1024, env }
             );
 
             let stdout = '';
