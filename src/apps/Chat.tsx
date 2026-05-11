@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Send, X, Copy, Check, Sparkles, Wrench, ChevronDown, StopCircle, Brain, Clock, Trash2, MessageSquare, ChevronLeft, ChevronRight, Bot } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { useComposioStore } from '../stores/composioStore';
 import { useSessionStore, ChatMessage } from '../stores/sessionStore';
 import { getLLMProvider } from '../lib/llm/factory';
 import { useOS, OSAppWindow } from '../hooks/useOS';
@@ -11,7 +10,6 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { parseToolCalls, executeTool, stripToolCalls, ToolContext, getAllTools, getToolsForPrompt } from '../lib/ai';
 import { getUserFriendlyError } from '../lib/llm/errors';
-import { getComposioToolsForPrompt, loadComposioTools } from '../lib/ai/tools/composioTools';
 import { VISION_MODELS } from '../lib/llm/types';
 
 interface ChatAppProps { windowData: OSAppWindow; }
@@ -116,13 +114,12 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { workspacePath } = useWorkspaceStore();
   const { openApp, appWindows, closeWindow, sendAppAction } = useOS();
-  const { isAuthenticated: isComp } = useComposioStore();
   const { theme, aiConfig, updateProvider, updateAiConfig } = useSettingsStore();
   const { sessions, activeSessionId, createSession, setActiveSession, updateSessionMessages, deleteSession, saveSessionToWorkspace } = useSessionStore();
 
-  const allTools = useMemo(() => getAllTools(), []);
-  const toolsP = useMemo(() => getToolsForPrompt(), []);
-  const compP = useMemo(() => getComposioToolsForPrompt(), [isComp]);
+  // Get all registered tools
+  const toolsPrompt = useMemo(() => getToolsForPrompt(), []);
+
   const dark = false;
 
   // Get current model info
@@ -155,7 +152,6 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
     }
   }, [msgs, streaming]);
 
-  useEffect(() => { if (isComp) loadComposioTools(); }, [isComp]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
   const checkVision = useCallback((): boolean => {
@@ -212,44 +208,12 @@ export const ChatApp: React.FC<ChatAppProps> = ({ windowData }) => {
 
     addB('thought', 'Analyzing your request...');
 
-    const connectedApps = useComposioStore.getState().connections
-        .filter(c => c.status === 'connected')
-        .map(c => c.appId);
-    const connectedList = connectedApps.length > 0
-        ? connectedApps.join(', ')
-        : 'none';
-
     const sysPrompt = `You are Neuro AI. You are a helpful assistant that uses tools to complete tasks.
 
-═══ #1 RULE — INTEGRATIONS FIRST ═══
-You have direct access to connected business integrations (Gmail, Slack, GitHub, Notion, Google Sheets, Calendar, HubSpot, etc.) via Composio tools.
+═══ TOOLS ═══
+${toolsPrompt}
 
-CRITICAL: When the user asks about email, messages, calendar, contacts, repos, spreadsheets, or any service that has an integration — ALWAYS use the matching business/composio tool. NEVER open the browser for these tasks.
-
-Currently connected integrations: [${connectedList}]
-
-Integration routing — use these tools, NOT the browser:
-• Email (read, send, search) → read_emails, send_email, search_emails
-• Slack (messages, channels) → send_slack_message, list_slack_channels, read_slack_messages
-• GitHub (repos, issues, PRs) → list_github_repos, create_github_issue, list_github_prs, review_github_pr
-• Notion (pages, search) → create_notion_page, search_notion, update_notion_page
-• Google Sheets → read_spreadsheet, write_spreadsheet, create_spreadsheet
-• Calendar (events) → list_calendar_events, create_calendar_event
-• Contacts/CRM → list_contacts, create_contact, search_contacts
-• Connect new service → connect_integration(app_name)
-• List available integrations → composio_list_apps
-• Check connections → composio_list_connections
-
-If a service is not connected yet, use connect_integration to start the connection flow — do NOT open the browser to the service website.
-
-═══ WHEN TO USE BROWSER ═══
-Only use browser tools (browser_navigate, search_web, web_fetch, etc.) for:
-- General web searches for information
-- Visiting websites that have NO integration available
-- Scraping/reading public web pages
-- Research tasks that need live web data
-
-NEVER use the browser for: checking email, reading Slack, viewing GitHub repos, or any action available through an integration tool.
+WORKSPACE: ${workspacePath || 'Not set'}
 
 ═══ RESPONSE RULES ═══
 1. After using ANY tool, you MUST write a detailed response explaining what you found
@@ -262,16 +226,6 @@ After calling tools, write your response like this:
 - Explain what you did
 - List findings with proper link titles
 - Provide summary
-
-═══ TOOLS ═══
-${toolsP}
-${compP}
-
-WORKSPACE: ${workspacePath || 'Not set'}
-
-═══ WHEN TO USE SAVE TOOLS ═══
-- If user says "save" or "save to neuroboard" → use add_board_widget or save_file
-- If user asks to write/create something → use save_file
 
 ═══ LINK TITLES ═══
 When you get search results, use the TITLE from the result, not the URL.
@@ -471,7 +425,7 @@ TOOL CALL FORMAT:
       setStreaming(false);
       setAbort(null);
     }
-  }, [msgs, workspacePath, toolsP, compP, getCtx, checkVision]);
+  }, [msgs, workspacePath, getCtx, checkVision]);
 
   const submit = useCallback((e?: React.FormEvent) => { e?.preventDefault?.(); if ((!input.trim() && !imgInput) || streaming) return; runAgent(input.trim() || 'Analyze this image', imgInput); setInput(''); setImgInput(null); }, [input, imgInput, streaming, runAgent]);
   const stop = useCallback(() => abort?.abort(), [abort]);
@@ -760,7 +714,7 @@ TOOL CALL FORMAT:
           </form>
           <div className={cn("flex items-center justify-between mt-1.5 text-[9px]", dark ? "text-zinc-700" : "text-zinc-300")}>
             <span>Enter · Shift+Enter · Paste image</span>
-            <span>{allTools.length} tools · CrewAI</span>
+            <span>{getAllTools().length} tools · CrewAI</span>
           </div>
         </div>
       </div>

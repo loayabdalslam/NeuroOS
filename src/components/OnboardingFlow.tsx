@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, User, Shield, Check, Sparkles, X, ChevronDown, FolderOpen, Blocks, Loader2 } from 'lucide-react';
+import { ArrowRight, User, Shield, Check, Sparkles, X, ChevronDown, FolderOpen, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { cn } from '../lib/utils';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useWorkspaceStore } from '../stores/workspaceStore';
-import { useComposioStore } from '../stores/composioStore';
 import { ProviderLogos } from './icons/ProviderIcons';
 
 const STEPS = [
@@ -13,7 +12,6 @@ const STEPS = [
     { id: 'profile', title: 'Profile', icon: User },
     { id: 'security', title: 'Security', icon: Shield },
     { id: 'workspace', title: 'Workspace', icon: FolderOpen },
-    { id: 'integrations', title: 'Integrations', icon: Blocks },
     { id: 'ai', title: 'AI Provider', icon: Sparkles },
 ];
 
@@ -35,10 +33,6 @@ export const OnboardingFlow: React.FC = () => {
     const [apiKey, setApiKey] = useState(currentProvider?.apiKey || '');
     const [selectedModel, setSelectedModel] = useState(currentProvider?.selectedModel || '');
     const [customModel, setCustomModel] = useState('');
-
-    const [composioKey, setComposioKeyInput] = useState('');
-    const [composioLoading, setComposioLoading] = useState(false);
-    const [composioError, setComposioError] = useState<string | null>(null);
 
     React.useEffect(() => {
         const p = providers.find(p => p.id === selectedProviderId);
@@ -63,23 +57,6 @@ export const OnboardingFlow: React.FC = () => {
     };
 
     const handleNext = async () => {
-        if (currentStep === 4 && composioKey.trim()) {
-            setComposioLoading(true);
-            setComposioError(null);
-            try {
-                const ok = await useComposioStore.getState().setApiKey(composioKey.trim());
-                if (!ok) {
-                    setComposioError('Invalid API key. Please check and try again.');
-                    setComposioLoading(false);
-                    return;
-                }
-            } catch (e: any) {
-                setComposioError(e.message || 'Verification failed');
-                setComposioLoading(false);
-                return;
-            }
-            setComposioLoading(false);
-        }
         if (currentStep < STEPS.length - 1) setCurrentStep(prev => prev + 1);
         else handleComplete();
     };
@@ -146,8 +123,7 @@ export const OnboardingFlow: React.FC = () => {
                             {currentStep === 1 && "Create your personal profile within the Neuro environment."}
                             {currentStep === 2 && "Configure access control and security protocols."}
                             {currentStep === 3 && "Choose where to store your files and projects."}
-                            {currentStep === 4 && "Connect Gmail, Slack, GitHub and more via Composio."}
-                            {currentStep === 5 && "Choose your AI provider to power the assistant."}
+                            {currentStep === 4 && "Choose your AI provider to power the assistant."}
                         </p>
                     </div>
 
@@ -221,63 +197,8 @@ export const OnboardingFlow: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Integrations (Composio) */}
-                        {currentStep === 4 && (
-                            <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Composio API Key</label>
-                                    <input
-                                        type="password"
-                                        autoFocus
-                                        value={composioKey}
-                                        onChange={e => { setComposioKeyInput(e.target.value); setComposioError(null); }}
-                                        className="w-full p-4 bg-zinc-50/50 border border-zinc-100 rounded-2xl outline-none focus:bg-white focus:border-zinc-900 transition-all font-mono text-[10px] text-zinc-900 placeholder:text-zinc-300"
-                                        placeholder="••••••••••••••••"
-                                    />
-                                    <p className="text-[10px] text-zinc-400 ml-1">
-                                        Get your key at{' '}
-                                        <a href="https://composio.dev" target="_blank" rel="noopener noreferrer" className="text-zinc-900 underline hover:text-blue-600 transition-colors">composio.dev</a>
-                                    </p>
-                                </div>
-
-                                {composioError && (
-                                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2">
-                                        <X size={14} className="text-red-500 shrink-0" />
-                                        <span className="text-xs text-red-700">{composioError}</span>
-                                    </motion.div>
-                                )}
-
-                                <div className="space-y-2">
-                                    <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Available Services</label>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {[
-                                            { name: 'Gmail', color: 'text-red-400 bg-red-50' },
-                                            { name: 'Slack', color: 'text-purple-400 bg-purple-50' },
-                                            { name: 'GitHub', color: 'text-zinc-600 bg-zinc-100' },
-                                            { name: 'Sheets', color: 'text-emerald-400 bg-emerald-50' },
-                                            { name: 'Notion', color: 'text-zinc-500 bg-zinc-50' },
-                                            { name: 'HubSpot', color: 'text-orange-400 bg-orange-50' },
-                                            { name: 'Calendar', color: 'text-sky-400 bg-sky-50' },
-                                            { name: 'More...', color: 'text-zinc-300 bg-zinc-50' },
-                                        ].map(s => (
-                                            <div key={s.name} className={cn("flex items-center justify-center py-2 rounded-xl text-[10px] font-bold border border-zinc-100", s.color)}>
-                                                {s.name}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => { setComposioKeyInput(''); setComposioError(null); handleNext(); }}
-                                    className="w-full text-center text-[10px] font-bold text-zinc-300 hover:text-zinc-500 uppercase tracking-[0.2em] transition-colors py-1"
-                                >
-                                    Skip for now
-                                </button>
-                            </div>
-                        )}
-
                         {/* AI Provider */}
-                        {currentStep === 5 && (
+                        {currentStep === 4 && (
                             <div className="space-y-5">
                                 <div className="space-y-2">
                                     <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Select Provider</label>
@@ -381,12 +302,8 @@ export const OnboardingFlow: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col items-center gap-6">
-                        <button onClick={handleNext} disabled={composioLoading} className="group flex items-center gap-3 bg-zinc-900 text-white px-10 py-4 rounded-full font-medium hover:bg-zinc-800 active:scale-95 transition-all shadow-xl shadow-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                            {composioLoading ? (
-                                <><Loader2 size={16} className="animate-spin" /><span className="text-sm tracking-tight">Verifying...</span></>
-                            ) : (
-                                <><span className="text-sm tracking-tight">{currentStep === STEPS.length - 1 ? "Complete Configuration" : "Continue"}</span><ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" /></>
-                            )}
+                        <button onClick={handleNext} className="group flex items-center gap-3 bg-zinc-900 text-white px-10 py-4 rounded-full font-medium hover:bg-zinc-800 active:scale-95 transition-all shadow-xl shadow-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span className="text-sm tracking-tight">{currentStep === STEPS.length - 1 ? "Complete Configuration" : "Continue"}</span><ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                         </button>
                         <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.3em]">0{currentStep + 1} / 0{STEPS.length}</span>
                     </div>

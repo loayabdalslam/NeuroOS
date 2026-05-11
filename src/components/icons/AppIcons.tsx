@@ -159,6 +159,16 @@ export const IntegrationsIcon: React.FC<IconProps> = ({ className, size = 24 }) 
   </svg>
 );
 
+// NeuroApps Icon - Code brackets with play button
+export const NeuroAppsIcon: React.FC<IconProps> = ({ className, size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={cn("text-current", className)}>
+    <path d="M8 8L4 12L8 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16 8L20 12L16 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M14 4L10 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" opacity="0.3"/>
+  </svg>
+);
+
 // Map app IDs to icons
 export const APP_ICONS: Record<string, React.FC<IconProps>> = {
   terminal: TerminalIcon,
@@ -174,6 +184,7 @@ export const APP_ICONS: Record<string, React.FC<IconProps>> = {
   media: MediaIcon,
   tasks: TasksIcon,
   integrations: IntegrationsIcon,
+  neuroapps: NeuroAppsIcon,
 };
 
 // Helper to get icon component by app ID

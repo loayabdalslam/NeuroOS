@@ -4,7 +4,7 @@
  */
 
 import { getLLMProvider } from '../llm/factory';
-import { executeTool, ToolContext, ToolResult } from './toolEngine';
+import { executeTool, ToolContext, ToolResult, getAllTools } from './toolEngine';
 import { parseToolCalls } from './toolEngine';
 
 export type AgentRole = 'planner' | 'executor' | 'researcher' | 'analyst' | 'coordinator';
@@ -99,7 +99,7 @@ const DEFAULT_AGENTS: Agent[] = [
         id: 'executor',
         name: 'Executor',
         role: 'executor',
-        description: 'Performs actions, creates files, runs commands, and executes tasks',
+        description: 'Performs actions, creates files, runs commands, and executes tasks.',
         expertise: ['execution', 'file operations', 'shell commands', 'code generation', 'automation'],
         tools: [
             // OS Tools
@@ -180,7 +180,7 @@ export class NeuroOSCrew {
     private async executeAgentTask(member: CrewMember, context: ToolContext): Promise<string> {
         const llm = getLLMProvider();
 
-        const systemPrompt = this.buildAgentSystemPrompt(member);
+        const systemPrompt = await this.buildAgentSystemPrompt(member);
         const taskContext = this.buildTaskContext(member);
 
         const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
@@ -241,10 +241,11 @@ export class NeuroOSCrew {
         }
     }
 
-    private buildAgentSystemPrompt(member: CrewMember): string {
+    private async buildAgentSystemPrompt(member: CrewMember): Promise<string> {
         const agent = member.agent;
-        
-        return `You are ${agent.name}, an AI agent with the following role: ${agent.role}.
+        const allTools = await this.getToolsForAgent(agent);
+
+        const systemPrompt = `You are ${agent.name}, an AI agent with the following role: ${agent.role}.
 
 DESCRIPTION:
 ${agent.description}
@@ -252,16 +253,40 @@ ${agent.description}
 EXPERTISE:
 ${agent.expertise.map(e => `- ${e}`).join('\n')}
 
+AVAILABLE TOOLS:
+${allTools}
+
 Your goal is to complete your assigned task efficiently and report back with your results.
 
 Guidelines:
 1. Think step by step before taking action
-2. Use available tools when needed to accomplish your task
+2. Use available tools when needed to accomplish your task. To call a tool, use the JSON format: {"tool": "name", "args": {"arg1": "val"}}.
 3. If you need information from another agent, request it in your response
 4. Always provide clear, actionable results
 5. If you encounter errors, explain what happened and suggest alternatives
 
 Remember: You are part of a crew working together. Coordinate with other agents when needed.`;
+
+        return systemPrompt;
+    }
+
+    private async getToolsForAgent(agent: Agent): Promise<string> {
+        const tools = getAllTools().filter((t: any) =>
+            agent.tools.includes(t.name) ||
+            (agent.role === 'executor' && t.category === 'automation') ||
+            (agent.role === 'researcher' && t.category === 'browser') ||
+            (agent.role === 'coordinator') // Coordinator can use any tool
+        );
+
+        let prompt = '';
+        tools.forEach((t: any) => {
+            const params = Object.entries(t.parameters)
+                .map(([k, v]: [string, any]) => `${k}: ${v.type}${v.required !== false ? ' (required)' : ''} — ${v.description}`)
+                .join(', ');
+            prompt += `- ${t.name}(${params}): ${t.description}\n`;
+        });
+
+        return prompt || 'No specific tools assigned.';
     }
 
     private buildTaskContext(member: CrewMember): string {
@@ -330,8 +355,9 @@ Respond in JSON format:
 }`;
 
         try {
+            const systemPrompt = await this.buildAgentSystemPrompt(planner);
             const messages = [
-                { role: 'system' as const, content: this.buildAgentSystemPrompt(planner) },
+                { role: 'system' as const, content: systemPrompt },
                 { role: 'user' as const, content: planningPrompt }
             ];
 
@@ -468,7 +494,7 @@ Provide a clear, concise summary of what was accomplished.`;
         
         try {
             const messages = [
-                { role: 'system' as const, content: this.buildAgentSystemPrompt(coordinator) },
+                { role: 'system' as const, content: await this.buildAgentSystemPrompt(coordinator) },
                 { role: 'user' as const, content: synthesisPrompt }
             ];
 

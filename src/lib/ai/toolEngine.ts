@@ -60,19 +60,22 @@ export function getTool(name: string): ToolDefinition | undefined {
     return toolRegistry.get(name);
 }
 
+export function unregisterTool(name: string) {
+    toolRegistry.delete(name);
+}
+
 export function getAllTools(): ToolDefinition[] {
     return Array.from(toolRegistry.values());
 }
 
-const CATEGORY_ORDER: string[] = ['business', 'automation', 'os', 'file', 'generate', 'shell', 'browser'];
+const CATEGORY_ORDER: string[] = ['automation', 'os', 'file', 'generate', 'shell', 'browser'];
 const CATEGORY_LABELS: Record<string, string> = {
-    business: 'INTEGRATIONS (USE FIRST for email, slack, github, sheets, calendar, contacts)',
-    automation: 'AUTOMATION & COMPOSIO',
+    automation: 'AUTOMATION',
     os: 'OS',
     file: 'FILE',
     generate: 'GENERATE',
     shell: 'SHELL',
-    browser: 'BROWSER (use ONLY when no integration tool fits)',
+    browser: 'BROWSER',
 };
 
 export function getToolsForPrompt(): string {
