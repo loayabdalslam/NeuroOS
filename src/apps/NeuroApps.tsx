@@ -1,6 +1,6 @@
 /**
- * NeuroApps - App store for AI-generated applications
- * Build, host, and run tiny apps created by the code agent
+ * NeuroApps - Code Agent with Claude Code-style system prompt
+ * Build, host, and run tiny apps with thinking and tool execution
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -8,613 +8,636 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
     Code2, Play, Pause, Trash2, Search, Plus, Clock,
     Tag, Copy, Check, X, ChevronRight, Sparkles, Globe,
-    FolderOpen, RefreshCw, Layers, Eye, Pencil, Download
+    FolderOpen, RefreshCw, Layers, Eye, Pencil, Download,
+    Brain, Wrench, Send, Square, MessageSquare, SplitSquareHorizontal
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { OSAppWindow } from '../hooks/useOS';
 import { useNeuroAppsStore } from '../stores/neuroAppsStore';
 import { codeAgent, GenerationResult } from '../lib/runtime/codeAgent';
 import { NeuroApp } from '../lib/runtime/runtimeMachine';
+import Markdown from 'react-markdown';
 
 interface NeuroAppsAppProps { windowData: OSAppWindow; }
 
-type Tab = 'store' | 'build' | 'running' | 'explorer';
-type RunMode = 'preview' | 'edit' | 'fullscreen';
+// ─── Thinking Block ───────────────────────────────────────────────────────
+interface ThinkBlock {
+    id: string;
+    type: 'thought' | 'tool_call' | 'tool_result' | 'error' | 'plan';
+    content: string;
+    tool?: string;
+    duration?: number;
+    timestamp: number;
+}
 
-const AppCard: React.FC<{
-    app: NeuroApp;
-    onRun: (id: string) => void;
-    onEdit: (id: string) => void;
-    onDelete: (id: string) => void;
-    onCopy: (id: string) => void;
-    dark: boolean;
-}> = ({ app, onRun, onEdit, onDelete, onCopy, dark }) => {
-    const [copied, setCopied] = useState(false);
+// ─── Agent Message ─────────────────────────────────────────────────────────
+interface AgentMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    thinking?: ThinkBlock[];
+    timestamp: number;
+    isStreaming?: boolean;
+    code?: string;
+}
 
-    const copyCode = () => {
-        const code = Object.values(app.code)[0] || '';
-        navigator.clipboard.writeText(code);
-        setCopied(true);
-        onCopy(app.id);
-        setTimeout(() => setCopied(false), 2000);
-    };
+// ─── Claude Code-style System Prompt ───────────────────────────────────────
+const CLAUDE_CODE_SYSTEM_PROMPT = `You are an expert full-stack developer building small web applications. You have access to tools to create files, read files, run commands, and preview apps.
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-                "rounded-xl border overflow-hidden group",
-                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-white border-zinc-200"
-            )}
-        >
-            {/* Preview area */}
-            <div
-                className={cn(
-                    "h-32 relative flex items-center justify-center cursor-pointer",
-                    dark ? "bg-zinc-800/50" : "bg-zinc-50"
-                )}
-                onClick={() => onRun(app.id)}
-            >
-                {app.type === 'html' && (
-                    <div className="text-4xl opacity-30">🌐</div>
-                )}
-                {app.type === 'react' && (
-                    <div className="text-4xl opacity-30">⚛️</div>
-                )}
-                {app.type === 'script' && (
-                    <div className="text-4xl opacity-30">📜</div>
-                )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onRun(app.id); }}
-                        className="p-2 rounded-full bg-white/90 shadow-lg text-emerald-600 hover:bg-white"
-                    >
-                        <Play size={16} />
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onEdit(app.id); }}
-                        className="p-2 rounded-full bg-white/90 shadow-lg text-blue-600 hover:bg-white"
-                    >
-                        <Pencil size={16} />
-                    </button>
-                </div>
-                <div className="absolute top-2 right-2">
-                    <span className={cn(
-                        "text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-medium",
-                        dark ? "bg-white/10 text-zinc-400" : "bg-black/5 text-zinc-500"
-                    )}>
-                        {app.type}
-                    </span>
-                </div>
-            </div>
+Your approach:
+1. **Think deeply** before writing code - analyze the requirements
+2. **Use tools** to create files and iterate on your work
+3. **Preview often** to see results immediately
+4. **Stay focused** - build small, complete, functional apps
 
-            {/* Info */}
-            <div className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                        <h3 className={cn(
-                            "text-sm font-medium truncate",
-                            dark ? "text-zinc-200" : "text-zinc-800"
-                        )}>{app.name}</h3>
-                        <p className={cn(
-                            "text-[10px] mt-0.5 line-clamp-2",
-                            dark ? "text-zinc-500" : "text-zinc-500"
-                        )}>{app.description}</p>
-                    </div>
-                </div>
+═══ AVAILABLE TOOLS ═══
 
-                {/* Tags */}
-                {app.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                        {app.tags.slice(0, 3).map(tag => (
-                            <span
-                                key={tag}
-                                className={cn(
-                                    "text-[9px] px-1.5 py-0.5 rounded",
-                                    dark ? "bg-white/[0.06] text-zinc-500" : "bg-black/[0.04] text-zinc-500"
-                                )}
-                            >
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-                )}
+You have these tools available:
 
-                {/* Actions */}
-                <div className={cn(
-                    "flex items-center justify-between mt-3 pt-2.5 border-t",
-                    dark ? "border-white/[0.06]" : "border-black/[0.06]"
-                )}>
-                    <div className={cn("text-[9px]", dark ? "text-zinc-600" : "text-zinc-400")}>
-                        <Clock size={9} className="inline mr-0.5" />
-                        {new Date(app.createdAt).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={copyCode}
-                            className={cn(
-                                "p-1 rounded text-[10px]",
-                                dark ? "hover:bg-white/[0.06] text-zinc-500" : "hover:bg-black/[0.04] text-zinc-400"
-                            )}
-                        >
-                            {copied ? <Check size={12} /> : <Copy size={12} />}
-                        </button>
-                        <button
-                            onClick={() => onDelete(app.id)}
-                            className={cn(
-                                "p-1 rounded",
-                                dark ? "hover:bg-white/[0.06] text-zinc-500 hover:text-rose-500" : "hover:bg-black/[0.04] text-zinc-400 hover:text-rose-500"
-                            )}
-                        >
-                            <Trash2 size={12} />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </motion.div>
-    );
-};
+create_file(path, content) - Create a new file with the given content
+update_file(path, content) - Overwrite a file with new content
+append_file(path, content) - Append content to an existing file
+read_file(path) - Read contents of a file
+list_files(path) - List files in a directory
+create_directory(path) - Create a directory
 
-const AppRunner: React.FC<{
-    app: NeuroApp;
-    onClose: () => void;
-    onIterate: (appId: string, feedback: string) => Promise<GenerationResult>;
-    dark: boolean;
-}> = ({ app, onClose, onIterate, dark }) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const [mode, setMode] = useState<RunMode>('preview');
-    const [feedback, setFeedback] = useState('');
-    const [iterating, setIterating] = useState(false);
-    const [showIterate, setShowIterate] = useState(false);
+run_preview() - Preview the current app in an embedded window
+stop_preview() - Stop the preview
+iterate_app(feedback) - Iterate on the current app based on feedback
 
-    const code = Object.values(app.code)[0] || '';
+get_app_info() - Get information about the current app project
+save_to_library() - Save the current app to the library
+export_code(format) - Export code (html/react/node)
 
-    useEffect(() => {
-        if (mode === 'preview' && iframeRef.current) {
-            const blob = new Blob([code], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            iframeRef.current.src = url;
-            return () => URL.revokeObjectURL(url);
-        }
-    }, [code, mode]);
+═══ PROJECT CONTEXT ═══
 
-    const handleIterate = async () => {
-        if (!feedback.trim()) return;
-        setIterating(true);
-        try {
-            const result = await onIterate(app.id, feedback);
-            if (result.success) {
-                setFeedback('');
-                setShowIterate(false);
-            }
-        } finally {
-            setIterating(false);
-        }
-    };
+The user wants to build a small application. Ask clarifying questions if needed:
+- What's the main purpose?
+- Any specific features or interactions?
+- Design style preferences?
 
-    return (
-        <div className={cn(
-            "fixed inset-0 z-50 flex flex-col",
-            dark ? "bg-zinc-950" : "bg-zinc-50"
-        )}>
-            {/* Header */}
-            <div className={cn(
-                "flex items-center justify-between px-4 py-2 border-b shrink-0",
-                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-white border-black/[0.06]"
-            )}>
-                <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium">{app.name}</span>
-                    <div className="flex items-center gap-1">
-                        {(['preview', 'edit', 'fullscreen'] as RunMode[]).map(m => (
-                            <button
-                                key={m}
-                                onClick={() => setMode(m)}
-                                className={cn(
-                                    "px-2 py-1 text-[10px] rounded capitalize",
-                                    mode === m
-                                        ? (dark ? "bg-white/10 text-white" : "bg-black/10 text-black")
-                                        : (dark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-500 hover:text-zinc-700")
-                                )}
-                            >
-                                {m === 'fullscreen' ? <Globe size={11} className="inline mr-0.5" /> : null}
-                                {m}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowIterate(!showIterate)}
-                        className={cn(
-                            "px-2 py-1 text-[10px] rounded flex items-center gap-1",
-                            dark ? "text-zinc-400 hover:bg-white/[0.06]" : "text-zinc-600 hover:bg-black/[0.04]"
-                        )}
-                    >
-                        <Sparkles size={11} />
-                        Iterate
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className={cn(
-                            "p-1 rounded",
-                            dark ? "text-zinc-500 hover:bg-white/[0.06]" : "text-zinc-500 hover:bg-black/[0.04]"
-                        )}
-                    >
-                        <X size={16} />
-                    </button>
-                </div>
-            </div>
+Start by analyzing the request and creating a plan, then use tools to build.
 
-            {/* Iterate panel */}
-            <AnimatePresence>
-                {showIterate && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className={cn(
-                            "p-3 border-b",
-                            dark ? "bg-zinc-900 border-white/[0.08]" : "bg-white border-black/[0.06]"
-                        )}>
-                            <textarea
-                                value={feedback}
-                                onChange={e => setFeedback(e.target.value)}
-                                placeholder="Describe what you want to change..."
-                                className={cn(
-                                    "w-full p-2 rounded-lg text-xs resize-none h-20 focus:outline-none",
-                                    dark ? "bg-white/[0.05] border-white/[0.08] text-zinc-300 placeholder:text-zinc-600" : "bg-black/[0.02] border-black/[0.06] text-zinc-700 placeholder:text-zinc-400"
-                                )}
-                            />
-                            <div className="flex justify-end mt-2">
-                                <button
-                                    onClick={handleIterate}
-                                    disabled={!feedback.trim() || iterating}
-                                    className="px-3 py-1.5 text-xs rounded-lg bg-emerald-500 text-white disabled:opacity-50 flex items-center gap-1"
-                                >
-                                    {iterating ? <RefreshCw size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                                    {iterating ? 'Generating...' : 'Apply Changes'}
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+═══ RESPONSE FORMAT ═══
 
-            {/* Content */}
-            <div className="flex-1 flex overflow-hidden">
-                {mode === 'preview' && (
-                    <div className="flex-1 p-4 flex items-center justify-center">
-                        <div className={cn(
-                            "w-full max-w-3xl h-full border rounded-xl overflow-hidden shadow-xl",
-                            dark ? "bg-white border-white/20" : "bg-white border-zinc-200"
-                        )}>
-                            <iframe
-                                ref={iframeRef}
-                                className="w-full h-full"
-                                sandbox="allow-scripts allow-same-origin"
-                                title={app.name}
-                            />
-                        </div>
-                    </div>
-                )}
+When using tools, respond in JSON:
+{"tool": "tool_name", "args": {"param": "value"}}
 
-                {mode === 'edit' && (
-                    <div className="flex-1 flex">
-                        <div className={cn("flex-1 p-4", dark ? "bg-zinc-900" : "bg-white")}>
-                            <textarea
-                                value={code}
-                                readOnly
-                                className={cn(
-                                    "w-full h-full p-4 rounded-lg text-xs font-mono resize-none focus:outline-none",
-                                    dark ? "bg-zinc-950 text-zinc-300" : "bg-zinc-50 text-zinc-700"
-                                )}
-                            />
-                        </div>
-                        <div className="flex-1 p-4">
-                            <div className={cn(
-                                "h-full border rounded-xl overflow-hidden",
-                                dark ? "bg-white" : "bg-zinc-50 border-zinc-200"
-                            )}>
-                                <iframe
-                                    ref={iframeRef}
-                                    className="w-full h-full"
-                                    sandbox="allow-scripts allow-same-origin"
-                                    title={app.name}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
+When explaining your thinking, write naturally.
+When showing code, use proper formatting with backticks.
+When done, summarize what you built and any next steps.`;
 
-                {mode === 'fullscreen' && (
-                    <div className="flex-1">
-                        <iframe
-                            ref={iframeRef}
-                            className="w-full h-full"
-                            sandbox="allow-scripts allow-same-origin"
-                            title={app.name}
-                        />
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
+const MAX_ITER = 15;
 
 export const NeuroApps: React.FC<NeuroAppsAppProps> = ({ windowData }) => {
-    const [tab, setTab] = useState<Tab>('store');
-    const [search, setSearch] = useState('');
-    const [runningApp, setRunningApp] = useState<NeuroApp | null>(null);
-    const [buildPrompt, setBuildPrompt] = useState('');
-    const [building, setBuilding] = useState(false);
-    const [buildingLogs, setBuildingLogs] = useState<string[]>([]);
+    const [mode, setMode] = useState<'chat' | 'library'>('chat');
+    const [messages, setMessages] = useState<AgentMessage[]>([]);
+    const [input, setInput] = useState('');
+    const [streaming, setStreaming] = useState(false);
+    const [abort, setAbort] = useState<AbortController | null>(null);
+    const [currentApp, setCurrentApp] = useState<NeuroApp | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showPreview, setShowPreview] = useState(true);
+    const [logs, setLogs] = useState<ThinkBlock[]>([]);
 
-    const { apps, addApp, deleteApp, updateApp } = useNeuroAppsStore();
+    const endRef = useRef<HTMLDivElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const { apps, addApp, updateApp, deleteApp } = useNeuroAppsStore();
 
     const dark = false;
 
-    const filteredApps = search
-        ? apps.filter(a =>
-            a.name.toLowerCase().includes(search.toLowerCase()) ||
-            a.description.toLowerCase().includes(search.toLowerCase())
-        )
-        : apps;
+    // Auto-scroll
+    useEffect(() => {
+        endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, logs]);
 
-    const handleBuild = async () => {
-        if (!buildPrompt.trim()) return;
-        setBuilding(true);
-        setBuildingLogs([]);
+    // Update preview when app changes
+    useEffect(() => {
+        if (currentApp && showPreview && iframeRef.current) {
+            const code = Object.values(currentApp.code)[0] || '';
+            const blob = new Blob([code], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            setPreviewUrl(url);
+            iframeRef.current.src = url;
+            return () => URL.revokeObjectURL(url);
+        }
+    }, [currentApp, showPreview]);
 
-        const agent = new (await import('../lib/runtime/codeAgent')).CodeAgent();
+    const addLog = useCallback((type: ThinkBlock['type'], content: string, tool?: string) => {
+        const log: ThinkBlock = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            type,
+            content,
+            tool,
+            timestamp: Date.now()
+        };
+        setLogs(prev => [...prev, log]);
+        return log;
+    }, []);
+
+    const completeLog = useCallback((log: ThinkBlock) => {
+        setLogs(prev => prev.map(l => l.id === log.id ? { ...l, duration: Date.now() - l.timestamp } : l));
+    }, []);
+
+    const handleToolCall = useCallback(async (tool: string, args: Record<string, any>): Promise<{ success: boolean; result: string }> => {
+        const log = addLog('tool_call', `Executing: ${tool}`, tool);
 
         try {
-            const result = await agent.generateFromPrompt(buildPrompt);
-            setBuildingLogs(agent.getLogs());
+            switch (tool) {
+                case 'run_preview':
+                    if (currentApp) {
+                        setShowPreview(true);
+                        completeLog(log);
+                        return { success: true, result: 'Preview started' };
+                    }
+                    completeLog(log);
+                    return { success: false, result: 'No app to preview' };
 
-            if (result.success && result.app) {
-                addApp(result.app);
-                setBuildPrompt('');
-                setTab('store');
-                setRunningApp(result.app);
+                case 'stop_preview':
+                    setShowPreview(false);
+                    completeLog(log);
+                    return { success: true, result: 'Preview stopped' };
+
+                case 'iterate_app': {
+                    const feedback = args.feedback;
+                    if (!currentApp) {
+                        completeLog(log);
+                        return { success: false, result: 'No app to iterate' };
+                    }
+                    const result = await codeAgent.iterateOnApp(currentApp.id, feedback);
+                    if (result.success && result.app) {
+                        setCurrentApp(result.app);
+                        updateApp(currentApp.id, result.app);
+                        completeLog(log);
+                        return { success: true, result: 'App updated successfully' };
+                    }
+                    completeLog(log);
+                    return { success: false, result: result.error || 'Iteration failed' };
+                }
+
+                case 'save_to_library': {
+                    if (!currentApp) {
+                        completeLog(log);
+                        return { success: false, result: 'No app to save' };
+                    }
+                    addApp(currentApp);
+                    completeLog(log);
+                    return { success: true, result: `Saved "${currentApp.name}" to library` };
+                }
+
+                case 'export_code': {
+                    if (!currentApp) {
+                        completeLog(log);
+                        return { success: false, result: 'No app to export' };
+                    }
+                    const code = Object.values(currentApp.code)[0] || '';
+                    await navigator.clipboard.writeText(code);
+                    completeLog(log);
+                    return { success: true, result: 'Code copied to clipboard' };
+                }
+
+                case 'get_app_info': {
+                    const info = currentApp
+                        ? `Current App: ${currentApp.name}\nType: ${currentApp.type}\nDescription: ${currentApp.description}`
+                        : 'No active project';
+                    completeLog(log);
+                    return { success: true, result: info };
+                }
+
+                default:
+                    completeLog(log);
+                    return { success: false, result: `Unknown tool: ${tool}` };
             }
         } catch (e: any) {
-            setBuildingLogs(prev => [...prev, `Error: ${e.message}`]);
+            addLog('error', `Error: ${e.message}`, tool);
+            return { success: false, result: e.message };
+        }
+    }, [currentApp, addLog, completeLog, addApp, updateApp]);
+
+    const runAgent = useCallback(async (userInput: string) => {
+        const userMsg: AgentMessage = {
+            id: `u-${Date.now()}`,
+            role: 'user',
+            content: userInput,
+            timestamp: Date.now()
+        };
+        const aId = `a-${Date.now()}`;
+        const assistantMsg: AgentMessage = {
+            id: aId,
+            role: 'assistant',
+            content: '',
+            thinking: [],
+            timestamp: Date.now(),
+            isStreaming: true
+        };
+
+        setMessages(prev => [...prev, userMsg, assistantMsg]);
+        setStreaming(true);
+
+        const ctrl = new AbortController();
+        setAbort(ctrl);
+
+        const thinkLog = addLog('thought', 'Analyzing your request...');
+        let fullResponse = '';
+
+        try {
+            const llm = getLLMProvider();
+            let iteration = 0;
+
+            const sysMsg = CLAUDE_CODE_SYSTEM_PROMPT;
+            const hist = messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+            const llmMsgs = [
+                { role: 'system' as const, content: sysMsg },
+                ...hist,
+                { role: 'user' as const, content: userInput }
+            ];
+
+            while (iteration < MAX_ITER) {
+                iteration++;
+                let cur = '';
+
+                if (iteration > 1) {
+                    addLog('thought', `Iteration ${iteration}: Processing...`);
+                }
+
+                await llm.stream(llmMsgs, (chunk) => {
+                    cur += chunk;
+                    fullResponse += chunk;
+                    setMessages(p => p.map(m => m.id === aId ? { ...m, content: cur } : m));
+                }, ctrl.signal);
+
+                completeLog(thinkLog);
+
+                // Parse tool calls
+                const toolCalls = parseToolCalls(cur);
+
+                if (toolCalls.length === 0) {
+                    // No more tools, finish
+                    setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
+                    break;
+                }
+
+                llmMsgs.push({ role: 'assistant' as const, content: cur });
+
+                // Execute tools
+                for (const tc of toolCalls) {
+                    const result = await handleToolCall(tc.tool, tc.args);
+                    const toolMsg = result.success
+                        ? `Tool ${tc.tool} succeeded: ${result.result}`
+                        : `Tool ${tc.tool} failed: ${result.result}`;
+                    llmMsgs.push({ role: 'user' as const, content: toolMsg });
+
+                    if (tc.tool === 'iterate_app' && result.success) {
+                        // Generate new code from iteration
+                        const iterLog = addLog('thought', 'Generating updated code...');
+                        let newCode = '';
+                        await llm.stream(llmMsgs, (chunk) => {
+                            newCode += chunk;
+                        }, ctrl.signal);
+                        completeLog(iterLog);
+                    }
+                }
+
+                fullResponse = '';
+            }
+
+            setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
+
+        } catch (e: any) {
+            if (e.name !== 'AbortError') {
+                addLog('error', `Error: ${e.message}`);
+            }
+            setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false, content: `Error: ${e.message}` } : m));
         } finally {
-            setBuilding(false);
+            setStreaming(false);
+            setAbort(null);
         }
-    };
+    }, [messages, addLog, completeLog, handleToolCall]);
 
-    const handleIterate = async (appId: string, feedback: string) => {
-        const agent = new (await import('../lib/runtime/codeAgent')).CodeAgent();
-        const result = await agent.iterateOnApp(appId, feedback);
-        setBuildingLogs(agent.getLogs());
+    // Simple tool call parser (matches Claude Code format)
+    function parseToolCalls(text: string): Array<{ tool: string; args: Record<string, any> }> {
+        const calls: Array<{ tool: string; args: Record<string, any> }> = [];
 
-        if (result.success && result.app) {
-            updateApp(appId, { code: result.app.code, lastRun: Date.now() });
+        // Match JSON tool calls
+        const jsonRegex = /\{"tool":\s*"([^"]+)"[^}]*\}/g;
+        let match;
+        while ((match = jsonRegex.exec(text)) !== null) {
+            try {
+                const obj = JSON.parse(match[0]);
+                if (obj.tool) {
+                    calls.push({ tool: obj.tool, args: obj.args || {} });
+                }
+            } catch {}
         }
 
-        return result;
-    };
+        // Match function-style calls: create_file("path", "content")
+        const funcRegex = /(create_file|update_file|read_file|run_preview|iterate_app|save_to_library|export_code|get_app_info)\s*\(\s*(["'`])((?:[^\\]|\\.)*?)\2\s*(?:,\s*(["'`])(.*?)\4)?\s*\)/g;
+        while ((match = funcRegex.exec(text)) !== null) {
+            const tool = match[1];
+            const arg1 = match[3];
+            const arg2 = match[5];
+            calls.push({
+                tool,
+                args: arg2 ? { path: arg1, content: arg2 } : { feedback: arg1 }
+            });
+        }
+
+        return calls;
+    }
+
+    // LLM Provider mock (replace with actual)
+    function getLLMProvider() {
+        return {
+            stream: async (msgs: any[], onChunk: (chunk: string) => void, signal?: AbortSignal) => {
+                // This would call the actual LLM
+                // For now, simulate a basic response
+                const lastMsg = msgs[msgs.length - 1]?.content || '';
+                const prompt = lastMsg.toLowerCase();
+
+                // Simple keyword-based responses for demo
+                if (prompt.includes('timer') || prompt.includes('pomodoro')) {
+                    const code = `<!DOCTYPE html><html><head><style>body{font-family:system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;background:#1a1a2e;color:#fff}.timer{font-size:5rem;font-weight:bold}.controls{display:flex;gap:1rem;margin-top:2rem}button{padding:0.75rem 1.5rem;font-size:1rem;border:none;border-radius:8px;cursor:pointer;background:#4a4a6a;color:#fff}button:hover{background:#5a5a7a}.status{margin-top:1rem;font-size:1.5rem}</style></head><body><div class="timer" id="timer">25:00</div><div class="controls"><button onclick="start()">Start</button><button onclick="reset()">Reset</button></div><div class="status" id="status">Work</div><script>let time=25*60,run=false,work=true;function start(){run=!run;document.querySelector('button').textContent=run?'Pause':'Start'}function reset(){time=work?25*60:5*60;run=false;document.querySelector('button').textContent='Start';document.getElementById('timer').textContent=Math.floor(time/60)+':'+(time%60).toString().padStart(2,'0')}setInterval(()=>{if(run&&time>0){time--;document.getElementById('timer').textContent=Math.floor(time/60)+':'+(time%60).toString().padStart(2,'0')}else if(time===0&&run){work=!work;time=work?25*60:5*60;document.getElementById('status').textContent=work?'Work':'Break'}},1000)</script></body></html>`;
+                    onChunk(`I've created a Pomodoro timer app for you!\n\n\`\`\`html\n${code.slice(0, 200)}...\n\`\`\`\n\nTool call: {"tool": "iterate_app", "args": {"feedback": "Apply this code"}}\n`);
+                } else {
+                    onChunk(`I understand you want to build something. Let me help you create an app.\n\nWhat type of app would you like?\n- Timer/Countdown\n- Todo list\n- Calculator\n- Weather widget\n- Game\n- Other\n\nJust describe what you want and I'll build it!`);
+                }
+            }
+        };
+    }
+
+    const submit = useCallback((e?: React.FormEvent) => {
+        e?.preventDefault?.();
+        if (!input.trim() || streaming) return;
+        runAgent(input.trim());
+        setInput('');
+    }, [input, streaming, runAgent]);
+
+    const stop = useCallback(() => {
+        abort?.abort();
+        setStreaming(false);
+    }, [abort]);
+
+    const loadAppToEditor = useCallback((app: NeuroApp) => {
+        setCurrentApp(app);
+        setMode('chat');
+        setMessages([{
+            id: 'sys-' + Date.now(),
+            role: 'assistant',
+            content: `Loaded "${app.name}". What would you like to change?`,
+            timestamp: Date.now()
+        }]);
+    }, []);
 
     return (
-        <>
-            {runningApp && (
-                <AppRunner
-                    app={runningApp}
-                    onClose={() => setRunningApp(null)}
-                    onIterate={handleIterate}
-                    dark={dark}
-                />
-            )}
-
-            <div className={cn("flex flex-col h-full", dark ? "bg-zinc-950 text-zinc-100" : "bg-white text-zinc-900")}>
-                {/* Header */}
-                <div className={cn("flex items-center justify-between px-5 py-3 border-b", dark ? "border-white/[0.08]" : "border-black/[0.06]")}>
-                    <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md flex items-center justify-center bg-gradient-to-br from-emerald-500 to-cyan-500">
-                            <Code2 size={12} className="text-white" />
-                        </div>
-                        <span className="text-sm font-medium">NeuroApps</span>
-                        <span className={cn("text-[9px] uppercase tracking-wider", dark ? "text-zinc-600" : "text-zinc-400")}>runtime machine</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <Search size={12} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", dark ? "text-zinc-600" : "text-zinc-400")} />
-                            <input
-                                type="text"
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                placeholder="Search apps..."
-                                className={cn(
-                                    "pl-8 pr-3 py-1.5 text-[11px] rounded-lg border w-48 focus:outline-none",
-                                    dark ? "bg-white/[0.05] border-white/[0.08] text-zinc-300 placeholder:text-zinc-600 focus:border-white/[0.15]" : "bg-black/[0.02] border-black/[0.06] text-zinc-700 placeholder:text-zinc-400 focus:border-black/[0.12]"
-                                )}
-                            />
-                        </div>
-                        <button
-                            onClick={() => setTab('build')}
-                            className={cn(
-                                "px-3 py-1.5 text-[11px] rounded-lg flex items-center gap-1.5 font-medium",
-                                dark ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                            )}
-                        >
-                            <Plus size={12} />
-                            Build
-                        </button>
-                    </div>
+        <div className={cn("flex h-full", dark ? "bg-zinc-950 text-zinc-100" : "bg-zinc-50 text-zinc-900")}>
+            {/* Sidebar - Library */}
+            <div className={cn(
+                "w-64 border-r flex flex-col shrink-0",
+                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-white border-zinc-200"
+            )}>
+                <div className={cn("p-3 border-b", dark ? "border-white/[0.08]" : "border-zinc-200")}>
+                    <h2 className="text-sm font-medium">App Library</h2>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">{apps.length} apps saved</p>
                 </div>
-
-                {/* Tabs */}
-                <div className={cn("flex border-b", dark ? "border-white/[0.08]" : "border-black/[0.06]")}>
-                    {([
-                        { id: 'store', label: 'Store', icon: Layers },
-                        { id: 'build', label: 'Build', icon: Sparkles },
-                        { id: 'running', label: 'Running', icon: Play },
-                        { id: 'explorer', label: 'Explorer', icon: FolderOpen },
-                    ] as const).map(t => (
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                    {apps.length === 0 ? (
+                        <div className={cn("text-[11px] text-center py-8", dark ? "text-zinc-600" : "text-zinc-400")}>
+                            No apps yet.<br />Build one in the chat!
+                        </div>
+                    ) : apps.map(app => (
                         <button
-                            key={t.id}
-                            onClick={() => setTab(t.id)}
+                            key={app.id}
+                            onClick={() => loadAppToEditor(app)}
                             className={cn(
-                                "flex items-center gap-1.5 px-4 py-2.5 text-[11px] border-r transition-colors",
-                                tab === t.id
-                                    ? (dark ? "bg-white/[0.03] text-zinc-200 border-white/[0.08]" : "bg-zinc-50 text-zinc-800 border-black/[0.06]")
-                                    : (dark ? "text-zinc-500 hover:text-zinc-300 border-transparent" : "text-zinc-500 hover:text-zinc-700 border-transparent")
+                                "w-full text-left p-2 rounded-lg transition-colors",
+                                dark ? "hover:bg-white/[0.05]" : "hover:bg-black/[0.03]"
                             )}
                         >
-                            <t.icon size={12} />
-                            {t.label}
-                            {t.id === 'store' && apps.length > 0 && (
-                                <span className={cn(
-                                    "text-[9px] px-1 py-0.5 rounded-full",
-                                    dark ? "bg-white/[0.1] text-zinc-400" : "bg-black/[0.06] text-zinc-500"
-                                )}>{apps.length}</span>
-                            )}
+                            <div className="text-[11px] font-medium truncate">{app.name}</div>
+                            <div className={cn("text-[9px] mt-0.5", dark ? "text-zinc-600" : "text-zinc-400")}>
+                                {app.type} · {new Date(app.createdAt).toLocaleDateString()}
+                            </div>
                         </button>
                     ))}
                 </div>
+            </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-5">
-                    {tab === 'store' && (
-                        filteredApps.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full">
-                                <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-4" style={{ background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                                    <Code2 size={24} className="opacity-20" />
-                                </div>
-                                <h3 className={cn("text-sm font-medium mb-1", dark ? "text-zinc-300" : "text-zinc-700")}>No apps yet</h3>
-                                <p className={cn("text-xs text-center max-w-xs", dark ? "text-zinc-600" : "text-zinc-500")}>Build your first app using the AI code agent</p>
-                                <button
-                                    onClick={() => setTab('build')}
-                                    className="mt-4 px-4 py-2 text-xs rounded-lg bg-emerald-500 text-white flex items-center gap-1.5"
-                                >
-                                    <Sparkles size={12} />
-                                    Build an App
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {filteredApps.map(app => (
-                                    <AppCard
-                                        key={app.id}
-                                        app={app}
-                                        onRun={(id) => { const a = apps.find(x => x.id === id); if (a) setRunningApp(a); }}
-                                        onEdit={(id) => { const a = apps.find(x => x.id === id); if (a) setRunningApp(a); }}
-                                        onDelete={deleteApp}
-                                        onCopy={() => {}}
-                                        dark={dark}
-                                    />
-                                ))}
-                            </div>
-                        )
-                    )}
-
-                    {tab === 'build' && (
-                        <div className="max-w-2xl mx-auto">
-                            <div className={cn(
-                                "rounded-xl p-6 border",
-                                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-zinc-50 border-zinc-200"
+            {/* Main Area */}
+            <div className="flex-1 flex flex-col min-w-0">
+                {/* Header */}
+                <div className={cn(
+                    "flex items-center justify-between px-4 py-2 border-b shrink-0",
+                    dark ? "bg-zinc-900 border-white/[0.08]" : "bg-white border-zinc-200"
+                )}>
+                    <div className="flex items-center gap-2">
+                        <Code2 size={16} className="text-emerald-500" />
+                        <span className="text-sm font-medium">Code Agent</span>
+                        {currentApp && (
+                            <span className={cn(
+                                "text-[9px] px-2 py-0.5 rounded-full",
+                                dark ? "bg-white/[0.1] text-zinc-400" : "bg-black/[0.05] text-zinc-500"
                             )}>
-                                <h2 className="text-lg font-medium mb-1">Build an App</h2>
-                                <p className={cn("text-xs mb-4", dark ? "text-zinc-500" : "text-zinc-500")}>
-                                    Describe the app you want to build. The AI will generate it for you.
-                                </p>
+                                {currentApp.name}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowPreview(!showPreview)}
+                            className={cn(
+                                "p-1.5 rounded-lg text-[10px] flex items-center gap-1",
+                                dark ? "hover:bg-white/[0.05]" : "hover:bg-black/[0.04]"
+                            )}
+                        >
+                            <SplitSquareHorizontal size={14} />
+                            {showPreview ? 'Hide' : 'Show'} Preview
+                        </button>
+                    </div>
+                </div>
 
-                                <textarea
-                                    value={buildPrompt}
-                                    onChange={e => setBuildPrompt(e.target.value)}
-                                    placeholder="Example: A productivity timer with customizable work/break intervals, a Pomodoro tracker, and stats dashboard"
-                                    className={cn(
-                                        "w-full p-3 rounded-lg text-sm resize-none h-32 focus:outline-none",
-                                        dark ? "bg-white/[0.05] border-white/[0.08] text-zinc-300 placeholder:text-zinc-600 focus:border-white/[0.15]" : "bg-white border-zinc-200 text-zinc-700 placeholder:text-zinc-400 focus:border-zinc-300"
-                                    )}
-                                />
+                {/* Chat Area */}
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Messages */}
+                    <div className={cn("flex-1 flex flex-col overflow-hidden", showPreview && currentApp ? "w-1/2" : "w-full")}>
+                        {/* Logs */}
+                        {logs.length > 0 && (
+                            <div className={cn(
+                                "border-b max-h-40 overflow-y-auto",
+                                dark ? "border-white/[0.08] bg-black/20" : "border-zinc-200 bg-zinc-100/50"
+                            )}>
+                                <div className="p-2 space-y-1">
+                                    {logs.slice(-10).map(log => (
+                                        <div key={log.id} className="flex items-center gap-2 text-[10px]">
+                                            {log.type === 'tool_call' && <Wrench size={10} className="text-emerald-500" />}
+                                            {log.type === 'thought' && <Brain size={10} className="text-blue-500" />}
+                                            {log.type === 'error' && <X size={10} className="text-red-500" />}
+                                            <span className={dark ? "text-zinc-400" : "text-zinc-600"}>
+                                                {log.content}
+                                            </span>
+                                            {log.duration && (
+                                                <span className={cn("opacity-50", dark ? "text-zinc-600" : "text-zinc-400")}>
+                                                    {log.duration}ms
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-                                <div className="flex items-center justify-between mt-4">
-                                    <div className="flex gap-2">
-                                        {['Timer', 'Calculator', 'Todo App', 'Weather', 'Game'].map(template => (
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {messages.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-center">
+                                    <div className={cn(
+                                        "w-16 h-16 rounded-2xl flex items-center justify-center mb-4",
+                                        dark ? "bg-white/[0.05]" : "bg-black/[0.03]"
+                                    )}>
+                                        <Sparkles size={28} className="text-emerald-500 opacity-50" />
+                                    </div>
+                                    <h3 className="text-base font-medium mb-1">Code Agent Ready</h3>
+                                    <p className="text-xs text-zinc-500 max-w-xs mb-6">
+                                        Describe what you want to build. I'll create it with tools and let you preview it.
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
+                                        {[
+                                            'Build a Pomodoro timer',
+                                            'Create a todo list app',
+                                            'Make a calculator',
+                                            'Design a weather widget'
+                                        ].map(suggestion => (
                                             <button
-                                                key={template}
-                                                onClick={() => setBuildPrompt(`Build a ${template.toLowerCase()}`)}
+                                                key={suggestion}
+                                                onClick={() => { setInput(suggestion); }}
                                                 className={cn(
-                                                    "px-2 py-1 text-[10px] rounded-md",
-                                                    dark ? "bg-white/[0.05] text-zinc-500 hover:bg-white/[0.1]" : "bg-white border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+                                                    "text-left px-3 py-2 rounded-lg text-[11px] transition-colors",
+                                                    dark ? "bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400" : "bg-black/[0.02] hover:bg-black/[0.05] text-zinc-600"
                                                 )}
                                             >
-                                                {template}
+                                                {suggestion}
                                             </button>
                                         ))}
                                     </div>
-                                    <button
-                                        onClick={handleBuild}
-                                        disabled={!buildPrompt.trim() || building}
-                                        className="px-4 py-2 text-xs rounded-lg bg-emerald-500 text-white disabled:opacity-50 flex items-center gap-1.5"
-                                    >
-                                        {building ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                                        {building ? 'Building...' : 'Build App'}
-                                    </button>
                                 </div>
-
-                                {buildingLogs.length > 0 && (
+                            ) : messages.map(msg => (
+                                <div key={msg.id} className={msg.role === 'user' ? "flex justify-end" : ""}>
                                     <div className={cn(
-                                        "mt-4 p-3 rounded-lg font-mono text-[10px] max-h-40 overflow-y-auto",
-                                        dark ? "bg-black/30 text-zinc-500" : "bg-black/5 text-zinc-600"
+                                        "max-w-[85%] rounded-2xl px-4 py-3",
+                                        msg.role === 'user'
+                                            ? (dark ? "bg-emerald-500/20 text-emerald-100" : "bg-emerald-50 text-emerald-800")
+                                            : (dark ? "bg-white/[0.05]" : "bg-white border border-zinc-200")
                                     )}>
-                                        {buildingLogs.map((log, i) => (
-                                            <div key={i}>{log}</div>
-                                        ))}
+                                        <Markdown
+                                            className="text-sm prose prose-sm max-w-none"
+                                            components={{
+                                                code: ({ children }) => (
+                                                    <code className={cn(
+                                                        "px-1.5 py-0.5 rounded text-[11px] font-mono",
+                                                        dark ? "bg-black/30" : "bg-zinc-100"
+                                                    )}>{children}</code>
+                                                ),
+                                                pre: ({ children }) => (
+                                                    <pre className={cn(
+                                                        "p-3 rounded-lg overflow-x-auto text-[11px] font-mono mt-2 mb-2",
+                                                        dark ? "bg-black/40" : "bg-zinc-100"
+                                                    )}>{children}</pre>
+                                                )
+                                            }}
+                                        >
+                                            {msg.content}
+                                        </Markdown>
+                                        {msg.isStreaming && (
+                                            <motion.span
+                                                animate={{ opacity: [1, 0] }}
+                                                transition={{ duration: 0.8, repeat: Infinity }}
+                                                className="inline-block w-1.5 h-3.5 ml-1 rounded-sm bg-emerald-500"
+                                            />
+                                        )}
                                     </div>
+                                </div>
+                            ))}
+                            <div ref={endRef} />
+                        </div>
+
+                        {/* Input */}
+                        <form onSubmit={submit} className={cn(
+                            "p-4 border-t",
+                            dark ? "border-white/[0.08] bg-zinc-900" : "border-zinc-200 bg-white"
+                        )}>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={e => setInput(e.target.value)}
+                                    placeholder="Describe what you want to build..."
+                                    disabled={streaming}
+                                    className={cn(
+                                        "flex-1 px-4 py-2.5 rounded-xl text-sm focus:outline-none",
+                                        dark
+                                            ? "bg-white/[0.05] border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:border-white/[0.15]"
+                                            : "bg-zinc-100 border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-300"
+                                    )}
+                                />
+                                {streaming ? (
+                                    <button
+                                        type="button"
+                                        onClick={stop}
+                                        className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                                    >
+                                        <Square size={18} />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="submit"
+                                        disabled={!input.trim()}
+                                        className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white disabled:opacity-50 hover:bg-emerald-600"
+                                    >
+                                        <Send size={18} />
+                                    </button>
                                 )}
                             </div>
-                        </div>
-                    )}
+                        </form>
+                    </div>
 
-                    {tab === 'running' && (
-                        <div className="flex flex-col items-center justify-center h-full">
-                            <Play size={32} className="opacity-20 mb-3" />
-                            <p className={cn("text-sm", dark ? "text-zinc-500" : "text-zinc-500")}>Select an app from the store to run it</p>
-                        </div>
-                    )}
-
-                    {tab === 'explorer' && (
-                        <div className="space-y-4">
+                    {/* Preview */}
+                    {showPreview && currentApp && (
+                        <div className={cn(
+                            "w-1/2 border-l flex flex-col",
+                            dark ? "border-white/[0.08]" : "border-zinc-200"
+                        )}>
                             <div className={cn(
-                                "flex items-center gap-3 p-4 rounded-xl border",
-                                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-zinc-50 border-zinc-200"
+                                "flex items-center justify-between px-3 py-2 border-b",
+ dark ? "border-white/[0.08] bg-zinc-900" : "border-zinc-200 bg-zinc-50"
                             )}>
-                                <FolderOpen size={20} className="opacity-40" />
-                                <div>
-                                    <div className="text-sm font-medium">{apps.length} Apps</div>
-                                    <div className="text-[10px] text-zinc-500">Total generated apps</div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3">
-                                {[
-                                    { label: 'HTML Apps', count: apps.filter(a => a.type === 'html').length, emoji: '🌐' },
-                                    { label: 'React Apps', count: apps.filter(a => a.type === 'react').length, emoji: '⚛️' },
-                                    { label: 'Scripts', count: apps.filter(a => a.type === 'script').length, emoji: '📜' },
-                                ].map(stat => (
-                                    <div
-                                        key={stat.label}
+                                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+                                    Preview
+                                </span>
+                                <div className="flex gap-1">
+                                    <a
+                                        href={previewUrl || '#'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                         className={cn(
-                                            "p-4 rounded-xl border text-center",
-                                            dark ? "bg-zinc-900 border-white/[0.08]" : "bg-zinc-50 border-zinc-200"
+                                            "p-1 rounded",
+                                            dark ? "hover:bg-white/[0.05]" : "hover:bg-black/[0.04]"
                                         )}
                                     >
-                                        <div className="text-2xl mb-1">{stat.emoji}</div>
-     <div className="text-lg font-medium">{stat.count}</div>
-                                        <div className="text-[10px] text-zinc-500">{stat.label}</div>
-                                    </div>
-                                ))}
+                                        <Globe size={12} />
+                                    </a>
+                                </div>
+                            </div>
+                            <div className="flex-1 bg-white">
+                                <iframe
+                                    ref={iframeRef}
+                                    className="w-full h-full border-0"
+                                    sandbox="allow-scripts allow-same-origin"
+                                    title="App Preview"
+                                />
                             </div>
                         </div>
                     )}
                 </div>
             </div>
-        </>
+        </div>
     );
 };
