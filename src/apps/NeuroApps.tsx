@@ -527,25 +527,26 @@ export const NeuroApps: React.FC<NeuroAppsAppProps> = ({ windowData }) => {
                                             ? (dark ? "bg-emerald-500/20 text-emerald-100" : "bg-emerald-50 text-emerald-800")
                                             : (dark ? "bg-white/[0.05]" : "bg-white border border-zinc-200")
                                     )}>
-                                        <Markdown
-                                            className="text-sm prose prose-sm max-w-none"
-                                            components={{
-                                                code: ({ children }) => (
-                                                    <code className={cn(
-                                                        "px-1.5 py-0.5 rounded text-[11px] font-mono",
-                                                        dark ? "bg-black/30" : "bg-zinc-100"
-                                                    )}>{children}</code>
-                                                ),
-                                                pre: ({ children }) => (
-                                                    <pre className={cn(
-                                                        "p-3 rounded-lg overflow-x-auto text-[11px] font-mono mt-2 mb-2",
-                                                        dark ? "bg-black/40" : "bg-zinc-100"
-                                                    )}>{children}</pre>
-                                                )
-                                            }}
-                                        >
-                                            {msg.content}
-                                        </Markdown>
+                                        <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                                            <Markdown
+                                                components={{
+                                                    code: ({ children }) => (
+                                                        <code className={cn(
+                                                            "px-1.5 py-0.5 rounded text-[11px] font-mono",
+                                                            dark ? "bg-black/30" : "bg-zinc-100"
+                                                        )}>{children}</code>
+                                                    ),
+                                                    pre: ({ children }) => (
+                                                        <pre className={cn(
+                                                            "p-3 rounded-lg overflow-x-auto text-[11px] font-mono mt-2 mb-2",
+                                                            dark ? "bg-black/40" : "bg-zinc-100"
+                                                        )}>{children}</pre>
+                                                    )
+                                                }}
+                                            >
+                                                {msg.content}
+                                            </Markdown>
+                                        </div>
                                         {msg.isStreaming && (
                                             <motion.span
                                                 animate={{ opacity: [1, 0] }}
