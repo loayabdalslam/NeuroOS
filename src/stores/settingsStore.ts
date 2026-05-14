@@ -10,11 +10,25 @@ interface ProviderConfig {
     apiKey: string;
     selectedModel: string;
     models: string[];
+    category?: 'general' | 'coding';
+    secureTransport?: 'renderer' | 'main';
+}
+
+export interface WallpaperItem {
+    id: string;
+    name: string;
+    src: string;
+    thumbnail?: string;
+    source: 'bundled' | 'remote' | 'upload';
+    attribution?: string;
+    collection?: string;
+    cachedPath?: string;
 }
 
 interface SettingsState {
     wallpaper: string;
     customWallpapers: string[];
+    wallpaperGallery: WallpaperItem[];
     theme: ThemeVariant;
     notificationsEnabled: boolean;
     soundEnabled: boolean;
@@ -27,6 +41,8 @@ interface SettingsState {
     setDesktopBadges: (enabled: boolean) => void;
     addCustomWallpaper: (url: string) => void;
     removeCustomWallpaper: (url: string) => void;
+    setWallpaperGallery: (items: WallpaperItem[]) => void;
+    cacheRemoteWallpaper: (url: string) => Promise<string | null>;
 
     aiConfig: {
         activeProviderId: string;
@@ -50,7 +66,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         models: [
             'opencode-pro', 'opencode-instant', 'opencode-lite', 
             'opencode-coder-pro', 'opencode-vision-pro', 'opencode-reasoning'
-        ]
+        ],
+        category: 'coding',
+        secureTransport: 'renderer',
     },
     {
         id: 'openai',
@@ -58,8 +76,10 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         type: 'openai',
         baseUrl: 'https://api.openai.com/v1',
         apiKey: '',
-        selectedModel: 'gpt-5.4-thinking',
-        models: ['gpt-5.4-thinking', 'gpt-5.4-pro', 'gpt-5.4-instant', 'gpt-rosalind', 'gpt-5.4-cyber']
+        selectedModel: 'gpt-5.2-codex',
+        models: ['gpt-5.2-codex', 'gpt-5-codex', 'gpt-5.5', 'gpt-5.4', 'gpt-4.1'],
+        category: 'coding',
+        secureTransport: 'main',
     },
     {
         id: 'anthropic',
@@ -68,7 +88,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.anthropic.com/v1',
         apiKey: '',
         selectedModel: 'claude-opus-4.7',
-        models: ['claude-opus-4.7', 'claude-4.6-sonnet', 'claude-4.5-haiku']
+        models: ['claude-opus-4.7', 'claude-4.6-sonnet', 'claude-4.5-haiku'],
+        category: 'general',
+        secureTransport: 'renderer',
     },
     {
         id: 'gemini',
@@ -77,7 +99,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://generativelanguage.googleapis.com',
         apiKey: '',
         selectedModel: 'gemini-3.1-pro',
-        models: ['gemini-3.1-pro', 'gemini-3.1-flash', 'gemini-2.5-pro', 'gemini-1.5-pro']
+        models: ['gemini-3.1-pro', 'gemini-3.1-flash', 'gemini-2.5-pro', 'gemini-1.5-pro'],
+        category: 'general',
+        secureTransport: 'renderer',
     },
     {
         id: 'mistral',
@@ -86,7 +110,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.mistral.ai/v1',
         apiKey: '',
         selectedModel: 'mistral-small-4',
-        models: ['mistral-small-4', 'mistral-large-3', 'mistral-3-dense']
+        models: ['mistral-small-4', 'mistral-large-3', 'mistral-3-dense'],
+        category: 'general',
+        secureTransport: 'renderer',
     },
     {
         id: 'groq',
@@ -95,7 +121,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.groq.com/openai/v1',
         apiKey: '',
         selectedModel: 'llama-4-405b',
-        models: ['llama-4-405b', 'llama-4-70b', 'llama-4-8b', 'mistral-small-4']
+        models: ['llama-4-405b', 'llama-4-70b', 'llama-4-8b', 'mistral-small-4'],
+        category: 'general',
+        secureTransport: 'renderer',
     },
     {
         id: 'perplexity',
@@ -104,7 +132,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.perplexity.ai',
         apiKey: '',
         selectedModel: 'sonar-3-pro',
-        models: ['sonar-3-pro', 'sonar-3-small']
+        models: ['sonar-3-pro', 'sonar-3-small'],
+        category: 'general',
+        secureTransport: 'renderer',
     },
     {
         id: 'xai',
@@ -113,7 +143,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://api.x.ai/v1',
         apiKey: '',
         selectedModel: 'grok-4.20-beta',
-        models: ['grok-4.20-beta', 'grok-4', 'grok-mini']
+        models: ['grok-4.20-beta', 'grok-4', 'grok-mini'],
+        category: 'general',
+        secureTransport: 'renderer',
     },
     {
         id: 'openrouter',
@@ -122,7 +154,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'https://openrouter.ai/api/v1',
         apiKey: '',
         selectedModel: 'kimi-k2.6',
-        models: ['kimi-k2.6', 'qwen-3.6-plus', 'trinity-large-preview', 'llama-4-8b']
+        models: ['kimi-k2.6', 'qwen-3.6-plus', 'trinity-large-preview', 'llama-4-8b'],
+        category: 'general',
+        secureTransport: 'renderer',
     },
     {
         id: 'ollama',
@@ -134,7 +168,9 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         models: [
             'gemma4:e4b', 'minimax-m2:cloud', 'granite4:350m', 
             'gemma3:latest', 'phi-4', 'deepseek-v3.1:671b-cloud'
-        ]
+        ],
+        category: 'coding',
+        secureTransport: 'renderer',
     },
     {
         id: 'lmstudio',
@@ -143,8 +179,40 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
         baseUrl: 'http://localhost:1234/v1',
         apiKey: '',
         selectedModel: 'local-model',
-        models: ['local-model']
+        models: ['local-model'],
+        category: 'coding',
+        secureTransport: 'renderer',
     }
+];
+
+const DEFAULT_WALLPAPER_GALLERY: WallpaperItem[] = [
+    {
+        id: 'ios-sky',
+        name: 'Blue Horizon',
+        src: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
+        thumbnail: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=480&q=60',
+        source: 'remote',
+        attribution: 'Unsplash',
+        collection: 'iOS-inspired',
+    },
+    {
+        id: 'ios-sand',
+        name: 'Warm Dune',
+        src: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80',
+        thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=480&q=60',
+        source: 'remote',
+        attribution: 'Unsplash',
+        collection: 'iOS-inspired',
+    },
+    {
+        id: 'ios-night',
+        name: 'Midnight Glass',
+        src: 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1600&q=80',
+        thumbnail: 'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=480&q=60',
+        source: 'remote',
+        attribution: 'Unsplash',
+        collection: 'iOS-inspired',
+    },
 ];
 
 export const useSettingsStore = create<SettingsState>()(
@@ -152,6 +220,7 @@ export const useSettingsStore = create<SettingsState>()(
         (set, get) => ({
             wallpaper: '',
             customWallpapers: [],
+            wallpaperGallery: DEFAULT_WALLPAPER_GALLERY,
             theme: 'system' as ThemeVariant,
             notificationsEnabled: true,
             soundEnabled: true,
@@ -175,6 +244,15 @@ export const useSettingsStore = create<SettingsState>()(
                 customWallpapers: state.customWallpapers.filter(u => u !== url),
                 wallpaper: state.wallpaper === url ? '' : state.wallpaper
             })),
+            setWallpaperGallery: (items) => set({ wallpaperGallery: items }),
+            cacheRemoteWallpaper: async (url) => {
+                try {
+                    const result = await window.electron.wallpaper.cacheRemote(url);
+                    return result?.localPath || null;
+                } catch {
+                    return null;
+                }
+            },
 
             aiConfig: {
                 activeProviderId: 'opencode',
@@ -252,7 +330,7 @@ export const useSettingsStore = create<SettingsState>()(
         }),
         {
             name: 'neuro-os-settings',
-            version: 3,
+            version: 4,
             migrate: (persisted: any, version) => {
                 if (version < 2) {
                     const { p2pServerUrl, ...rest } = persisted || {};
@@ -279,6 +357,16 @@ export const useSettingsStore = create<SettingsState>()(
                             }
                             return p;
                         });
+                    }
+                }
+                if (version < 4) {
+                    persisted.wallpaperGallery = persisted.wallpaperGallery || DEFAULT_WALLPAPER_GALLERY;
+                    if (persisted?.aiConfig?.providers) {
+                        persisted.aiConfig.providers = persisted.aiConfig.providers.map((p: any) => ({
+                            category: p.category || (p.id === 'openai' || p.id === 'opencode' || p.id === 'ollama' || p.id === 'lmstudio' ? 'coding' : 'general'),
+                            secureTransport: p.secureTransport || (p.id === 'openai' ? 'main' : 'renderer'),
+                            ...p,
+                        }));
                     }
                 }
                 return persisted;

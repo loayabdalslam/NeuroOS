@@ -14,6 +14,24 @@ export interface NeuroApp {
     thumbnail?: string;
     tags: string[];
     author: string;
+    manifest?: {
+        entry: string;
+        dependencies?: string[];
+        runtime: 'iframe' | 'react-sandbox' | 'node';
+    };
+    files?: Array<{ path: string; language: string; size: number }>;
+    preview?: {
+        status: 'idle' | 'ready' | 'building' | 'error';
+        url?: string;
+        lastBuiltAt?: number;
+        error?: string;
+    };
+    publish?: {
+        status: 'draft' | 'published';
+        shareUrl?: string;
+        publishedAt?: number;
+        version?: number;
+    };
 }
 
 export interface RuntimeConfig {
@@ -124,5 +142,21 @@ export function createAppFromCode(
         lastRun: null,
         tags,
         author,
+        manifest: {
+            entry: Object.keys(files)[0] || 'index.html',
+            runtime: type === 'react' ? 'react-sandbox' : type === 'node' ? 'node' : 'iframe',
+        },
+        files: Object.entries(files).map(([filePath, content]) => ({
+            path: filePath,
+            language: filePath.split('.').pop() || 'txt',
+            size: content.length,
+        })),
+        preview: {
+            status: 'idle',
+        },
+        publish: {
+            status: 'draft',
+            version: 1,
+        },
     };
 }

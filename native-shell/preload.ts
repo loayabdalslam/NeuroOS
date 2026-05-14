@@ -29,6 +29,13 @@ contextBridge.exposeInMainWorld('electron', {
         chat: (provider: string, data: any) => ipcRenderer.invoke('llm:chat', provider, data),
     },
 
+    composio: {
+        initialize: (apiKey: string) => ipcRenderer.invoke('composio:initialize', apiKey),
+        getConnectedAccounts: (userId: string) => ipcRenderer.invoke('composio:getConnectedAccounts', userId),
+        initiateConnection: (payload: { appName: string; userId: string }) => ipcRenderer.invoke('composio:initiateConnection', payload),
+        disconnectAccount: (connectionId: string) => ipcRenderer.invoke('composio:disconnectAccount', connectionId),
+    },
+
     // Shell Execution
     shell: {
         exec: (command: string, cwd?: string) => ipcRenderer.invoke('shell:exec', command, cwd),
@@ -81,6 +88,16 @@ contextBridge.exposeInMainWorld('electron', {
     // Generic API proxy (bypasses CORS for external API calls)
     apiProxy: (opts: { url: string; method?: string; headers?: Record<string, string>; body?: string }) =>
         ipcRenderer.invoke('api:proxy', opts),
+
+    wallpaper: {
+        cacheRemote: (url: string) => ipcRenderer.invoke('wallpaper:cacheRemote', url),
+        listCached: () => ipcRenderer.invoke('wallpaper:listCached'),
+    },
+
+    builder: {
+        publish: (payload: any) => ipcRenderer.invoke('builder:publish', payload),
+        getPublishedApps: () => ipcRenderer.invoke('builder:getPublishedApps'),
+    },
 
     // Auto-Updater
     updates: {

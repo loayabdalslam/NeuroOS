@@ -22,16 +22,18 @@ Successfully rebranded NeuroOS with a minimalist "N" character across all icon f
 
 ### PNG (Raster)
 - `build/icon.png` - 512x512 (main app icon)
-- `build/icon-256x256.png` - 256x256
-- `build/icon-128x128.png` - 128x128
-- `build/icon-64x64.png` - 64x64
-- `build/icon-32x32.png` - 32x32
-- `build/icon-16x16.png` - 16x16 (taskbar)
+- `build/icon-1024x1024.png` - 1024x1024 (ultra-res)
+- `build/icon-256x256.png`, `build/icon-128x128.png`, `build/icon-64x64.png`, `build/icon-32x32.png`, `build/icon-16x16.png`
 
 ### ICO (Windows)
-- `build/icon.ico` - Multi-resolution Windows icon
-  - Contains 6 sizes: 16, 32, 48, 64, 128, 256
-  - Used for taskbar, window title, file associations
+- `build/icon.ico` - Multi-resolution Windows icon (16-256px)
+- `build/icon-taskbar.ico` - Optimized taskbar icon
+- `public/favicon.ico` - Web/Development favicon
+
+### BMP (Installer)
+- `build/installerHeader.bmp` - NSIS Installer Header
+- `build/installerSidebar.bmp` - NSIS Installer Sidebar
+
 
 ## Where the Icon Appears
 

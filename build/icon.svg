@@ -1,7 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- Background -->
-  <rect width="512" height="512" rx="80" fill="#09090B"/>
-
-  <!-- Minimalist N Logo -->
-  <path d="M140 120 L140 392 L192 392 L192 224 L348 392 L400 392 L400 120 L348 120 L348 288 L192 120 Z" fill="#FFFFFF"/>
+  <rect width="512" height="512" rx="92" fill="#09090B"/>
+  <path d="M150 150 L150 362 L362 150 L362 362" stroke="white" stroke-width="60" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

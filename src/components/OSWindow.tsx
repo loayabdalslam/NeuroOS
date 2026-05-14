@@ -128,11 +128,11 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
       }}
       transition={{ type: 'spring', damping: isChatApp ? 22 : 25, stiffness: isChatApp ? 400 : 350, mass: 0.8 }}
       className={cn(
-        "absolute bg-white flex flex-col overflow-hidden",
+        "absolute bg-[color:var(--color-glass-strong)] flex flex-col overflow-hidden backdrop-blur-[var(--shell-blur)]",
         windowData.isFocused
-          ? `z-[100] shadow-2xl shadow-zinc-200/50 ring-1 ${isChatApp ? 'ring-sky-200' : 'ring-zinc-200'}`
-          : "z-[10] shadow-md shadow-zinc-200/50 ring-1 ring-zinc-100",
-        isMaximized ? "rounded-none" : "rounded-lg",
+          ? `z-[100] shadow-[var(--shell-shadow-strong)] ring-1 ${isChatApp ? 'ring-sky-200/60' : 'ring-white/60'}`
+          : "z-[10] shadow-[var(--shell-shadow)] ring-1 ring-white/50",
+        isMaximized ? "rounded-none" : "rounded-[28px]",
         "pointer-events-auto"
       )}
       style={{ zIndex: windowData.zIndex }}
@@ -140,35 +140,37 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
     >
       {/* Title Bar */}
       <div
-        className="h-10 bg-white border-b border-zinc-100 flex items-center justify-between px-3 cursor-default select-none shrink-0"
+        className="h-12 bg-white/30 border-b border-white/50 flex items-center justify-between px-4 cursor-default select-none shrink-0"
         onMouseDown={handleMouseDown}
         onDoubleClick={() => updateWindow(windowData.id, { state: isMaximized ? 'normal' : 'maximized' })}
         {...titleBarCtx}
       >
         <div className="flex items-center gap-3">
-          <span className={cn("flex items-center justify-center", isChatApp ? "text-sky-500" : "text-zinc-400")}>
-            <NeuroIcon size={14} showTM={false} />
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+            <span className="w-3 h-3 rounded-full bg-[#febc2e]" />
+            <span className="w-3 h-3 rounded-full bg-[#28c840]" />
+          </div>
           <span className="text-sm font-semibold text-zinc-800 tracking-tight">{windowData.title}</span>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); minimizeWindow(windowData.id); }}
-            className="w-6 h-6 flex items-center justify-center hover:bg-zinc-100 rounded-full transition-colors text-zinc-400 hover:text-zinc-700"
+            className="w-7 h-7 flex items-center justify-center hover:bg-white/70 rounded-full transition-colors text-zinc-400 hover:text-zinc-700"
             aria-label="Minimize window"
           >
             <Minus size={14} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); updateWindow(windowData.id, { state: isMaximized ? 'normal' : 'maximized' }); }}
-            className="w-6 h-6 flex items-center justify-center hover:bg-zinc-100 rounded-full transition-colors text-zinc-400 hover:text-zinc-700"
+            className="w-7 h-7 flex items-center justify-center hover:bg-white/70 rounded-full transition-colors text-zinc-400 hover:text-zinc-700"
             aria-label={isMaximized ? "Restore window" : "Maximize window"}
           >
             <Maximize2 size={12} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); closeWindow(windowData.id); }}
-            className="w-6 h-6 flex items-center justify-center hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-full transition-colors"
+            className="w-7 h-7 flex items-center justify-center hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-full transition-colors"
             aria-label="Close window"
           >
             <X size={14} />
@@ -177,7 +179,7 @@ export const OSWindow: React.FC<OSWindowProps> = ({ win: windowData, children })
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto bg-white scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
+      <div className="flex-1 overflow-auto bg-white/45 scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
         {children}
       </div>
 

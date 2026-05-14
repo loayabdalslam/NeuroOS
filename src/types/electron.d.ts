@@ -27,6 +27,12 @@ declare global {
             llm: {
                 chat: (provider: string, data: any) => Promise<any>;
             };
+            composio: {
+                initialize: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
+                getConnectedAccounts: (userId: string) => Promise<any>;
+                initiateConnection: (payload: { appName: string; userId: string }) => Promise<any>;
+                disconnectAccount: (connectionId: string) => Promise<{ success: boolean; error?: string }>;
+            };
             shell: {
                 exec: (command: string, cwd?: string) => Promise<{
                     stdout: string;
@@ -60,6 +66,14 @@ declare global {
                 getAutoLaunch: () => Promise<boolean>;
                 setAutoLaunch: (enable: boolean) => Promise<boolean>;
             };
+            wallpaper: {
+                cacheRemote: (url: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
+                listCached: () => Promise<Array<{ name: string; path: string }>>;
+            };
+            builder: {
+                publish: (payload: any) => Promise<any>;
+                getPublishedApps: () => Promise<any>;
+            };
             updates: {
                 check: () => Promise<void>;
                 download: () => Promise<void>;
@@ -67,6 +81,7 @@ declare global {
                 onStatus: (callback: (status: any) => void) => () => void;
             };
             proxyRequest: (url: string) => Promise<any>;
+            apiProxy: (opts: { url: string; method?: string; headers?: Record<string, string>; body?: string }) => Promise<any>;
         };
     }
 }

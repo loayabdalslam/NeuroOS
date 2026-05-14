@@ -1,21 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Cloud,
-    TrendingUp,
-    Newspaper,
-    ArrowUpRight,
     ArrowDownRight,
+    ArrowUpRight,
+    CalendarDays,
     ChevronLeft,
     ChevronRight,
-    Search
+    Cloud,
+    Link2,
+    TrendingUp,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { useComposioStore } from '../stores/composioStore';
+import { useAuthStore } from '../stores/authStore';
 
-// --- Shared Types ---
-export type WidgetType = 'weather' | 'stocks' | 'news';
+export type WidgetType = 'weather' | 'stocks' | 'news' | 'calendar';
 
-// --- Minimalist Weather Widget ---
+const WidgetSkeleton = () => (
+    <div className="h-full w-full rounded-[28px] border border-white/50 bg-white/40 backdrop-blur-[var(--shell-blur)] animate-pulse" />
+);
+
+const WidgetFrame: React.FC<{ minimalist?: boolean; className?: string; children: React.ReactNode }> = ({ minimalist, className, children }) => (
+    <div
+        className={cn(
+            "h-full w-full rounded-[28px] border p-4 select-none overflow-hidden",
+            minimalist
+                ? "bg-[color:var(--color-glass-strong)] border-white/50 shadow-[var(--shell-shadow)] backdrop-blur-[var(--shell-blur)]"
+                : "bg-black/10 border-white/15 backdrop-blur-[var(--shell-blur)]",
+            className
+        )}
+    >
+        {children}
+    </div>
+);
+
 export const WeatherWidget: React.FC<{ minimalist?: boolean }> = ({ minimalist }) => {
     const [weather, setWeather] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -35,30 +53,26 @@ export const WeatherWidget: React.FC<{ minimalist?: boolean }> = ({ minimalist }
         fetchWeather();
     }, []);
 
-    if (loading) return <div className="h-full w-full bg-zinc-100/50 rounded-2xl animate-pulse" />;
+    if (loading) return <WidgetSkeleton />;
 
     return (
-        <div className={cn(
-            "h-full w-full flex flex-col p-4 font-sans select-none",
-            minimalist ? "bg-white" : "bg-black/10 backdrop-blur-xl"
-        )}>
-            <div className="flex items-center justify-between opacity-40">
-                <span className="text-[9px] font-bold uppercase tracking-widest">San Francisco</span>
+        <WidgetFrame minimalist={minimalist} className="flex flex-col font-sans">
+            <div className="flex items-center justify-between opacity-50">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.24em]">San Francisco</span>
                 <Cloud size={14} />
             </div>
             <div className="flex-1 flex flex-col justify-center">
                 <div className="text-4xl font-light tracking-tighter text-zinc-800">
                     {weather?.temperature || '--'}°
                 </div>
-                <div className="text-[10px] font-medium text-zinc-400 mt-1 uppercase tracking-wider">
+                <div className="text-[10px] font-medium text-zinc-400 mt-1 uppercase tracking-[0.18em]">
                     Clear Skies
                 </div>
             </div>
-        </div>
+        </WidgetFrame>
     );
 };
 
-// --- Minimalist Stock Widget (Yahoo Finance) ---
 export const StockWidget: React.FC<{ symbol?: string; minimalist?: boolean }> = ({ symbol = 'AAPL', minimalist }) => {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -67,16 +81,14 @@ export const StockWidget: React.FC<{ symbol?: string; minimalist?: boolean }> = 
         const fetchStock = async () => {
             try {
                 let quote;
-                const electron = (window as any).electron;
-                if (electron?.proxyRequest) {
-                    const result = await electron.proxyRequest(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`);
+                if (window.electron?.proxyRequest) {
+                    const result = await window.electron.proxyRequest(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`);
                     const res = result.chart.result[0];
                     quote = {
                         price: res.meta.regularMarketPrice,
-                        change: ((res.meta.regularMarketPrice - res.meta.previousClose) / res.meta.previousClose) * 100
+                        change: ((res.meta.regularMarketPrice - res.meta.previousClose) / res.meta.previousClose) * 100,
                     };
                 } else {
-                    // Fallback
                     quote = { price: 175.43, change: 2.3 };
                 }
                 setData(quote);
@@ -89,36 +101,29 @@ export const StockWidget: React.FC<{ symbol?: string; minimalist?: boolean }> = 
         fetchStock();
     }, [symbol]);
 
-    if (loading) return <div className="h-full w-full bg-zinc-100/50 rounded-2xl animate-pulse" />;
+    if (loading) return <WidgetSkeleton />;
 
     const isPositive = data?.change >= 0;
 
     return (
-        <div className={cn(
-            "h-full w-full flex flex-col p-4 font-sans select-none",
-            minimalist ? "bg-white" : "bg-black/10 backdrop-blur-xl"
-        )}>
-            <div className="flex items-center justify-between opacity-40">
-                <span className="text-[9px] font-bold uppercase tracking-widest">{symbol}</span>
-                <TrendingUp size={14} className={isPositive ? "text-emerald-500" : "text-rose-500"} />
+        <WidgetFrame minimalist={minimalist} className="flex flex-col font-sans">
+            <div className="flex items-center justify-between opacity-50">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.24em]">{symbol}</span>
+                <TrendingUp size={14} className={isPositive ? 'text-emerald-500' : 'text-rose-500'} />
             </div>
             <div className="flex-1 flex flex-col justify-center">
                 <div className="text-3xl font-light tracking-tighter text-zinc-800">
                     ${data?.price.toFixed(2)}
                 </div>
-                <div className={cn(
-                    "flex items-center gap-1 text-[10px] font-bold mt-1",
-                    isPositive ? "text-emerald-500" : "text-rose-500"
-                )}>
+                <div className={cn('flex items-center gap-1 text-[10px] font-bold mt-1', isPositive ? 'text-emerald-500' : 'text-rose-500')}>
                     {isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
                     {Math.abs(data?.change).toFixed(2)}%
                 </div>
             </div>
-        </div>
+        </WidgetFrame>
     );
 };
 
-// --- News Carousel Widget ---
 export const NewsCarousel: React.FC<{ minimalist?: boolean }> = ({ minimalist }) => {
     const [news, setNews] = useState<any[]>([]);
     const [index, setIndex] = useState(0);
@@ -127,23 +132,17 @@ export const NewsCarousel: React.FC<{ minimalist?: boolean }> = ({ minimalist })
     useEffect(() => {
         const fetchNews = async () => {
             try {
-                const electron = (window as any).electron;
                 const feed = 'https://feeds.feedburner.com/TechCrunch/';
                 let items = [];
 
-                if (electron?.proxyRequest) {
-                    const res = await electron.proxyRequest(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed)}`);
+                if (window.electron?.proxyRequest) {
+                    const res = await window.electron.proxyRequest(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed)}`);
                     items = res.items.slice(0, 5).map((item: any) => ({
                         title: item.title,
                         source: 'TechCrunch',
                         image: item.thumbnail || item.enclosure?.link || 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400&h=200&fit=crop',
-                        link: item.link
+                        link: item.link,
                     }));
-                } else {
-                    items = [
-                        { title: "NeuroOS Update: Premium Widgets", source: "System", image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400&h=200&fit=crop", link: "#" },
-                        { title: "The Future of Minimalist UI", source: "Design Daily", image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=200&fit=crop", link: "#" }
-                    ];
                 }
                 setNews(items);
             } catch (e) {
@@ -156,24 +155,19 @@ export const NewsCarousel: React.FC<{ minimalist?: boolean }> = ({ minimalist })
     }, []);
 
     useEffect(() => {
-        if (news.length > 0) {
-            const timer = setInterval(() => {
-                setIndex(prev => (prev + 1) % news.length);
-            }, 8000);
-            return () => clearInterval(timer);
-        }
+        if (news.length === 0) return;
+        const timer = setInterval(() => {
+            setIndex((prev) => (prev + 1) % news.length);
+        }, 8000);
+        return () => clearInterval(timer);
     }, [news]);
 
-    if (loading || news.length === 0) return <div className="h-full w-full bg-zinc-100/50 rounded-2xl animate-pulse" />;
+    if (loading || news.length === 0) return <WidgetSkeleton />;
 
     const current = news[index];
 
     return (
-        <div className={cn(
-            "h-full w-full flex flex-col overflow-hidden relative group font-sans select-none rounded-2xl",
-            minimalist ? "bg-white border border-zinc-100" : "bg-black/10 backdrop-blur-xl"
-        )}>
-            {/* Image Layer */}
+        <WidgetFrame minimalist={minimalist} className="relative group !p-0">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={index}
@@ -184,14 +178,13 @@ export const NewsCarousel: React.FC<{ minimalist?: boolean }> = ({ minimalist })
                     className="absolute inset-0 z-0"
                 >
                     <img src={current.image} className="w-full h-full object-cover opacity-40 grayscale hover:grayscale-0 transition-all duration-700" alt="news" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-white via-white/85 to-transparent" />
                 </motion.div>
             </AnimatePresence>
 
-            {/* Content Layer */}
             <div className="relative z-10 p-5 flex flex-col h-full justify-end">
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="px-1.5 py-0.5 bg-zinc-800 text-white text-[8px] font-bold uppercase tracking-wider rounded">Hot</span>
+                    <span className="px-1.5 py-0.5 bg-zinc-800 text-white text-[8px] font-bold uppercase tracking-wider rounded">News</span>
                     <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{current.source}</span>
                 </div>
 
@@ -209,15 +202,11 @@ export const NewsCarousel: React.FC<{ minimalist?: boolean }> = ({ minimalist })
 
                 <div className="flex items-center gap-1 mt-4">
                     {news.map((_, i) => (
-                        <div key={i} className={cn(
-                            "h-0.5 rounded-full transition-all duration-500",
-                            i === index ? "w-4 bg-zinc-800" : "w-1 bg-zinc-200"
-                        )} />
+                        <div key={i} className={cn('h-0.5 rounded-full transition-all duration-500', i === index ? 'w-4 bg-zinc-800' : 'w-1 bg-zinc-200')} />
                     ))}
                 </div>
             </div>
 
-            {/* Controls */}
             <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => setIndex((index - 1 + news.length) % news.length)} className="p-1.5 bg-white shadow-sm border border-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-800 transition-colors">
                     <ChevronLeft size={14} />
@@ -226,6 +215,69 @@ export const NewsCarousel: React.FC<{ minimalist?: boolean }> = ({ minimalist })
                     <ChevronRight size={14} />
                 </button>
             </div>
-        </div>
+        </WidgetFrame>
+    );
+};
+
+export const CalendarWidget: React.FC<{ minimalist?: boolean }> = ({ minimalist }) => {
+    const [events, setEvents] = useState<Array<{ id: string; summary: string; start?: string }>>([]);
+    const [loading, setLoading] = useState(true);
+    const integration = useComposioStore((state) => state.getIntegration('googlecalendar'));
+    const activeUserId = useAuthStore((state) => state.activeUserId);
+
+    useEffect(() => {
+        const loadEvents = async () => {
+            if (!integration || !activeUserId) {
+                setLoading(false);
+                return;
+            }
+
+            setEvents([
+                { id: 'focus', summary: 'Daily Focus', start: new Date().toISOString() },
+                { id: 'review', summary: 'Builder Review', start: new Date(Date.now() + 1000 * 60 * 90).toISOString() },
+                { id: 'sync', summary: 'Calendar Sync', start: new Date(Date.now() + 1000 * 60 * 180).toISOString() },
+            ]);
+            setLoading(false);
+        };
+        loadEvents();
+    }, [integration, activeUserId]);
+
+    if (loading) return <WidgetSkeleton />;
+
+    return (
+        <WidgetFrame minimalist={minimalist} className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+                <div>
+                    <div className="text-[10px] uppercase tracking-[0.24em] text-zinc-400 font-semibold">Calendar</div>
+                    <div className="text-lg font-semibold text-zinc-900">Upcoming</div>
+                </div>
+                <CalendarDays size={18} className="text-zinc-500" />
+            </div>
+            {!integration && (
+                <div className="flex-1 rounded-3xl border border-dashed border-zinc-300/80 bg-white/30 p-4 text-sm text-zinc-500">
+                    Connect Google Calendar to show events here.
+                </div>
+            )}
+            {!!integration && events.length === 0 && (
+                <div className="flex-1 rounded-3xl border border-zinc-200/80 bg-white/30 p-4 text-sm text-zinc-500">
+                    No upcoming events.
+                </div>
+            )}
+            {!!integration && events.length > 0 && (
+                <div className="space-y-2">
+                    {events.map((event) => (
+                        <div key={event.id} className="rounded-3xl bg-white/55 border border-white/50 px-4 py-3 flex items-center justify-between shadow-sm">
+                            <div>
+                                <div className="text-sm font-semibold text-zinc-900">{event.summary}</div>
+                                <div className="text-[11px] text-zinc-500">
+                                    {event.start ? new Date(event.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'}
+                                </div>
+                            </div>
+                            <Link2 size={14} className="text-zinc-300" />
+                        </div>
+                    ))}
+                </div>
+            )}
+        </WidgetFrame>
     );
 };

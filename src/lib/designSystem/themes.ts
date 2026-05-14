@@ -19,6 +19,14 @@ export interface DesignToken {
     warning: string;
     error: string;
     info: string;
+    glass: string;
+    glassStrong: string;
+    shadow: string;
+    shadowStrong: string;
+    wallpaperTint: string;
+    dock: string;
+    radius: string;
+    blur: string;
 }
 
 export const themes: Record<ThemeVariant, DesignToken> = {
@@ -36,6 +44,14 @@ export const themes: Record<ThemeVariant, DesignToken> = {
         warning: '#f59e0b',
         error: '#ef4444',
         info: '#06b6d4',
+        glass: 'rgba(255,255,255,0.62)',
+        glassStrong: 'rgba(255,255,255,0.82)',
+        shadow: '0 24px 60px rgba(15, 23, 42, 0.12)',
+        shadowStrong: '0 28px 80px rgba(15, 23, 42, 0.18)',
+        wallpaperTint: 'rgba(255,255,255,0.18)',
+        dock: 'rgba(255,255,255,0.72)',
+        radius: '22px',
+        blur: '22px',
     },
     dark: {
         primary: '#60a5fa', // Lighter Blue for dark mode
@@ -51,6 +67,14 @@ export const themes: Record<ThemeVariant, DesignToken> = {
         warning: '#fbbf24',
         error: '#f87171',
         info: '#22d3ee',
+        glass: 'rgba(15,23,42,0.58)',
+        glassStrong: 'rgba(15,23,42,0.8)',
+        shadow: '0 24px 60px rgba(2, 6, 23, 0.45)',
+        shadowStrong: '0 28px 90px rgba(2, 6, 23, 0.6)',
+        wallpaperTint: 'rgba(15,23,42,0.24)',
+        dock: 'rgba(15,23,42,0.72)',
+        radius: '22px',
+        blur: '24px',
     },
     cyan: {
         primary: '#06b6d4',
@@ -66,6 +90,14 @@ export const themes: Record<ThemeVariant, DesignToken> = {
         warning: '#f59e0b',
         error: '#ef4444',
         info: '#06b6d4',
+        glass: 'rgba(236,249,251,0.74)',
+        glassStrong: 'rgba(240,249,250,0.88)',
+        shadow: '0 24px 60px rgba(8, 145, 178, 0.15)',
+        shadowStrong: '0 28px 80px rgba(8, 145, 178, 0.2)',
+        wallpaperTint: 'rgba(224,242,254,0.26)',
+        dock: 'rgba(236,249,251,0.72)',
+        radius: '22px',
+        blur: '22px',
     },
     purple: {
         primary: '#a78bfa',
@@ -81,6 +113,14 @@ export const themes: Record<ThemeVariant, DesignToken> = {
         warning: '#f59e0b',
         error: '#ef4444',
         info: '#a78bfa',
+        glass: 'rgba(245,243,255,0.74)',
+        glassStrong: 'rgba(250,245,255,0.9)',
+        shadow: '0 24px 60px rgba(107, 33, 168, 0.14)',
+        shadowStrong: '0 28px 80px rgba(107, 33, 168, 0.2)',
+        wallpaperTint: 'rgba(237,233,254,0.28)',
+        dock: 'rgba(245,243,255,0.74)',
+        radius: '22px',
+        blur: '22px',
     },
     amber: {
         primary: '#f59e0b',
@@ -96,6 +136,14 @@ export const themes: Record<ThemeVariant, DesignToken> = {
         warning: '#f59e0b',
         error: '#ef4444',
         info: '#06b6d4',
+        glass: 'rgba(254,243,199,0.74)',
+        glassStrong: 'rgba(255,251,235,0.9)',
+        shadow: '0 24px 60px rgba(180, 83, 9, 0.16)',
+        shadowStrong: '0 28px 80px rgba(180, 83, 9, 0.22)',
+        wallpaperTint: 'rgba(253,230,138,0.26)',
+        dock: 'rgba(254,243,199,0.74)',
+        radius: '22px',
+        blur: '22px',
     },
     rose: {
         primary: '#fb7185',
@@ -111,6 +159,14 @@ export const themes: Record<ThemeVariant, DesignToken> = {
         warning: '#f59e0b',
         error: '#fb7185',
         info: '#06b6d4',
+        glass: 'rgba(255,228,230,0.74)',
+        glassStrong: 'rgba(255,241,245,0.9)',
+        shadow: '0 24px 60px rgba(190, 24, 93, 0.15)',
+        shadowStrong: '0 28px 80px rgba(190, 24, 93, 0.22)',
+        wallpaperTint: 'rgba(251,207,232,0.28)',
+        dock: 'rgba(255,228,230,0.74)',
+        radius: '22px',
+        blur: '22px',
     },
     slate: {
         primary: '#64748b',
@@ -126,6 +182,14 @@ export const themes: Record<ThemeVariant, DesignToken> = {
         warning: '#f59e0b',
         error: '#ef4444',
         info: '#06b6d4',
+        glass: 'rgba(241,245,249,0.74)',
+        glassStrong: 'rgba(248,250,252,0.9)',
+        shadow: '0 24px 60px rgba(71, 85, 105, 0.14)',
+        shadowStrong: '0 28px 80px rgba(71, 85, 105, 0.2)',
+        wallpaperTint: 'rgba(226,232,240,0.26)',
+        dock: 'rgba(241,245,249,0.74)',
+        radius: '22px',
+        blur: '22px',
     },
     system: {
         // Will be determined by system preference
@@ -142,6 +206,14 @@ export const themes: Record<ThemeVariant, DesignToken> = {
         warning: '#f59e0b',
         error: '#ef4444',
         info: '#06b6d4',
+        glass: 'rgba(255,255,255,0.62)',
+        glassStrong: 'rgba(255,255,255,0.82)',
+        shadow: '0 24px 60px rgba(15, 23, 42, 0.12)',
+        shadowStrong: '0 28px 80px rgba(15, 23, 42, 0.18)',
+        wallpaperTint: 'rgba(255,255,255,0.18)',
+        dock: 'rgba(255,255,255,0.72)',
+        radius: '22px',
+        blur: '22px',
     },
 };
 
@@ -161,6 +233,11 @@ export function applyThemeToDOM(variant: ThemeVariant, isDark?: boolean): void {
         const cssVar = `--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
         root.style.setProperty(cssVar, value);
     });
+
+    root.style.setProperty('--shell-radius', tokens.radius);
+    root.style.setProperty('--shell-blur', tokens.blur);
+    root.style.setProperty('--shell-shadow', tokens.shadow);
+    root.style.setProperty('--shell-shadow-strong', tokens.shadowStrong);
 
     // Update Tailwind dark mode class
     if (isDark || (variant === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {

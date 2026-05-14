@@ -1,7 +1,7 @@
 import React from 'react';
 import { useOS } from '../hooks/useOS';
 import { cn } from '../lib/utils';
-import { LayoutGrid, Search, Bell, Wifi, Battery } from 'lucide-react';
+import { LayoutGrid, Search, Bell, Wifi, Battery, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { APPS_CONFIG } from '../lib/apps';
 import { NeuroIcon } from './icons/NeuroIcon';
@@ -59,19 +59,19 @@ export const Taskbar: React.FC = () => {
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-white/80 backdrop-blur-xl h-14 w-auto rounded-full border border-white/20 shadow-2xl shadow-zinc-400/20 flex items-center px-4 gap-4 transition-all duration-300 ease-spring">
+    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[9999] bg-[color:var(--color-dock)] backdrop-blur-[var(--shell-blur)] min-h-[68px] w-auto rounded-[28px] border border-white/40 shadow-[var(--shell-shadow-strong)] flex items-center px-4 py-2 gap-4 transition-all duration-300 ease-spring">
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => toggleStartMenu()}
           className={cn(
-            "p-2.5 rounded-full transition-all duration-300 hover:bg-zinc-100 active:scale-90 group flex items-center justify-center",
+            "p-3 rounded-2xl transition-all duration-300 hover:bg-white/70 active:scale-90 group flex items-center justify-center",
             isStartMenuOpen ? "bg-zinc-900 text-white shadow-lg shadow-zinc-900/20" : "text-zinc-900"
           )}
         >
           <NeuroIcon size={20} showTM={true} className={isStartMenuOpen ? "text-white" : "text-zinc-900"} />
         </button>
 
-        <div className="w-px h-6 bg-zinc-200/50 mx-1.5" />
+        <div className="w-px h-8 bg-zinc-200/60 mx-1.5" />
 
         {/* Taskbar Apps (Pinned + Running) */}
         <div className="flex items-center gap-1.5">
@@ -85,10 +85,10 @@ export const Taskbar: React.FC = () => {
                 key={app.instance?.id || app.id}
                 onClick={() => handleAppClick(app)}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
+                  "w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 relative group",
                   isFocused
                     ? "bg-zinc-900 text-white shadow-lg shadow-zinc-900/20 scale-105"
-                    : "text-zinc-600 hover:bg-zinc-100/80 hover:scale-105 active:scale-95"
+                    : "text-zinc-600 hover:bg-white/70 hover:scale-105 active:scale-95"
                 )}
                 title={app.config?.name}
               >
@@ -116,6 +116,10 @@ export const Taskbar: React.FC = () => {
 
       {/* System Status */}
       <div className="flex items-center gap-4 pl-3 border-l border-zinc-200/50">
+        <div className="hidden md:flex items-center gap-2 rounded-2xl bg-white/55 px-3 py-2 text-[11px] font-semibold text-zinc-500">
+          <Sparkles size={12} className="text-sky-500" />
+          Codex Ready
+        </div>
         <div className="flex flex-col items-end leading-none cursor-default select-none">
           <span className="text-sm font-bold text-zinc-900 tracking-tight">{format(time, 'HH:mm')}</span>
           <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{format(time, 'MMM d')}</span>

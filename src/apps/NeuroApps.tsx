@@ -1,620 +1,254 @@
-/**
- * NeuroApps - App store for AI-generated applications
- * Build, host, and run tiny apps created by the code agent
- */
-
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-    Code2, Play, Pause, Trash2, Search, Plus, Clock,
-    Tag, Copy, Check, X, ChevronRight, Sparkles, Globe,
-    FolderOpen, RefreshCw, Layers, Eye, Pencil, Download
-} from 'lucide-react';
-import { cn } from '../lib/utils';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Code2, ExternalLink, Globe, Library, Play, RefreshCw, Send, Share2, Sparkles } from 'lucide-react';
 import { OSAppWindow } from '../hooks/useOS';
 import { useNeuroAppsStore } from '../stores/neuroAppsStore';
-import { codeAgent, GenerationResult } from '../lib/runtime/codeAgent';
+import { codeAgent } from '../lib/runtime/codeAgent';
 import { NeuroApp } from '../lib/runtime/runtimeMachine';
+import { cn } from '../lib/utils';
 
-interface NeuroAppsAppProps { windowData: OSAppWindow; }
+interface NeuroAppsAppProps {
+    windowData: OSAppWindow;
+}
 
-type Tab = 'store' | 'build' | 'running' | 'explorer';
-type RunMode = 'preview' | 'edit' | 'fullscreen';
-
-const AppCard: React.FC<{
-    app: NeuroApp;
-    onRun: (id: string) => void;
-    onEdit: (id: string) => void;
-    onDelete: (id: string) => void;
-    onCopy: (id: string) => void;
-    dark: boolean;
-}> = ({ app, onRun, onEdit, onDelete, onCopy, dark }) => {
-    const [copied, setCopied] = useState(false);
-
-    const copyCode = () => {
-        const code = Object.values(app.code)[0] || '';
-        navigator.clipboard.writeText(code);
-        setCopied(true);
-        onCopy(app.id);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-                "rounded-xl border overflow-hidden group",
-                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-white border-zinc-200"
-            )}
-        >
-            {/* Preview area */}
-            <div
-                className={cn(
-                    "h-32 relative flex items-center justify-center cursor-pointer",
-                    dark ? "bg-zinc-800/50" : "bg-zinc-50"
-                )}
-                onClick={() => onRun(app.id)}
-            >
-                {app.type === 'html' && (
-                    <div className="text-4xl opacity-30">🌐</div>
-                )}
-                {app.type === 'react' && (
-                    <div className="text-4xl opacity-30">⚛️</div>
-                )}
-                {app.type === 'script' && (
-                    <div className="text-4xl opacity-30">📜</div>
-                )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onRun(app.id); }}
-                        className="p-2 rounded-full bg-white/90 shadow-lg text-emerald-600 hover:bg-white"
-                    >
-                        <Play size={16} />
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onEdit(app.id); }}
-                        className="p-2 rounded-full bg-white/90 shadow-lg text-blue-600 hover:bg-white"
-                    >
-                        <Pencil size={16} />
-                    </button>
-                </div>
-                <div className="absolute top-2 right-2">
-                    <span className={cn(
-                        "text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-medium",
-                        dark ? "bg-white/10 text-zinc-400" : "bg-black/5 text-zinc-500"
-                    )}>
-                        {app.type}
-                    </span>
-                </div>
-            </div>
-
-            {/* Info */}
-            <div className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                        <h3 className={cn(
-                            "text-sm font-medium truncate",
-                            dark ? "text-zinc-200" : "text-zinc-800"
-                        )}>{app.name}</h3>
-                        <p className={cn(
-                            "text-[10px] mt-0.5 line-clamp-2",
-                            dark ? "text-zinc-500" : "text-zinc-500"
-                        )}>{app.description}</p>
-                    </div>
-                </div>
-
-                {/* Tags */}
-                {app.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                        {app.tags.slice(0, 3).map(tag => (
-                            <span
-                                key={tag}
-                                className={cn(
-                                    "text-[9px] px-1.5 py-0.5 rounded",
-                                    dark ? "bg-white/[0.06] text-zinc-500" : "bg-black/[0.04] text-zinc-500"
-                                )}
-                            >
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-                {/* Actions */}
-                <div className={cn(
-                    "flex items-center justify-between mt-3 pt-2.5 border-t",
-                    dark ? "border-white/[0.06]" : "border-black/[0.06]"
-                )}>
-                    <div className={cn("text-[9px]", dark ? "text-zinc-600" : "text-zinc-400")}>
-                        <Clock size={9} className="inline mr-0.5" />
-                        {new Date(app.createdAt).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={copyCode}
-                            className={cn(
-                                "p-1 rounded text-[10px]",
-                                dark ? "hover:bg-white/[0.06] text-zinc-500" : "hover:bg-black/[0.04] text-zinc-400"
-                            )}
-                        >
-                            {copied ? <Check size={12} /> : <Copy size={12} />}
-                        </button>
-                        <button
-                            onClick={() => onDelete(app.id)}
-                            className={cn(
-                                "p-1 rounded",
-                                dark ? "hover:bg-white/[0.06] text-zinc-500 hover:text-rose-500" : "hover:bg-black/[0.04] text-zinc-400 hover:text-rose-500"
-                            )}
-                        >
-                            <Trash2 size={12} />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </motion.div>
-    );
-};
-
-const AppRunner: React.FC<{
-    app: NeuroApp;
-    onClose: () => void;
-    onIterate: (appId: string, feedback: string) => Promise<GenerationResult>;
-    dark: boolean;
-}> = ({ app, onClose, onIterate, dark }) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const [mode, setMode] = useState<RunMode>('preview');
-    const [feedback, setFeedback] = useState('');
-    const [iterating, setIterating] = useState(false);
-    const [showIterate, setShowIterate] = useState(false);
-
-    const code = Object.values(app.code)[0] || '';
+export const NeuroApps: React.FC<NeuroAppsAppProps> = () => {
+    const {
+        apps,
+        addApp,
+        updateApp,
+        deleteApp,
+        publishApp,
+        publishedApps,
+        refreshPublishedApps,
+    } = useNeuroAppsStore();
+    const [prompt, setPrompt] = useState('');
+    const [logs, setLogs] = useState<string[]>([]);
+    const [currentApp, setCurrentApp] = useState<NeuroApp | null>(apps[0] || null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [publishState, setPublishState] = useState<{ status: 'idle' | 'publishing'; shareUrl?: string; error?: string }>({ status: 'idle' });
 
     useEffect(() => {
-        if (mode === 'preview' && iframeRef.current) {
-            const blob = new Blob([code], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            iframeRef.current.src = url;
-            return () => URL.revokeObjectURL(url);
-        }
-    }, [code, mode]);
+        refreshPublishedApps();
+    }, [refreshPublishedApps]);
 
-    const handleIterate = async () => {
-        if (!feedback.trim()) return;
-        setIterating(true);
-        try {
-            const result = await onIterate(app.id, feedback);
-            if (result.success) {
-                setFeedback('');
-                setShowIterate(false);
-            }
-        } finally {
-            setIterating(false);
+    useEffect(() => {
+        if (!currentApp) return;
+        const entry = currentApp.manifest?.entry || Object.keys(currentApp.code)[0] || 'index.html';
+        const source = currentApp.code[entry] || Object.values(currentApp.code)[0] || '';
+
+        let html = source;
+        if (currentApp.type === 'react') {
+            html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><script src="https://cdn.tailwindcss.com"></script></head><body><div style="padding:24px;font-family:ui-sans-serif,system-ui;background:#f8fafc;color:#0f172a;"><pre style="white-space:pre-wrap;font-size:12px;line-height:1.5;">${source.replace(/</g, '&lt;')}</pre></div></body></html>`;
+        }
+
+        const blob = new Blob([html], { type: 'text/html' });
+        const nextUrl = URL.createObjectURL(blob);
+        setPreviewUrl(nextUrl);
+        updateApp(currentApp.id, {
+            lastRun: Date.now(),
+            preview: {
+                status: 'ready',
+                url: nextUrl,
+                lastBuiltAt: Date.now(),
+            },
+        });
+
+        return () => URL.revokeObjectURL(nextUrl);
+    }, [currentApp, updateApp]);
+
+    const currentFiles = useMemo(
+        () => currentApp?.files || Object.entries(currentApp?.code || {}).map(([path, content]) => ({ path, language: path.split('.').pop() || 'txt', size: content.length })),
+        [currentApp]
+    );
+
+    const generateApp = async () => {
+        if (!prompt.trim()) return;
+        setBusy(true);
+        setLogs(['Analyzing prompt...', 'Generating app spec...']);
+        const result = await codeAgent.generateFromPrompt(prompt.trim());
+        setLogs(result.logs);
+        if (result.success && result.app) {
+            addApp(result.app);
+            setCurrentApp(result.app);
+        }
+        setBusy(false);
+    };
+
+    const iterateApp = async () => {
+        if (!currentApp || !prompt.trim()) return;
+        setBusy(true);
+        setLogs(['Applying iteration feedback...']);
+        const result = await codeAgent.iterateOnApp(currentApp.id, prompt.trim());
+        setLogs(result.logs);
+        if (result.success && result.app) {
+            updateApp(currentApp.id, result.app);
+            setCurrentApp(result.app);
+        }
+        setBusy(false);
+    };
+
+    const handlePublish = async () => {
+        if (!currentApp) return;
+        setPublishState({ status: 'publishing' });
+        const result = await publishApp(currentApp.id);
+        if (result.success) {
+            setPublishState({ status: 'idle', shareUrl: result.shareUrl });
+        } else {
+            setPublishState({ status: 'idle', error: result.error });
         }
     };
 
     return (
-        <div className={cn(
-            "fixed inset-0 z-50 flex flex-col",
-            dark ? "bg-zinc-950" : "bg-zinc-50"
-        )}>
-            {/* Header */}
-            <div className={cn(
-                "flex items-center justify-between px-4 py-2 border-b shrink-0",
-                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-white border-black/[0.06]"
-            )}>
-                <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium">{app.name}</span>
-                    <div className="flex items-center gap-1">
-                        {(['preview', 'edit', 'fullscreen'] as RunMode[]).map(m => (
+        <div className="h-full bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(241,245,249,0.98))] p-4">
+            <div className="h-full grid grid-cols-[280px_1.1fr_1fr] gap-4">
+                <section className="rounded-[30px] border border-white/50 bg-white/55 backdrop-blur-[var(--shell-blur)] shadow-[var(--shell-shadow)] overflow-hidden">
+                    <div className="p-4 border-b border-white/50">
+                        <div className="text-[10px] uppercase tracking-[0.28em] text-zinc-400 font-semibold">Library</div>
+                        <div className="text-xl font-semibold tracking-tight text-zinc-900 mt-1">Builder projects</div>
+                    </div>
+                    <div className="p-3 space-y-2 overflow-y-auto h-[calc(100%-84px)]">
+                        {apps.map((app) => (
                             <button
-                                key={m}
-                                onClick={() => setMode(m)}
+                                key={app.id}
+                                onClick={() => setCurrentApp(app)}
                                 className={cn(
-                                    "px-2 py-1 text-[10px] rounded capitalize",
-                                    mode === m
-                                        ? (dark ? "bg-white/10 text-white" : "bg-black/10 text-black")
-                                        : (dark ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-500 hover:text-zinc-700")
+                                    'w-full rounded-[24px] border px-4 py-4 text-left transition-all',
+                                    currentApp?.id === app.id ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white/50 border-white/50 hover:bg-white/80'
                                 )}
                             >
-                                {m === 'fullscreen' ? <Globe size={11} className="inline mr-0.5" /> : null}
-                                {m}
+                                <div className="flex items-center justify-between">
+                                    <div className="font-semibold">{app.name}</div>
+                                    <Code2 size={15} />
+                                </div>
+                                <div className={cn('text-xs mt-2', currentApp?.id === app.id ? 'text-zinc-300' : 'text-zinc-500')}>
+                                    {app.description}
+                                </div>
                             </button>
                         ))}
                     </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowIterate(!showIterate)}
-                        className={cn(
-                            "px-2 py-1 text-[10px] rounded flex items-center gap-1",
-                            dark ? "text-zinc-400 hover:bg-white/[0.06]" : "text-zinc-600 hover:bg-black/[0.04]"
-                        )}
-                    >
-                        <Sparkles size={11} />
-                        Iterate
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className={cn(
-                            "p-1 rounded",
-                            dark ? "text-zinc-500 hover:bg-white/[0.06]" : "text-zinc-500 hover:bg-black/[0.04]"
-                        )}
-                    >
-                        <X size={16} />
-                    </button>
-                </div>
-            </div>
+                </section>
 
-            {/* Iterate panel */}
-            <AnimatePresence>
-                {showIterate && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className={cn(
-                            "p-3 border-b",
-                            dark ? "bg-zinc-900 border-white/[0.08]" : "bg-white border-black/[0.06]"
-                        )}>
+                <section className="rounded-[30px] border border-white/50 bg-white/60 backdrop-blur-[var(--shell-blur)] shadow-[var(--shell-shadow)] flex flex-col overflow-hidden">
+                    <div className="p-5 border-b border-white/50">
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <div className="text-[10px] uppercase tracking-[0.28em] text-zinc-400 font-semibold">Prompt to app</div>
+                                <div className="text-2xl font-semibold tracking-tight text-zinc-900 mt-1">NeuroApps Builder</div>
+                            </div>
+                            <div className="rounded-2xl bg-white/70 border border-white/60 px-3 py-2 text-[11px] font-semibold text-zinc-500 flex items-center gap-2">
+                                <Sparkles size={12} className="text-sky-500" />
+                                Codex-ready
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-5 flex-1 flex flex-col gap-4 overflow-y-auto">
+                        <div className="rounded-[28px] border border-white/60 bg-white/55 p-4">
                             <textarea
-                                value={feedback}
-                                onChange={e => setFeedback(e.target.value)}
-                                placeholder="Describe what you want to change..."
-                                className={cn(
-                                    "w-full p-2 rounded-lg text-xs resize-none h-20 focus:outline-none",
-                                    dark ? "bg-white/[0.05] border-white/[0.08] text-zinc-300 placeholder:text-zinc-600" : "bg-black/[0.02] border-black/[0.06] text-zinc-700 placeholder:text-zinc-400"
-                                )}
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                placeholder="Describe the app you want to build or how to iterate on the current one."
+                                className="w-full h-32 bg-transparent resize-none outline-none text-sm text-zinc-800 placeholder:text-zinc-400"
                             />
-                            <div className="flex justify-end mt-2">
-                                <button
-                                    onClick={handleIterate}
-                                    disabled={!feedback.trim() || iterating}
-                                    className="px-3 py-1.5 text-xs rounded-lg bg-emerald-500 text-white disabled:opacity-50 flex items-center gap-1"
-                                >
-                                    {iterating ? <RefreshCw size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                                    {iterating ? 'Generating...' : 'Apply Changes'}
+                            <div className="flex flex-wrap gap-3 mt-4">
+                                <button onClick={generateApp} disabled={busy} className="rounded-2xl bg-zinc-900 text-white px-4 py-2.5 text-sm font-medium flex items-center gap-2 disabled:opacity-50">
+                                    <Send size={14} />
+                                    Generate
+                                </button>
+                                <button onClick={iterateApp} disabled={busy || !currentApp} className="rounded-2xl bg-white border border-white/70 px-4 py-2.5 text-sm font-medium text-zinc-700 flex items-center gap-2 disabled:opacity-50">
+                                    <RefreshCw size={14} />
+                                    Iterate
+                                </button>
+                                <button onClick={handlePublish} disabled={!currentApp || publishState.status === 'publishing'} className="rounded-2xl bg-sky-600 text-white px-4 py-2.5 text-sm font-medium flex items-center gap-2 disabled:opacity-50">
+                                    <Share2 size={14} />
+                                    {publishState.status === 'publishing' ? 'Publishing...' : 'Publish'}
                                 </button>
                             </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Content */}
-            <div className="flex-1 flex overflow-hidden">
-                {mode === 'preview' && (
-                    <div className="flex-1 p-4 flex items-center justify-center">
-                        <div className={cn(
-                            "w-full max-w-3xl h-full border rounded-xl overflow-hidden shadow-xl",
-                            dark ? "bg-white border-white/20" : "bg-white border-zinc-200"
-                        )}>
-                            <iframe
-                                ref={iframeRef}
-                                className="w-full h-full"
-                                sandbox="allow-scripts allow-same-origin"
-                                title={app.name}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {mode === 'edit' && (
-                    <div className="flex-1 flex">
-                        <div className={cn("flex-1 p-4", dark ? "bg-zinc-900" : "bg-white")}>
-                            <textarea
-                                value={code}
-                                readOnly
-                                className={cn(
-                                    "w-full h-full p-4 rounded-lg text-xs font-mono resize-none focus:outline-none",
-                                    dark ? "bg-zinc-950 text-zinc-300" : "bg-zinc-50 text-zinc-700"
-                                )}
-                            />
-                        </div>
-                        <div className="flex-1 p-4">
-                            <div className={cn(
-                                "h-full border rounded-xl overflow-hidden",
-                                dark ? "bg-white" : "bg-zinc-50 border-zinc-200"
-                            )}>
-                                <iframe
-                                    ref={iframeRef}
-                                    className="w-full h-full"
-                                    sandbox="allow-scripts allow-same-origin"
-                                    title={app.name}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {mode === 'fullscreen' && (
-                    <div className="flex-1">
-                        <iframe
-                            ref={iframeRef}
-                            className="w-full h-full"
-                            sandbox="allow-scripts allow-same-origin"
-                            title={app.name}
-                        />
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-export const NeuroApps: React.FC<NeuroAppsAppProps> = ({ windowData }) => {
-    const [tab, setTab] = useState<Tab>('store');
-    const [search, setSearch] = useState('');
-    const [runningApp, setRunningApp] = useState<NeuroApp | null>(null);
-    const [buildPrompt, setBuildPrompt] = useState('');
-    const [building, setBuilding] = useState(false);
-    const [buildingLogs, setBuildingLogs] = useState<string[]>([]);
-
-    const { apps, addApp, deleteApp, updateApp } = useNeuroAppsStore();
-
-    const dark = false;
-
-    const filteredApps = search
-        ? apps.filter(a =>
-            a.name.toLowerCase().includes(search.toLowerCase()) ||
-            a.description.toLowerCase().includes(search.toLowerCase())
-        )
-        : apps;
-
-    const handleBuild = async () => {
-        if (!buildPrompt.trim()) return;
-        setBuilding(true);
-        setBuildingLogs([]);
-
-        const agent = new (await import('../lib/runtime/codeAgent')).CodeAgent();
-
-        try {
-            const result = await agent.generateFromPrompt(buildPrompt);
-            setBuildingLogs(agent.getLogs());
-
-            if (result.success && result.app) {
-                addApp(result.app);
-                setBuildPrompt('');
-                setTab('store');
-                setRunningApp(result.app);
-            }
-        } catch (e: any) {
-            setBuildingLogs(prev => [...prev, `Error: ${e.message}`]);
-        } finally {
-            setBuilding(false);
-        }
-    };
-
-    const handleIterate = async (appId: string, feedback: string) => {
-        const agent = new (await import('../lib/runtime/codeAgent')).CodeAgent();
-        const result = await agent.iterateOnApp(appId, feedback);
-        setBuildingLogs(agent.getLogs());
-
-        if (result.success && result.app) {
-            updateApp(appId, { code: result.app.code, lastRun: Date.now() });
-        }
-
-        return result;
-    };
-
-    return (
-        <>
-            {runningApp && (
-                <AppRunner
-                    app={runningApp}
-                    onClose={() => setRunningApp(null)}
-                    onIterate={handleIterate}
-                    dark={dark}
-                />
-            )}
-
-            <div className={cn("flex flex-col h-full", dark ? "bg-zinc-950 text-zinc-100" : "bg-white text-zinc-900")}>
-                {/* Header */}
-                <div className={cn("flex items-center justify-between px-5 py-3 border-b", dark ? "border-white/[0.08]" : "border-black/[0.06]")}>
-                    <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md flex items-center justify-center bg-gradient-to-br from-emerald-500 to-cyan-500">
-                            <Code2 size={12} className="text-white" />
-                        </div>
-                        <span className="text-sm font-medium">NeuroApps</span>
-                        <span className={cn("text-[9px] uppercase tracking-wider", dark ? "text-zinc-600" : "text-zinc-400")}>runtime machine</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <Search size={12} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", dark ? "text-zinc-600" : "text-zinc-400")} />
-                            <input
-                                type="text"
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                placeholder="Search apps..."
-                                className={cn(
-                                    "pl-8 pr-3 py-1.5 text-[11px] rounded-lg border w-48 focus:outline-none",
-                                    dark ? "bg-white/[0.05] border-white/[0.08] text-zinc-300 placeholder:text-zinc-600 focus:border-white/[0.15]" : "bg-black/[0.02] border-black/[0.06] text-zinc-700 placeholder:text-zinc-400 focus:border-black/[0.12]"
-                                )}
-                            />
-                        </div>
-                        <button
-                            onClick={() => setTab('build')}
-                            className={cn(
-                                "px-3 py-1.5 text-[11px] rounded-lg flex items-center gap-1.5 font-medium",
-                                dark ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                            )}
-                        >
-                            <Plus size={12} />
-                            Build
-                        </button>
-                    </div>
-                </div>
-
-                {/* Tabs */}
-                <div className={cn("flex border-b", dark ? "border-white/[0.08]" : "border-black/[0.06]")}>
-                    {([
-                        { id: 'store', label: 'Store', icon: Layers },
-                        { id: 'build', label: 'Build', icon: Sparkles },
-                        { id: 'running', label: 'Running', icon: Play },
-                        { id: 'explorer', label: 'Explorer', icon: FolderOpen },
-                    ] as const).map(t => (
-                        <button
-                            key={t.id}
-                            onClick={() => setTab(t.id)}
-                            className={cn(
-                                "flex items-center gap-1.5 px-4 py-2.5 text-[11px] border-r transition-colors",
-                                tab === t.id
-                                    ? (dark ? "bg-white/[0.03] text-zinc-200 border-white/[0.08]" : "bg-zinc-50 text-zinc-800 border-black/[0.06]")
-                                    : (dark ? "text-zinc-500 hover:text-zinc-300 border-transparent" : "text-zinc-500 hover:text-zinc-700 border-transparent")
-                            )}
-                        >
-                            <t.icon size={12} />
-                            {t.label}
-                            {t.id === 'store' && apps.length > 0 && (
-                                <span className={cn(
-                                    "text-[9px] px-1 py-0.5 rounded-full",
-                                    dark ? "bg-white/[0.1] text-zinc-400" : "bg-black/[0.06] text-zinc-500"
-                                )}>{apps.length}</span>
-                            )}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-5">
-                    {tab === 'store' && (
-                        filteredApps.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full">
-                                <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-4" style={{ background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                                    <Code2 size={24} className="opacity-20" />
+                            {publishState.shareUrl && (
+                                <div className="mt-4 rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm text-emerald-700 flex items-center justify-between">
+                                    <span>{publishState.shareUrl}</span>
+                                    <button onClick={() => window.electron.browser.openExternal(publishState.shareUrl!)} className="font-medium">Open</button>
                                 </div>
-                                <h3 className={cn("text-sm font-medium mb-1", dark ? "text-zinc-300" : "text-zinc-700")}>No apps yet</h3>
-                                <p className={cn("text-xs text-center max-w-xs", dark ? "text-zinc-600" : "text-zinc-500")}>Build your first app using the AI code agent</p>
-                                <button
-                                    onClick={() => setTab('build')}
-                                    className="mt-4 px-4 py-2 text-xs rounded-lg bg-emerald-500 text-white flex items-center gap-1.5"
-                                >
-                                    <Sparkles size={12} />
-                                    Build an App
-                                </button>
+                            )}
+                            {publishState.error && <div className="mt-4 text-sm text-rose-600">{publishState.error}</div>}
+                        </div>
+
+                        <div className="grid grid-cols-[220px_1fr] gap-4 min-h-[320px]">
+                            <div className="rounded-[28px] border border-white/60 bg-white/55 p-4">
+                                <div className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
+                                    <Library size={14} />
+                                    Files
+                                </div>
+                                <div className="space-y-2">
+                                    {currentFiles.map((file) => (
+                                        <div key={file.path} className="rounded-2xl bg-white/65 border border-white/60 px-3 py-2">
+                                            <div className="text-sm font-medium text-zinc-800">{file.path}</div>
+                                            <div className="text-xs text-zinc-500">{file.language} • {file.size} chars</div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {filteredApps.map(app => (
-                                    <AppCard
-                                        key={app.id}
-                                        app={app}
-                                        onRun={(id) => { const a = apps.find(x => x.id === id); if (a) setRunningApp(a); }}
-                                        onEdit={(id) => { const a = apps.find(x => x.id === id); if (a) setRunningApp(a); }}
-                                        onDelete={deleteApp}
-                                        onCopy={() => {}}
-                                        dark={dark}
-                                    />
-                                ))}
-                            </div>
-                        )
-                    )}
 
-                    {tab === 'build' && (
-                        <div className="max-w-2xl mx-auto">
-                            <div className={cn(
-                                "rounded-xl p-6 border",
-                                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-zinc-50 border-zinc-200"
-                            )}>
-                                <h2 className="text-lg font-medium mb-1">Build an App</h2>
-                                <p className={cn("text-xs mb-4", dark ? "text-zinc-500" : "text-zinc-500")}>
-                                    Describe the app you want to build. The AI will generate it for you.
-                                </p>
-
-                                <textarea
-                                    value={buildPrompt}
-                                    onChange={e => setBuildPrompt(e.target.value)}
-                                    placeholder="Example: A productivity timer with customizable work/break intervals, a Pomodoro tracker, and stats dashboard"
-                                    className={cn(
-                                        "w-full p-3 rounded-lg text-sm resize-none h-32 focus:outline-none",
-                                        dark ? "bg-white/[0.05] border-white/[0.08] text-zinc-300 placeholder:text-zinc-600 focus:border-white/[0.15]" : "bg-white border-zinc-200 text-zinc-700 placeholder:text-zinc-400 focus:border-zinc-300"
-                                    )}
-                                />
-
-                                <div className="flex items-center justify-between mt-4">
-                                    <div className="flex gap-2">
-                                        {['Timer', 'Calculator', 'Todo App', 'Weather', 'Game'].map(template => (
-                                            <button
-                                                key={template}
-                                                onClick={() => setBuildPrompt(`Build a ${template.toLowerCase()}`)}
-                                                className={cn(
-                                                    "px-2 py-1 text-[10px] rounded-md",
-                                                    dark ? "bg-white/[0.05] text-zinc-500 hover:bg-white/[0.1]" : "bg-white border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
-                                                )}
-                                            >
-                                                {template}
-                                            </button>
-                                        ))}
+                            <div className="rounded-[28px] border border-white/60 bg-white/55 p-4 flex flex-col">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                        <div className="text-sm font-semibold text-zinc-900">Runtime preview</div>
+                                        <div className="text-xs text-zinc-500">{currentApp?.preview?.status || 'idle'}</div>
                                     </div>
-                                    <button
-                                        onClick={handleBuild}
-                                        disabled={!buildPrompt.trim() || building}
-                                        className="px-4 py-2 text-xs rounded-lg bg-emerald-500 text-white disabled:opacity-50 flex items-center gap-1.5"
-                                    >
-                                        {building ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                                        {building ? 'Building...' : 'Build App'}
+                                    {previewUrl && (
+                                        <a href={previewUrl} target="_blank" rel="noreferrer" className="rounded-2xl bg-white/70 border border-white/60 px-3 py-2 text-xs font-medium text-zinc-700 flex items-center gap-2">
+                                            <ExternalLink size={12} />
+                                            Open
+                                        </a>
+                                    )}
+                                </div>
+                                <div className="flex-1 rounded-[24px] overflow-hidden border border-white/60 bg-white/80 min-h-[260px]">
+                                    {previewUrl ? (
+                                        <iframe src={previewUrl} className="w-full h-full border-0" title="NeuroApp preview" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-sm text-zinc-400">Generate an app to preview it here.</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-[28px] border border-white/60 bg-white/55 p-4">
+                            <div className="text-sm font-semibold text-zinc-900 mb-3">Build logs</div>
+                            <div className="rounded-[22px] bg-zinc-950 text-zinc-200 p-4 text-xs leading-6 max-h-48 overflow-y-auto">
+                                {logs.length === 0 ? 'No logs yet.' : logs.join('\n')}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="rounded-[30px] border border-white/50 bg-white/55 backdrop-blur-[var(--shell-blur)] shadow-[var(--shell-shadow)] overflow-hidden">
+                    <div className="p-4 border-b border-white/50">
+                        <div className="text-[10px] uppercase tracking-[0.28em] text-zinc-400 font-semibold">Publish</div>
+                        <div className="text-xl font-semibold tracking-tight text-zinc-900 mt-1">Shareable apps</div>
+                    </div>
+                    <div className="p-4 space-y-3 overflow-y-auto h-[calc(100%-84px)]">
+                        {publishedApps.length === 0 && (
+                            <div className="rounded-[24px] border border-dashed border-zinc-300 bg-white/40 p-5 text-sm text-zinc-500">
+                                Published apps will appear here with share links and timestamps.
+                            </div>
+                        )}
+                        {publishedApps.map((item: any) => (
+                            <div key={item.id} className="rounded-[24px] border border-white/60 bg-white/45 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="font-semibold text-zinc-900">{item.name}</div>
+                                    <Globe size={14} className="text-sky-500" />
+                                </div>
+                                <div className="text-xs text-zinc-500 mt-2">{item.shareUrl}</div>
+                                <div className="mt-3 flex gap-2">
+                                    <button onClick={() => window.electron.browser.openExternal(item.shareUrl)} className="rounded-2xl bg-zinc-900 text-white px-3 py-2 text-xs font-medium">
+                                        Open link
                                     </button>
                                 </div>
-
-                                {buildingLogs.length > 0 && (
-                                    <div className={cn(
-                                        "mt-4 p-3 rounded-lg font-mono text-[10px] max-h-40 overflow-y-auto",
-                                        dark ? "bg-black/30 text-zinc-500" : "bg-black/5 text-zinc-600"
-                                    )}>
-                                        {buildingLogs.map((log, i) => (
-                                            <div key={i}>{log}</div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
-                        </div>
-                    )}
-
-                    {tab === 'running' && (
-                        <div className="flex flex-col items-center justify-center h-full">
-                            <Play size={32} className="opacity-20 mb-3" />
-                            <p className={cn("text-sm", dark ? "text-zinc-500" : "text-zinc-500")}>Select an app from the store to run it</p>
-                        </div>
-                    )}
-
-                    {tab === 'explorer' && (
-                        <div className="space-y-4">
-                            <div className={cn(
-                                "flex items-center gap-3 p-4 rounded-xl border",
-                                dark ? "bg-zinc-900 border-white/[0.08]" : "bg-zinc-50 border-zinc-200"
-                            )}>
-                                <FolderOpen size={20} className="opacity-40" />
-                                <div>
-                                    <div className="text-sm font-medium">{apps.length} Apps</div>
-                                    <div className="text-[10px] text-zinc-500">Total generated apps</div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3">
-                                {[
-                                    { label: 'HTML Apps', count: apps.filter(a => a.type === 'html').length, emoji: '🌐' },
-                                    { label: 'React Apps', count: apps.filter(a => a.type === 'react').length, emoji: '⚛️' },
-                                    { label: 'Scripts', count: apps.filter(a => a.type === 'script').length, emoji: '📜' },
-                                ].map(stat => (
-                                    <div
-                                        key={stat.label}
-                                        className={cn(
-                                            "p-4 rounded-xl border text-center",
-                                            dark ? "bg-zinc-900 border-white/[0.08]" : "bg-zinc-50 border-zinc-200"
-                                        )}
-                                    >
-                                        <div className="text-2xl mb-1">{stat.emoji}</div>
-     <div className="text-lg font-medium">{stat.count}</div>
-                                        <div className="text-[10px] text-zinc-500">{stat.label}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                        ))}
+                    </div>
+                </section>
             </div>
-        </>
+        </div>
     );
 };
