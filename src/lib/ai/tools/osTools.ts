@@ -179,10 +179,10 @@ registerTool({
 });
 registerTool({
     name: 'add_board_widget',
-    description: 'Adds a live data widget (weather, stocks, news) to the project NeuroBoard.',
+    description: 'Adds a live data widget (weather, stocks, news, calendar) to the project NeuroBoard.',
     category: 'os',
     parameters: {
-        type: { type: 'string', description: 'Widget type: "weather", "stocks", "news"', enum: ['weather', 'stocks', 'news'], required: true },
+        type: { type: 'string', description: 'Widget type: "weather", "stocks", "news", "calendar"', enum: ['weather', 'stocks', 'news', 'calendar'], required: true },
         symbol: { type: 'string', description: 'Stock symbol (if type is stocks)', required: false }
     },
     handler: async (args): Promise<ToolResult> => {

@@ -5,6 +5,7 @@ import { useContextMenu } from './ContextMenu';
 import { RefreshCw, Image, Settings, Info, Monitor, FolderOpen } from 'lucide-react';
 import { DesktopIcons } from './DesktopIcons';
 import { NotificationCenter } from './NotificationCenter';
+import { DesktopWidgets } from './DesktopWidgets';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useFileSystem } from '../hooks/useFileSystem';
 import { useAuthStore } from '../stores/authStore';
@@ -37,15 +38,17 @@ export const Desktop: React.FC<DesktopProps> = ({ children }) => {
       {/* Background Layer */}
       {wallpaper ? (
         <div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-500 ease-in-out"
+          className="absolute inset-0 bg-cover bg-center transition-all duration-500 ease-in-out scale-[1.02]"
           style={{ backgroundImage: `url(${wallpaper})` }}
         />
       ) : (
         <div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-500 ease-in-out"
+          className="absolute inset-0 bg-cover bg-center transition-all duration-500 ease-in-out scale-[1.02]"
           style={{ backgroundImage: `url(${backgroundPng})` }}
         />
       )}
+
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.35),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02)_35%,rgba(15,23,42,0.18))]" />
 
       {/* Dot Pattern */}
       {!wallpaper && (
@@ -87,6 +90,7 @@ export const Desktop: React.FC<DesktopProps> = ({ children }) => {
         }}
       >
         <DesktopIcons />
+        <DesktopWidgets />
         <NotificationCenter />
         {children}
       </div>

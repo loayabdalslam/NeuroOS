@@ -8,7 +8,7 @@ import { fetchMetadata, LinkMetadata } from './utils';
 import { APPS_CONFIG } from '../../lib/apps';
 import { useFileSystem } from '../../hooks/useFileSystem';
 import { useOS } from '../../hooks/useOS';
-import { WeatherWidget, StockWidget, NewsCarousel } from '../../components/Widgets';
+import { WeatherWidget, StockWidget, NewsCarousel, CalendarWidget } from '../../components/Widgets';
 
 interface CardProps {
     card: BoardCardType;
@@ -194,6 +194,8 @@ export const BoardCard: React.FC<CardProps> = ({ card, onUpdate, onDelete }) => 
                                             <WeatherWidget minimalist />
                                         ) : card.metadata?.widgetType === 'stocks' ? (
                                             <StockWidget symbol={card.metadata?.symbol} minimalist />
+                                        ) : card.metadata?.widgetType === 'calendar' ? (
+                                            <CalendarWidget minimalist />
                                         ) : (
                                             <NewsCarousel minimalist />
                                         )}

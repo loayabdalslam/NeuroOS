@@ -1,11 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'motion/react';
-import { Settings as SettingsIcon, Shield, Palette, Key, Bell, Info, Bot, Check, RefreshCw, Download, ArrowUpCircle, Rocket, Power, Globe, Server, X, ChevronDown, Sparkles, Image, Upload } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Bell,
+  Bot,
+  Check,
+  Cloud,
+  Download,
+  Image,
+  Info,
+  KeyRound,
+  Link2,
+  Mail,
+  Palette,
+  RefreshCw,
+  Shield,
+  Sparkles,
+  Upload,
+} from 'lucide-react';
 import { cn } from '../lib/utils';
 import { OSAppWindow } from '../hooks/useOS';
 import { useSettingsStore } from '../stores/settingsStore';
-import { ProviderLogos } from '../components/icons/ProviderIcons';
 import { applyThemeToDOM, themeDescriptions, type ThemeVariant } from '../lib/designSystem/themes';
+import { useComposioStore } from '../stores/composioStore';
+import { useAuthStore } from '../stores/authStore';
 
 declare const __APP_VERSION__: string;
 
@@ -13,529 +29,475 @@ interface SettingsProps {
   windowData?: OSAppWindow;
 }
 
-export const SettingsApp: React.FC<SettingsProps> = ({ windowData }) => {
-  const [activeTab, setActiveTab] = useState('general');
-  const [launchOnStartup, setLaunchOnStartup] = useState(false);
-  const { aiConfig, updateAiConfig, updateProvider, refreshProviderModels, theme, setTheme, notificationsEnabled, soundEnabled, desktopBadgesEnabled, setNotifications, setSound, setDesktopBadges, wallpaper, setWallpaper, customWallpapers, addCustomWallpaper, removeCustomWallpaper } = useSettingsStore();
+const TABS = [
+  { id: 'appearance', name: 'Appearance', icon: Palette },
+  { id: 'ai', name: 'Codex & AI', icon: Bot },
+  { id: 'integrations', name: 'Integrations', icon: Link2 },
+  { id: 'notifications', name: 'Notifications', icon: Bell },
+  { id: 'security', name: 'Security', icon: Shield },
+  { id: 'updates', name: 'Updates', icon: RefreshCw },
+  { id: 'about', name: 'About', icon: Info },
+] as const;
 
-  // Update State
-  const [updateStatus, setUpdateStatus] = useState<{
-    state: 'idle' | 'checking' | 'available' | 'up-to-date' | 'downloading' | 'downloaded' | 'error';
-    progress?: any;
-    info?: any;
-    error?: string;
-  }>({ state: 'idle' });
+const SettingCard: React.FC<{ title: string; subtitle?: string; children: React.ReactNode; className?: string }> = ({ title, subtitle, children, className }) => (
+  <div className={cn('rounded-[30px] border border-white/50 bg-white/60 backdrop-blur-[var(--shell-blur)] shadow-[var(--shell-shadow)] p-5', className)}>
+    <div className="mb-4">
+      <div className="text-base font-semibold text-zinc-900 tracking-tight">{title}</div>
+      {subtitle && <div className="text-sm text-zinc-500 mt-1">{subtitle}</div>}
+    </div>
+    {children}
+  </div>
+);
+
+export const SettingsApp: React.FC<SettingsProps> = () => {
+  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('appearance');
+  const [composioApiKey, setComposioApiKey] = useState('');
+  const {
+    aiConfig,
+    updateAiConfig,
+    updateProvider,
+    theme,
+    setTheme,
+    notificationsEnabled,
+    soundEnabled,
+    desktopBadgesEnabled,
+    setNotifications,
+    setSound,
+    setDesktopBadges,
+    wallpaper,
+    setWallpaper,
+    customWallpapers,
+    addCustomWallpaper,
+    removeCustomWallpaper,
+    wallpaperGallery,
+    cacheRemoteWallpaper,
+  } = useSettingsStore();
+  const { activeUserId, users } = useAuthStore();
+  const {
+    initialized,
+    integrations,
+    setApiKey,
+    refreshConnections,
+    connectApp,
+    disconnectApp,
+    getIntegration,
+  } = useComposioStore();
 
   const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.3.0';
+  const activeUser = users.find((item) => item.id === activeUserId);
+  const activeProvider = aiConfig.providers.find((item) => item.id === aiConfig.activeProviderId) || aiConfig.providers[0];
+  const codingProviders = aiConfig.providers.filter((item) => item.category === 'coding');
+  const generalProviders = aiConfig.providers.filter((item) => item.category !== 'coding');
+
+  const integrationCards = useMemo(() => ([
+    { id: 'gmail', name: 'Gmail', subtitle: 'Mail tools and inbox workflows', icon: Mail },
+    { id: 'googlecalendar', name: 'Google Calendar', subtitle: 'Calendar events and widget sync', icon: Cloud },
+  ]), []);
 
   useEffect(() => {
-    if ((window as any).electron?.updates) {
-      const unsubscribe = (window as any).electron.updates.onStatus((status: any) => setUpdateStatus(status));
-      return () => unsubscribe();
+    if (activeUserId && initialized) {
+      refreshConnections(activeUserId);
     }
-  }, []);
+  }, [activeUserId, initialized, refreshConnections]);
 
-  const handleCheckUpdate = async () => { setUpdateStatus({ state: 'checking' }); await (window as any).electron?.updates?.check(); };
-  const handleDownloadUpdate = async () => { await (window as any).electron?.updates?.download(); };
-  const handleInstallUpdate = async () => { await (window as any).electron?.updates?.install(); };
+  const handleWallpaperUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = reader.result as string;
+        setWallpaper(url);
+        addCustomWallpaper(url);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
 
-  const toggleLaunchOnStartup = useCallback(async () => {
-    const newValue = !launchOnStartup;
-    setLaunchOnStartup(newValue);
-    if ((window as any).electron?.system?.setAutoLaunch) await (window as any).electron.system.setAutoLaunch(newValue);
-  }, [launchOnStartup]);
+  const handleRemoteWallpaper = async (src: string) => {
+    const cached = await cacheRemoteWallpaper(src);
+    setWallpaper(cached || src);
+  };
 
-  useEffect(() => {
-    if ((window as any).electron?.system?.getAutoLaunch) {
-      (window as any).electron.system.getAutoLaunch().then((enabled: boolean) => setLaunchOnStartup(enabled));
+  const handleInitializeComposio = async () => {
+    if (!composioApiKey.trim()) return;
+    const ok = await setApiKey(composioApiKey.trim());
+    if (ok && activeUserId) {
+      refreshConnections(activeUserId);
     }
-  }, []);
+  };
 
-  const TABS = [
-    { id: 'general', name: 'General', icon: SettingsIcon },
-    { id: 'appearance', name: 'Appearance', icon: Palette },
-    { id: 'ai', name: 'AI Models', icon: Bot },
-    { id: 'security', name: 'Security', icon: Shield },
-    { id: 'notifications', name: 'Notifications', icon: Bell },
-    { id: 'updates', name: 'Updates', icon: RefreshCw },
-    { id: 'about', name: 'About', icon: Info },
-  ];
+  const handleConnect = async (appName: 'gmail' | 'googlecalendar') => {
+    if (!activeUserId) return;
+    const result = await connectApp(appName, activeUserId);
+    if (result.redirectUrl) {
+      window.electron.browser.openExternal(result.redirectUrl);
+    }
+  };
 
   return (
-    <div className="flex h-full bg-white font-sans">
-      {/* Sidebar */}
-      <div className="w-56 border-r border-zinc-100 p-3 space-y-0.5 bg-zinc-50/50">
-        <div className="px-3 py-2 mb-2">
-          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Settings</span>
+    <div className="flex h-full bg-[linear-gradient(180deg,rgba(255,255,255,0.75),rgba(241,245,249,0.95))]">
+      <aside className="w-72 border-r border-white/50 bg-white/30 backdrop-blur-[var(--shell-blur)] p-4">
+        <div className="px-2 py-3">
+          <div className="text-[10px] uppercase tracking-[0.28em] text-zinc-400 font-semibold">NeuroOS</div>
+          <div className="text-2xl font-semibold tracking-tight text-zinc-900 mt-1">Settings</div>
+          <div className="text-sm text-zinc-500 mt-1">Minimal system controls with Codex, integrations, and wallpapers.</div>
         </div>
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200",
-              activeTab === tab.id
-                ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200 font-medium"
-                : "hover:bg-zinc-100 text-zinc-500 hover:text-zinc-700"
-            )}
-          >
-            <tab.icon size={16} className={cn(activeTab === tab.id ? "text-blue-500" : "text-zinc-400")} />
-            {tab.name}
-          </button>
-        ))}
-      </div>
+        <div className="mt-4 space-y-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all',
+                activeTab === tab.id ? 'bg-white/75 text-zinc-900 shadow-sm border border-white/60' : 'text-zinc-500 hover:bg-white/45 hover:text-zinc-800'
+              )}
+            >
+              <tab.icon size={18} />
+              <span className="font-medium">{tab.name}</span>
+            </button>
+          ))}
+        </div>
+      </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        <div className="max-w-2xl space-y-8">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{TABS.find(t => t.id === activeTab)?.name}</h1>
-            <p className="text-zinc-400 text-xs mt-1">Configure your system preferences</p>
+      <main className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-5xl space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.28em] text-zinc-400 font-semibold">{TABS.find((tab) => tab.id === activeTab)?.name}</div>
+              <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 mt-1">Refined, iOS-inspired control center</h1>
+            </div>
+            <div className="rounded-[28px] bg-white/65 px-4 py-3 border border-white/50 shadow-sm text-right">
+              <div className="text-sm font-semibold text-zinc-900">{activeUser?.name || 'NeuroOS User'}</div>
+              <div className="text-xs text-zinc-500">{activeUser?.bio || 'Codex-enabled workspace'}</div>
+            </div>
           </div>
 
-          {/* GENERAL */}
-          {activeTab === 'general' && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <div className="p-4 border border-zinc-200 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center"><Rocket size={20} className="text-blue-500" /></div>
-                  <div><h3 className="text-sm font-medium text-zinc-900">Launch on Startup</h3><p className="text-[11px] text-zinc-400">Start Neuro OS when you log in</p></div>
-                </div>
-                <button onClick={toggleLaunchOnStartup} className={cn("relative w-11 h-6 rounded-full transition-all", launchOnStartup ? 'bg-blue-500' : 'bg-zinc-200')}>
-                  <div className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform", launchOnStartup ? 'translate-x-[22px]' : 'translate-x-0.5')} />
-                </button>
-              </div>
-              <div className="p-4 border border-zinc-200 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center"><Power size={20} className="text-emerald-500" /></div>
-                  <div><h3 className="text-sm font-medium text-zinc-900">System Status</h3><p className="text-[11px] text-zinc-400">Neuro OS is running normally</p></div>
-                </div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /><span className="text-xs font-medium text-emerald-600">Online</span></div>
-              </div>
-            </div>
-          )}
-
-          {/* APPEARANCE */}
           {activeTab === 'appearance' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
-              {/* Theme Selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-zinc-900">Color Theme</h3>
+            <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr] gap-6">
+              <SettingCard title="Theme" subtitle="Glass surfaces, blur, and system-aware colors.">
                 <div className="grid grid-cols-4 gap-3">
                   {Object.entries(themeDescriptions).map(([themeKey, description]) => (
                     <button
                       key={themeKey}
                       onClick={() => { setTheme(themeKey as ThemeVariant); applyThemeToDOM(themeKey as ThemeVariant); }}
                       className={cn(
-                        "p-3 border rounded-xl flex flex-col items-center gap-2 transition-all",
-                        theme === themeKey ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50/50" : "border-zinc-200 hover:border-zinc-300"
+                        'rounded-[22px] border px-3 py-4 text-left transition-all',
+                        theme === themeKey ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-white/60 bg-white/50 hover:bg-white/80'
                       )}
-                      title={description}
                     >
-                      <div className={cn("w-8 h-8 rounded-lg",
-                        themeKey === 'light' ? 'bg-white border-2 border-gray-300' :
-                        themeKey === 'dark' ? 'bg-zinc-900 border-2 border-zinc-700' :
-                        themeKey === 'cyan' ? 'bg-cyan-500' :
-                        themeKey === 'purple' ? 'bg-purple-500' :
-                        themeKey === 'amber' ? 'bg-amber-500' :
-                        themeKey === 'rose' ? 'bg-rose-500' :
-                        themeKey === 'system' ? 'bg-gradient-to-br from-zinc-300 to-zinc-600' :
-                        'bg-slate-600'
-                      )} />
-                      <span className="text-[10px] font-medium capitalize">{themeKey}</span>
+                      <div className="text-sm font-semibold capitalize">{themeKey}</div>
+                      <div className={cn('text-xs mt-1', theme === themeKey ? 'text-zinc-300' : 'text-zinc-500')}>{description}</div>
                     </button>
                   ))}
                 </div>
-              </div>
+              </SettingCard>
 
-              {/* Wallpaper Selection */}
-              <div className="space-y-3 pt-4 border-t border-zinc-100">
-                <h3 className="text-sm font-medium text-zinc-900">Desktop Wallpaper</h3>
-                
-                {/* Upload Custom Wallpaper */}
-                <button
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          const url = reader.result as string;
-                          setWallpaper(url);
-                          addCustomWallpaper(url);
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    };
-                    input.click();
-                  }}
-                  className="w-full p-4 border border-dashed border-zinc-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2 text-sm text-zinc-500 hover:text-blue-600"
-                >
-                  <Upload size={16} />
-                  Upload Custom Wallpaper
-                </button>
-
-                {/* Preset Wallpapers */}
-                <div className="grid grid-cols-5 gap-2">
-                  {/* Reset to Default */}
-                  <button
-                    onClick={() => setWallpaper('')}
-                    className={cn(
-                      "relative aspect-video rounded-lg border-2 overflow-hidden transition-all",
-                      !wallpaper ? "border-blue-500 ring-2 ring-blue-500" : "border-zinc-200 hover:border-zinc-300"
-                    )}
-                    title="Default"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-zinc-100 to-zinc-300" />
-                    <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-zinc-600">Default</span>
+              <SettingCard title="Current wallpaper" subtitle="Switch between uploaded, cached, and curated gallery items.">
+                <div className="aspect-[16/10] rounded-[26px] overflow-hidden border border-white/60 bg-zinc-100">
+                  {wallpaper ? (
+                    <img src={wallpaper} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[linear-gradient(135deg,#dbeafe,#eff6ff_35%,#f8fafc)]" />
+                  )}
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button onClick={handleWallpaperUpload} className="rounded-2xl bg-zinc-900 text-white px-4 py-2.5 text-sm font-medium flex items-center gap-2">
+                    <Upload size={14} />
+                    Upload
                   </button>
+                  <button onClick={() => setWallpaper('')} className="rounded-2xl bg-white/60 border border-white/50 px-4 py-2.5 text-sm font-medium text-zinc-700">
+                    Reset
+                  </button>
+                </div>
+              </SettingCard>
 
-                  {/* Preset Colors/Gradients */}
-                  {[
-                    { name: 'Blue', bg: 'bg-gradient-to-br from-blue-400 to-blue-600' },
-                    { name: 'Purple', bg: 'bg-gradient-to-br from-purple-400 to-purple-600' },
-                    { name: 'Dark', bg: 'bg-gradient-to-br from-zinc-800 to-zinc-950' },
-                    { name: 'Nature', bg: 'bg-gradient-to-br from-green-400 to-emerald-600' },
-                    { name: 'Sunset', bg: 'bg-gradient-to-br from-orange-400 to-red-500' },
-                    { name: 'Ocean', bg: 'bg-gradient-to-br from-cyan-400 to-blue-500' },
-                    { name: 'Rose', bg: 'bg-gradient-to-br from-pink-400 to-rose-500' },
-                    { name: 'Night', bg: 'bg-gradient-to-br from-slate-700 to-slate-900' },
-                  ].map((preset, i) => (
+              <SettingCard title="Wallpaper Gallery" subtitle="Curated remote gallery with local caching for offline reuse." className="xl:col-span-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                  {wallpaperGallery.map((item) => (
                     <button
-                      key={preset.name}
-                      onClick={() => {
-                        // Create gradient as data URL
-                        const canvas = document.createElement('canvas');
-                        canvas.width = 800;
-                        canvas.height = 600;
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                          const gradient = ctx.createLinearGradient(0, 0, 800, 600);
-                          const colors: Record<string, [string, string]> = {
-                            'Blue': ['#60a5fa', '#2563eb'],
-                            'Purple': ['#c084fc', '#9333ea'],
-                            'Dark': ['#3f3f46', '#09090b'],
-                            'Nature': ['#4ade80', '#059669'],
-                            'Sunset': ['#fb923c', '#ef4444'],
-                            'Ocean': ['#22d3ee', '#3b82f6'],
-                            'Rose': ['#f472b6', '#e11d48'],
-                            'Night': ['#475569', '#0f172a'],
-                          };
-                          const [c1, c2] = colors[preset.name] || ['#e5e7eb', '#9ca3af'];
-                          gradient.addColorStop(0, c1);
-                          gradient.addColorStop(1, c2);
-                          ctx.fillStyle = gradient;
-                          ctx.fillRect(0, 0, 800, 600);
-                          setWallpaper(canvas.toDataURL());
-                        }
-                      }}
-                      className={cn(
-                        "relative aspect-video rounded-lg border-2 overflow-hidden transition-all",
-                        wallpaper?.startsWith('data:image') && wallpaper.includes(preset.name.toLowerCase()) ? "border-blue-500 ring-2 ring-blue-500" : "border-zinc-200 hover:border-zinc-300"
-                      )}
-                      title={preset.name}
+                      key={item.id}
+                      onClick={() => handleRemoteWallpaper(item.cachedPath || item.src)}
+                      className={cn('rounded-[24px] overflow-hidden border transition-all bg-white/45', wallpaper === item.src || wallpaper === item.cachedPath ? 'border-zinc-900 shadow-lg' : 'border-white/55 hover:border-zinc-300')}
                     >
-                      <div className={cn("absolute inset-0", preset.bg)} />
+                      <div className="aspect-[4/5]">
+                        <img src={item.thumbnail || item.src} alt={item.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="p-3 text-left">
+                        <div className="text-sm font-semibold text-zinc-900">{item.name}</div>
+                        <div className="text-xs text-zinc-500 mt-1">{item.collection || item.source}</div>
+                      </div>
                     </button>
                   ))}
-                </div>
-
-                {/* Custom Wallpapers */}
-                {customWallpapers.length > 0 && (
-                  <div className="space-y-2 pt-2">
-                    <h4 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Your Wallpapers</h4>
-                    <div className="grid grid-cols-5 gap-2">
-                      {customWallpapers.map((url, i) => (
-                        <div key={i} className="relative group">
-                          <button
-                            onClick={() => setWallpaper(url)}
-                            className={cn(
-                              "w-full aspect-video rounded-lg border-2 overflow-hidden transition-all",
-                              wallpaper === url ? "border-blue-500 ring-2 ring-blue-500" : "border-zinc-200 hover:border-zinc-300"
-                            )}
-                          >
-                            <img src={url} alt="" className="w-full h-full object-cover" />
-                          </button>
-                          <button
-                            onClick={() => removeCustomWallpaper(url)}
-                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X size={8} className="text-white" />
-                          </button>
+                  {customWallpapers.map((item) => (
+                    <div key={item} className="rounded-[24px] overflow-hidden border border-white/55 bg-white/45">
+                      <button onClick={() => setWallpaper(item)} className="w-full">
+                        <div className="aspect-[4/5]">
+                          <img src={item} alt="" className="w-full h-full object-cover" />
                         </div>
-                      ))}
+                      </button>
+                      <div className="p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-semibold text-zinc-900">Upload</div>
+                          <div className="text-xs text-zinc-500">Local image</div>
+                        </div>
+                        <button onClick={() => removeCustomWallpaper(item)} className="text-xs text-rose-500 font-medium">Remove</button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              </SettingCard>
             </div>
           )}
 
-{/* AI MODELS */}
           {activeTab === 'ai' && (
-             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                 {aiConfig.providers.map(provider => {
-                   const Icon = ProviderLogos[provider.type] || ProviderLogos.custom;
-                   const isActive = aiConfig.activeProviderId === provider.id;
-                   const isFree = ['opencode', 'ollama', 'lmstudio'].includes(provider.type);
-                   
-                   return (
-                     <button
-                       key={provider.id}
-                       onClick={() => {
-                         updateAiConfig({ activeProviderId: provider.id });
-                         if (provider.type === 'ollama' || provider.type === 'lmstudio') {
-                           refreshProviderModels(provider.id);
-                         }
-                       }}
-                       className={cn(
-                         "relative p-5 border rounded-2xl flex flex-col gap-4 text-left transition-all group overflow-hidden",
-                         isActive 
-                           ? "border-zinc-900 bg-zinc-900 shadow-xl shadow-zinc-200" 
-                           : "border-zinc-100 hover:border-zinc-200 hover:bg-zinc-50/50 shadow-sm"
-                       )}
-                     >
-                       <div className="flex items-center justify-between">
-                         <div className={cn(
-                           "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-110", 
-                           isActive ? "bg-white text-zinc-900" : "bg-zinc-100 text-zinc-400"
-                         )}>
-                           <Icon size={22} />
-                         </div>
-                         {isActive && (
-                            <motion.div layoutId="active-badge" className="w-5 h-5 bg-white text-zinc-900 rounded-full flex items-center justify-center"><Check size={10} strokeWidth={4} /></motion.div>
-                         )}
-                         {!isActive && isFree && (
-                            <span className="text-[8px] font-black tracking-widest px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase">Free</span>
-                         )}
-                       </div>
-                       <div className="space-y-1">
-                         <div className={cn("text-xs font-black uppercase tracking-[0.1em] transition-colors", isActive ? "text-white" : "text-zinc-900")}>{provider.name}</div>
-                         <div className={cn("text-[9px] font-medium truncate transition-colors", isActive ? "text-zinc-400" : "text-zinc-500")}>
-                           {provider.selectedModel || "Offline / Unconfigured"}
-                         </div>
-                       </div>
-                       {isActive && (
-                         <div className="absolute top-2 right-2 w-32 h-32 bg-zinc-400/5 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
-                       )}
-                     </button>
-                   );
-                 })}
-               </div>
+            <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr] gap-6">
+              <SettingCard title="Codex & coding models" subtitle="Secure main-process transport for OpenAI/Codex-capable providers.">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {codingProviders.map((provider) => (
+                    <button
+                      key={provider.id}
+                      onClick={() => updateAiConfig({ activeProviderId: provider.id })}
+                      className={cn(
+                        'rounded-[24px] border px-4 py-4 text-left transition-all',
+                        aiConfig.activeProviderId === provider.id ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white/55 border-white/55 hover:bg-white/80'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold">{provider.name}</div>
+                        {provider.secureTransport === 'main' && <span className="text-[10px] uppercase tracking-[0.24em] text-sky-400">Secure</span>}
+                      </div>
+                      <div className={cn('text-xs mt-2', aiConfig.activeProviderId === provider.id ? 'text-zinc-300' : 'text-zinc-500')}>
+                        {provider.selectedModel}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </SettingCard>
 
-               {/* Provider Detail Config */}
-               {aiConfig.providers.filter(p => p.id === aiConfig.activeProviderId).map(provider => (
-                 <div key={provider.id} className="space-y-8 pt-8 border-t border-zinc-100 animate-in fade-in slide-in-from-top-4 duration-700">
-                    <div className="flex items-center gap-2 px-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-900" />
-                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">Neural Configuration</h3>
+              <SettingCard title="Provider details" subtitle="Use OpenAI as the Codex provider with model-level control.">
+                <div className="space-y-4">
+                  <label className="block">
+                    <div className="text-sm font-medium text-zinc-700 mb-2">Base URL</div>
+                    <input
+                      value={activeProvider?.baseUrl || ''}
+                      onChange={(e) => updateProvider(activeProvider.id, { baseUrl: e.target.value })}
+                      className="w-full rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="text-sm font-medium text-zinc-700 mb-2">API Key</div>
+                    <input
+                      type="password"
+                      value={activeProvider?.apiKey || ''}
+                      onChange={(e) => updateProvider(activeProvider.id, { apiKey: e.target.value })}
+                      className="w-full rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm outline-none"
+                      placeholder={activeProvider.type === 'openai' ? 'OpenAI / Codex API key' : 'Provider API key'}
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="text-sm font-medium text-zinc-700 mb-2">Model</div>
+                    <select
+                      value={activeProvider?.selectedModel || ''}
+                      onChange={(e) => updateProvider(activeProvider.id, { selectedModel: e.target.value })}
+                      className="w-full rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm outline-none"
+                    >
+                      {(activeProvider?.models || []).map((model) => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="rounded-[24px] bg-sky-50 border border-sky-100 p-4 text-sm text-sky-700">
+                    “Sign in with Codex/OpenAI” is implemented as secure provider onboarding first. Account-style OAuth can be added later if a supported public flow is available.
+                  </div>
+                </div>
+              </SettingCard>
+
+              <SettingCard title="General models" subtitle="Keep chat and research providers separate from coding-focused flows." className="xl:col-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {generalProviders.map((provider) => (
+                    <div key={provider.id} className="rounded-[22px] border border-white/55 bg-white/45 p-4">
+                      <div className="font-semibold text-zinc-900">{provider.name}</div>
+                      <div className="text-xs text-zinc-500 mt-1">{provider.selectedModel}</div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {/* Model Architecture */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between px-1">
-                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Active Architecture</label>
-                          {(provider.type === 'ollama' || provider.type === 'lmstudio') && (
-                            <button 
-                              onClick={async () => {
-                                const res = await refreshProviderModels(provider.id, provider.baseUrl);
-                                if (res?.success) {
-                                  // Optional: Add a toast or transient success state
-                                }
-                              }}
-                              className="group flex items-center gap-2 text-[9px] font-bold text-emerald-600 hover:text-zinc-900 transition-all uppercase tracking-widest"
-                            >
-                              <RefreshCw size={10} className="group-active:rotate-180 transition-transform duration-700" />
-                              {provider.models && provider.models.length > 0 ? `Sync (${provider.models.length} Models)` : 'Discover Models'}
+                  ))}
+                </div>
+              </SettingCard>
+            </div>
+          )}
+
+          {activeTab === 'integrations' && (
+            <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_1fr] gap-6">
+              <SettingCard title="Composio setup" subtitle="Enable Gmail and Google Calendar with a single integration key.">
+                <div className="space-y-4">
+                  <label className="block">
+                    <div className="text-sm font-medium text-zinc-700 mb-2">Composio API Key</div>
+                    <input
+                      type="password"
+                      value={composioApiKey}
+                      onChange={(e) => setComposioApiKey(e.target.value)}
+                      className="w-full rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm outline-none"
+                      placeholder="Paste your Composio key"
+                    />
+                  </label>
+                  <button onClick={handleInitializeComposio} className="rounded-2xl bg-zinc-900 text-white px-4 py-3 text-sm font-medium flex items-center gap-2">
+                    <KeyRound size={14} />
+                    {initialized ? 'Reinitialize Composio' : 'Initialize Composio'}
+                  </button>
+                </div>
+              </SettingCard>
+
+              <SettingCard title="Connection status" subtitle="Gmail and Calendar power widgets, task automation, and AI tool flows.">
+                <div className="space-y-3">
+                  {integrationCards.map((item) => {
+                    const connected = getIntegration(item.id as 'gmail' | 'googlecalendar');
+                    return (
+                      <div key={item.id} className="rounded-[24px] border border-white/60 bg-white/45 p-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-zinc-900 text-white flex items-center justify-center">
+                            <item.icon size={18} />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-zinc-900">{item.name}</div>
+                            <div className="text-xs text-zinc-500 mt-1">{connected?.accountLabel || item.subtitle}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {connected?.status === 'connected' ? (
+                            <>
+                              <span className="text-xs font-semibold text-emerald-600">Connected</span>
+                              <button onClick={() => disconnectApp(connected.id, activeUserId || '')} className="rounded-2xl bg-white px-3 py-2 text-xs font-medium border border-white/60">
+                                Disconnect
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => handleConnect(item.id as 'gmail' | 'googlecalendar')} className="rounded-2xl bg-zinc-900 text-white px-3 py-2 text-xs font-medium">
+                              Connect
                             </button>
                           )}
                         </div>
-                        <div className="relative group">
-                          {provider.models && provider.models.length > 0 ? (
-                            <div className="relative">
-                                <select
-                                    value={provider.selectedModel}
-                                    onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })}
-                                    className="w-full p-4 bg-zinc-50 border border-zinc-100 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-zinc-900 transition-all appearance-none cursor-pointer pr-10 shadow-sm"
-                                >
-                                    {provider.models.map(m => (
-                                        <option key={m} value={m}>{m}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 pointer-events-none" />
-                            </div>
-                          ) : (
-                            <input
-                              type="text"
-                              value={provider.selectedModel}
-                              onChange={(e) => updateProvider(provider.id, { selectedModel: e.target.value })}
-                              placeholder="e.g. gpt-4o"
-                              className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-zinc-900 transition-all shadow-sm"
-                            />
-                          )}
-                        </div>
-                        <p className="text-[10px] text-zinc-400 px-1 italic">Define the behavioral profile of your intelligence core.</p>
                       </div>
-
-                      {/* Connective Endpoint */}
-                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Connective Gateway</label>
-                        <input 
-                            value={provider.baseUrl} 
-                            onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })} 
-                            placeholder="https://api.gateway.v1/endpoint" 
-                            className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-zinc-900 transition-all shadow-sm" 
-                        />
-                         <p className="text-[10px] text-zinc-400 px-1 italic">Resource locator for the neural API.</p>
-                      </div>
-                    </div>
-
-                    {/* Security Layer */}
-                    {provider.type !== 'ollama' && provider.type !== 'lmstudio' && provider.type !== 'opencode' && (
-                      <div className="space-y-3 p-6 bg-zinc-50/50 border border-zinc-100 rounded-3xl group hover:border-zinc-200 transition-all">
-                        <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                                <Shield size={12} className="text-zinc-900" />
-                                Authentication Protocol
-                            </label>
-                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-widest">End-to-End Encrypted</span>
-                        </div>
-                        <input 
-                            type="password" 
-                            placeholder={provider.apiKey ? "••••••••••••••••••••••••••••••••" : "Neural Link Access Key"} 
-                            value={provider.apiKey} 
-                            onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })} 
-                            className="w-full p-4 bg-white border border-zinc-200 rounded-2xl text-xs font-mono outline-none focus:border-zinc-900 transition-all shadow-sm" 
-                        />
-                        <p className="text-[10px] text-zinc-400 leading-relaxed italic">
-                            Your neural link keys are stored in high-security local keystore. Keys never transmit to Neuro servers.
-                        </p>
-                      </div>
-                    )}
-                 </div>
-               ))}
-             </div>
-           )}
-
-          {/* SECURITY */}
-          {activeTab === 'security' && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <div className="p-4 border border-zinc-200 rounded-xl space-y-3">
-                <h3 className="text-sm font-medium text-zinc-900">PIN Management</h3>
-                <p className="text-[11px] text-zinc-400">Manage your device PIN for secure access</p>
-                <button className="w-full px-4 py-2 bg-zinc-900 text-white rounded-lg text-xs font-medium hover:bg-zinc-800 transition-colors">Change PIN</button>
-              </div>
-            </div>
-          )}
-
-          {/* NOTIFICATIONS */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              {[
-                { label: 'System Notifications', desc: 'Get notified about system events', enabled: notificationsEnabled, toggle: () => setNotifications(!notificationsEnabled) },
-                { label: 'Sound Effects', desc: 'Play sounds for notifications', enabled: soundEnabled, toggle: () => setSound(!soundEnabled) },
-                { label: 'Desktop Badges', desc: 'Show badge counts on app icons', enabled: desktopBadgesEnabled, toggle: () => setDesktopBadges(!desktopBadgesEnabled) },
-              ].map(item => (
-                <div key={item.label} className="p-4 border border-zinc-200 rounded-xl flex items-center justify-between">
-                  <div><h3 className="text-sm font-medium text-zinc-900">{item.label}</h3><p className="text-[11px] text-zinc-400">{item.desc}</p></div>
-                  <button onClick={item.toggle} className={cn("relative w-11 h-6 rounded-full transition-all", item.enabled ? 'bg-blue-500' : 'bg-zinc-200')}>
-                    <div className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform", item.enabled ? 'translate-x-[22px]' : 'translate-x-0.5')} />
-                  </button>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
+              </SettingCard>
 
-          {/* UPDATES */}
-          {activeTab === 'updates' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="p-5 border border-zinc-200 rounded-xl flex items-start gap-4">
-                <div className="p-2.5 bg-zinc-50 rounded-lg"><RefreshCw className={cn("text-blue-500", updateStatus.state === 'checking' && "animate-spin")} size={20} /></div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-zinc-900">System Updates</h3>
-                    <span className="text-[10px] font-mono text-zinc-400">v{version}</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-400 mt-1">
-                    {updateStatus.state === 'idle' && "Keep Neuro OS up to date"}
-                    {updateStatus.state === 'checking' && "Checking for updates..."}
-                    {updateStatus.state === 'available' && "Update available!"}
-                    {updateStatus.state === 'up-to-date' && "You're on the latest version"}
-                    {updateStatus.state === 'downloading' && `Downloading: ${Math.round(updateStatus.progress?.percent || 0)}%`}
-                    {updateStatus.state === 'downloaded' && "Ready to install"}
-                    {updateStatus.state === 'error' && `Error: ${updateStatus.error}`}
-                  </p>
-                  {updateStatus.state === 'downloading' && (
-                    <div className="w-full h-1 bg-zinc-100 rounded-full mt-3 overflow-hidden">
-                      <motion.div className="h-full bg-blue-500" initial={{ width: 0 }} animate={{ width: `${updateStatus.progress?.percent || 0}%` }} />
+              <SettingCard title="Synced accounts" subtitle="Live account metadata persisted in NeuroOS." className="xl:col-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {integrations.length === 0 && (
+                    <div className="rounded-[24px] border border-dashed border-zinc-300 bg-white/40 p-5 text-sm text-zinc-500">
+                      No accounts connected yet.
                     </div>
                   )}
-                  <div className="flex gap-2 mt-4">
-                    {(updateStatus.state === 'idle' || updateStatus.state === 'up-to-date' || updateStatus.state === 'error') && (
-                      <button onClick={handleCheckUpdate} className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white rounded-lg text-xs font-medium hover:bg-zinc-800">
-                        <RefreshCw size={12} /> Check for Updates
-                      </button>
-                    )}
-                    {updateStatus.state === 'available' && (
-                      <button onClick={handleDownloadUpdate} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">
-                        <Download size={12} /> Download
-                      </button>
-                    )}
-                    {updateStatus.state === 'downloaded' && (
-                      <button onClick={handleInstallUpdate} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700">
-                        <ArrowUpCircle size={12} /> Install & Restart
-                      </button>
-                    )}
-                  </div>
+                  {integrations.map((integration) => (
+                    <div key={integration.id} className="rounded-[24px] border border-white/60 bg-white/45 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold text-zinc-900">{integration.appName}</div>
+                        <div className="text-xs font-semibold text-emerald-600">{integration.status}</div>
+                      </div>
+                      <div className="text-sm text-zinc-600 mt-2">{integration.accountLabel}</div>
+                      <div className="text-xs text-zinc-500 mt-1">{integration.permissions.join(', ') || 'Standard permissions'}</div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div className="p-4 border border-zinc-200 rounded-xl">
-                <div className="flex items-center justify-between">
-                  <div><div className="text-xs font-medium text-zinc-900">v{version}</div><div className="text-[10px] text-zinc-400">Current version</div></div>
-                  <span className="text-[10px] font-medium text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">Installed</span>
-                </div>
-              </div>
+              </SettingCard>
             </div>
           )}
 
-          {/* ABOUT */}
+          {activeTab === 'notifications' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <SettingCard title="System notifications">
+                <Toggle title="Notifications" value={notificationsEnabled} onChange={setNotifications} />
+              </SettingCard>
+              <SettingCard title="Audio">
+                <Toggle title="System sounds" value={soundEnabled} onChange={setSound} />
+              </SettingCard>
+              <SettingCard title="Desktop badges">
+                <Toggle title="Widget & app badges" value={desktopBadgesEnabled} onChange={setDesktopBadges} />
+              </SettingCard>
+            </div>
+          )}
+
+          {activeTab === 'security' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <SettingCard title="Account mode" subtitle="PIN-based local auth remains active.">
+                <div className="rounded-[24px] bg-zinc-900 text-white p-5">
+                  <div className="text-sm font-semibold">Authenticated as {activeUser?.name || 'User'}</div>
+                  <div className="text-xs text-zinc-300 mt-2">Workspace, provider, and integration state stay scoped to the current local profile.</div>
+                </div>
+              </SettingCard>
+              <SettingCard title="LLM transport" subtitle="OpenAI/Codex requests now prefer the main process for secure transport.">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-sm text-zinc-600">
+                    <Check size={14} className="text-emerald-500" />
+                    Main-process bridge for OpenAI/Codex-capable models
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-zinc-600">
+                    <Check size={14} className="text-emerald-500" />
+                    Cached wallpaper downloads stored outside the renderer
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-zinc-600">
+                    <Check size={14} className="text-emerald-500" />
+                    Builder publish flow stored through Electron IPC
+                  </div>
+                </div>
+              </SettingCard>
+            </div>
+          )}
+
+          {activeTab === 'updates' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <SettingCard title="Runtime upgrades" subtitle="Builder and provider changes are designed for iterative rollout.">
+                <div className="rounded-[24px] bg-white/50 border border-white/60 p-5 text-sm text-zinc-600">
+                  The app now includes wallpaper caching, builder publish metadata, Composio account state, and a dedicated Codex-ready provider track.
+                </div>
+              </SettingCard>
+              <SettingCard title="Next step" subtitle="Check or install available updates from the app menu when packaged.">
+                <button className="rounded-2xl bg-zinc-900 text-white px-4 py-3 text-sm font-medium flex items-center gap-2">
+                  <Download size={14} />
+                  Update controls available in packaged builds
+                </button>
+              </SettingCard>
+            </div>
+          )}
+
           {activeTab === 'about' && (
-            <div className="space-y-8 animate-in fade-in duration-300 text-center py-8">
-              <div className="flex flex-col items-center">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-700 flex items-center justify-center mb-4 shadow-xl">
-                  <span className="text-3xl font-light text-white tracking-tighter">N</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <SettingCard title="NeuroOS" subtitle="AI-native desktop shell">
+                <div className="space-y-3 text-sm text-zinc-600">
+                  <div className="flex items-center gap-2"><Sparkles size={14} className="text-sky-500" />Version {version}</div>
+                  <div className="flex items-center gap-2"><Bot size={14} className="text-zinc-500" />Codex-ready provider path</div>
+                  <div className="flex items-center gap-2"><Image size={14} className="text-zinc-500" />Wallpaper gallery + local caching</div>
                 </div>
-                <h1 className="text-3xl font-light tracking-tighter text-zinc-900">
-                  Neuro OS
-                </h1>
-                <p className="text-zinc-400 text-xs mt-1">Minimalist AI-Powered OS for Productivity</p>
-              </div>
-              <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-50 rounded-full border border-zinc-100">
-                  <span className="text-xs font-mono text-zinc-500">Version {version}</span>
+              </SettingCard>
+              <SettingCard title="Current profile" subtitle="Local state overview">
+                <div className="text-sm text-zinc-600">
+                  Active user: <span className="font-semibold text-zinc-900">{activeUser?.name || 'User'}</span>
                 </div>
-                <div className="flex items-center justify-center gap-4 text-[10px] text-zinc-300">
-                  <span>By Loay Abdalslam</span>
-                  <span>•</span>
-                  <span>chatit.cloud</span>
-                  <span>•</span>
-                  <span>2026</span>
+                <div className="text-sm text-zinc-600 mt-2">
+                  Active provider: <span className="font-semibold text-zinc-900">{activeProvider?.name}</span>
                 </div>
-              </div>
-              <div className="pt-4 border-t border-zinc-100">
-                <p className="text-[11px] text-zinc-400">Built with React, TypeScript, Electron & Tailwind CSS</p>
-                <a href="https://github.com/loayabdalslam/NeuroOS" target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-500 hover:text-blue-600 mt-1 inline-block">github.com/loayabdalslam/NeuroOS</a>
-                <p className="text-[10px] text-zinc-300 mt-2">Copyright &copy; 2026 Loay Abdalslam. All rights reserved.</p>
-              </div>
+              </SettingCard>
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 };
+
+const Toggle: React.FC<{ title: string; value: boolean; onChange: (value: boolean) => void }> = ({ title, value, onChange }) => (
+  <button
+    onClick={() => onChange(!value)}
+    className="w-full rounded-[24px] bg-white/45 border border-white/60 px-4 py-4 flex items-center justify-between"
+  >
+    <span className="text-sm font-medium text-zinc-800">{title}</span>
+    <span className={cn('w-12 h-7 rounded-full transition-all relative', value ? 'bg-emerald-500' : 'bg-zinc-300')}>
+      <span className={cn('absolute top-1 w-5 h-5 rounded-full bg-white transition-all', value ? 'left-6' : 'left-1')} />
+    </span>
+  </button>
+);

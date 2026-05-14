@@ -8,7 +8,9 @@ export interface BoardCard {
     position: { x: number; y: number };
     groupId?: string;
     color?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, any> & {
+        widgetType?: 'weather' | 'stocks' | 'news' | 'calendar';
+    };
 }
 
 export interface BoardGroup {

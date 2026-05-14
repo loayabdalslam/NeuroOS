@@ -38,8 +38,7 @@
       "dist-electron"
     ],
     "win": {
-      "icon": "build/icon.ico",
-      "publisherName": "Loay Abdalslam",
+      "icon": "build/icon-256x256.png",
       "legalTrademarks": "Neuro OS is a trademark of Loay Abdalslam",
       "target": [
         {

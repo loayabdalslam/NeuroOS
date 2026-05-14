@@ -20,6 +20,8 @@ autoUpdater.allowPrerelease = false;
 let mainWindow: BrowserWindow | null = null;
 let appTray: any = null;
 let composioClient: any = null;
+const wallpaperCacheDir = path.join(app.getPath('userData'), 'wallpapers');
+const publishedAppsDir = path.join(app.getPath('userData'), 'published-apps');
 
 // ─── Single Instance Lock ──────────────────────────────────────────
 const gotTheLock = app.requestSingleInstanceLock();
@@ -677,6 +679,67 @@ app.on('ready', () => {
             ? await response.json()
             : await response.text();
         return { status: response.status, ok: response.ok, data };
+    });
+
+    ipcMain.handle('wallpaper:cacheRemote', async (_: any, url: string) => {
+        try {
+            await fs.mkdir(wallpaperCacheDir, { recursive: true });
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Failed to fetch wallpaper: ${response.status}`);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const ext = response.headers.get('content-type')?.includes('png') ? 'png' : 'jpg';
+            const filename = `wallpaper-${Date.now()}.${ext}`;
+            const fullPath = path.join(wallpaperCacheDir, filename);
+            await fs.writeFile(fullPath, buffer);
+            return { success: true, localPath: `file://${fullPath}` };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('wallpaper:listCached', async () => {
+        try {
+            await fs.mkdir(wallpaperCacheDir, { recursive: true });
+            const files = await fs.readdir(wallpaperCacheDir);
+            return files.map((name) => ({ name, path: `file://${path.join(wallpaperCacheDir, name)}` }));
+        } catch {
+            return [];
+        }
+    });
+
+    ipcMain.handle('builder:publish', async (_: any, payload: any) => {
+        try {
+            await fs.mkdir(publishedAppsDir, { recursive: true });
+            const id = payload?.id || `published-${Date.now()}`;
+            const publishedAt = new Date().toISOString();
+            const record = {
+                ...payload,
+                id,
+                publishedAt,
+                shareUrl: `https://share.neuroos.app/apps/${id}`,
+                status: 'published',
+            };
+            await fs.writeFile(path.join(publishedAppsDir, `${id}.json`), JSON.stringify(record, null, 2), 'utf-8');
+            return { success: true, data: record };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('builder:getPublishedApps', async () => {
+        try {
+            await fs.mkdir(publishedAppsDir, { recursive: true });
+            const files = await fs.readdir(publishedAppsDir);
+            const records = await Promise.all(
+                files.filter((name) => name.endsWith('.json')).map(async (name) => {
+                    const content = await fs.readFile(path.join(publishedAppsDir, name), 'utf-8');
+                    return JSON.parse(content);
+                })
+            );
+            return { success: true, data: records.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()) };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
     });
 });
 

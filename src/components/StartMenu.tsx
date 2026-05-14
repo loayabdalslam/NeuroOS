@@ -54,10 +54,19 @@ export const StartMenu: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 15, scale: 0.98 }}
             transition={{ type: "spring", damping: 25, stiffness: 350, mass: 0.8 }}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[480px] h-[400px] bg-white ring-1 ring-zinc-200 shadow-2xl shadow-zinc-200/50 rounded-2xl z-[9999] flex flex-col overflow-hidden"
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[560px] h-[460px] bg-[color:var(--color-glass-strong)] ring-1 ring-white/50 border border-white/40 shadow-[var(--shell-shadow-strong)] backdrop-blur-[var(--shell-blur)] rounded-[32px] z-[9999] flex flex-col overflow-hidden"
           >
             {/* Search */}
-            <div className="p-4 pb-2">
+            <div className="p-5 pb-3">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-zinc-400 font-semibold">Launcher</div>
+                  <div className="text-xl font-semibold tracking-tight text-zinc-900">Open anything</div>
+                </div>
+                <div className="rounded-2xl bg-white/60 px-3 py-2 text-[11px] font-semibold text-zinc-500 shadow-sm">
+                  {filteredApps.length} apps
+                </div>
+              </div>
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-600 transition-colors" size={18} />
                 <input
@@ -65,7 +74,7 @@ export const StartMenu: React.FC = () => {
                   placeholder="Search apps, files, agents..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 rounded-xl border border-transparent focus:bg-white focus:border-zinc-200 focus:ring-4 focus:ring-zinc-50 transition-all text-sm outline-none placeholder:text-zinc-400"
+                  className="w-full pl-10 pr-4 py-3 bg-white/55 rounded-2xl border border-white/50 focus:bg-white focus:border-zinc-200 focus:ring-4 focus:ring-white/60 transition-all text-sm outline-none placeholder:text-zinc-400 shadow-sm"
                   autoFocus
                 />
               </div>
@@ -81,7 +90,7 @@ export const StartMenu: React.FC = () => {
                   <p className="text-sm text-zinc-400">No apps found matching "{searchQuery}"</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-5 gap-y-6 gap-x-2">
+                <div className="grid grid-cols-5 gap-y-6 gap-x-3">
                   {filteredApps.map(app => {
                     const IconComponent = getAppIcon(app.id);
                     return (
@@ -101,7 +110,7 @@ export const StartMenu: React.FC = () => {
                           openApp(app.id, app.name);
                           toggleStartMenu(false);
                         }}
-                        className="flex flex-col items-center gap-2 group p-2 rounded-xl hover:bg-zinc-50 transition-colors"
+                        className="flex flex-col items-center gap-2 group p-2 rounded-2xl hover:bg-white/55 transition-colors"
                       >
                         <div className={cn(
                           "w-12 h-12 rounded-[14px] flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-all duration-300 ease-spring",
@@ -118,7 +127,7 @@ export const StartMenu: React.FC = () => {
             </div>
 
             {/* User Profile */}
-            <div className="p-3 mx-2 mb-2 bg-zinc-50/50 rounded-xl border border-zinc-100 flex items-center justify-between">
+            <div className="p-4 mx-3 mb-3 bg-white/55 rounded-[26px] border border-white/50 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3 px-1">
                 {user?.avatar ? (
                   <img src={user.avatar} className="w-8 h-8 rounded-full object-cover ring-1 ring-zinc-200" />

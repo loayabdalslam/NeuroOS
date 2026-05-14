@@ -7,7 +7,7 @@ import { useSystemData } from '../hooks/useSystemData';
 
 // --- Widget Components ---
 
-import { WeatherWidget, StockWidget, NewsCarousel } from './Widgets';
+import { WeatherWidget, StockWidget, NewsCarousel, CalendarWidget } from './Widgets';
 
 // --- Main Desktop Widgets Component ---
 
@@ -15,18 +15,18 @@ export const DesktopWidgets: React.FC = () => {
   const systemData = useSystemData();
 
   return (
-    <div className="absolute top-12 right-12 w-64 flex flex-col gap-6 pointer-events-auto z-0 select-none">
+    <div className="absolute top-10 right-10 w-[300px] flex flex-col gap-5 pointer-events-auto z-0 select-none">
 
       {/* Date & Time */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-right space-y-0.5"
+        className="text-right space-y-1"
       >
         <div className="text-6xl font-thin tracking-tighter text-white drop-shadow-sm">
           {format(systemData.time, 'HH:mm')}
         </div>
-        <div className="text-lg font-light text-white/60 tracking-tight">
+        <div className="text-lg font-light text-white/75 tracking-tight">
           {format(systemData.time, 'EEEE, MMMM do')}
         </div>
       </motion.div>
@@ -39,7 +39,7 @@ export const DesktopWidgets: React.FC = () => {
         className="grid grid-cols-2 gap-3"
       >
         {/* CPU */}
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex flex-col justify-between aspect-square hover:bg-black/30 transition-colors group">
+        <div className="bg-white/15 backdrop-blur-[var(--shell-blur)] border border-white/20 rounded-[26px] p-3 flex flex-col justify-between aspect-square hover:bg-white/20 transition-colors group shadow-[var(--shell-shadow)]">
           <Cpu size={18} className="text-white/40 group-hover:text-blue-400 transition-colors" />
           <div>
             <div className="text-xl font-bold text-white">{systemData.performance.cpuUsage}%</div>
@@ -48,7 +48,7 @@ export const DesktopWidgets: React.FC = () => {
         </div>
 
         {/* Memory */}
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex flex-col justify-between aspect-square hover:bg-black/30 transition-colors group">
+        <div className="bg-white/15 backdrop-blur-[var(--shell-blur)] border border-white/20 rounded-[26px] p-3 flex flex-col justify-between aspect-square hover:bg-white/20 transition-colors group shadow-[var(--shell-shadow)]">
           <Activity size={18} className="text-white/40 group-hover:text-purple-400 transition-colors" />
           <div>
             <div className="text-xl font-bold text-white">{systemData.performance.memoryUsage}%</div>
@@ -57,7 +57,7 @@ export const DesktopWidgets: React.FC = () => {
         </div>
 
         {/* Network */}
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex flex-col justify-between aspect-square hover:bg-black/30 transition-colors group">
+        <div className="bg-white/15 backdrop-blur-[var(--shell-blur)] border border-white/20 rounded-[26px] p-3 flex flex-col justify-between aspect-square hover:bg-white/20 transition-colors group shadow-[var(--shell-shadow)]">
           <Wifi size={18} className={cn("text-white/40 transition-colors", systemData.network.online ? "group-hover:text-emerald-400" : "text-red-400")} />
           <div>
             <div className="text-xl font-bold text-white">{systemData.network.speed}</div>
@@ -66,7 +66,7 @@ export const DesktopWidgets: React.FC = () => {
         </div>
 
         {/* Battery */}
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-3 flex flex-col justify-between aspect-square hover:bg-black/30 transition-colors group">
+        <div className="bg-white/15 backdrop-blur-[var(--shell-blur)] border border-white/20 rounded-[26px] p-3 flex flex-col justify-between aspect-square hover:bg-white/20 transition-colors group shadow-[var(--shell-shadow)]">
           <Battery size={18} className={cn("text-white/40 transition-colors", systemData.battery.charging && "group-hover:text-amber-400 animate-pulse")} />
           <div>
             <div className="text-xl font-bold text-white">{systemData.battery.level}%</div>
@@ -87,6 +87,9 @@ export const DesktopWidgets: React.FC = () => {
         </div>
         <div className="h-32">
           <StockWidget symbol="AAPL" />
+        </div>
+        <div className="h-40">
+          <CalendarWidget />
         </div>
         <div className="h-44">
           <NewsCarousel />
