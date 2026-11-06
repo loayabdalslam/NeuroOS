@@ -11,6 +11,7 @@ import { Flag } from '../components/Flag';
 import { Icon } from '../components/Icon';
 import { BrandIcon } from '../components/BrandIcon';
 import { Button, Spinner } from '../components/ui';
+import { WelcomeTicker, WelcomePanel } from './WelcomeMotion';
 
 type Step = 'welcome' | 'language' | 'profile' | 'appearance' | 'intelligence' | 'workspace' | 'ready';
 const STEPS: Step[] = ['welcome', 'language', 'profile', 'appearance', 'intelligence', 'workspace', 'ready'];
@@ -202,13 +203,7 @@ export function Onboarding(): JSX.Element {
             {step === 'ready' ? `Everything is wired, ${name.trim() || 'explorer'}. Your kernel, tools and surfaces are ready.` : null}
           </p>
 
-          {step === 'welcome' ? (
-            <div className="onboard__facts">
-              <Fact icon="brain" title="One agent, every surface" body="Chat, files, browser, terminal and notebooks share a single tool bus." />
-              <Fact icon="plug" title="Any provider, any protocol" body="OpenAI-compatible APIs, Anthropic, Gemini, Ollama, or ACP agents over stdio." />
-              <Fact icon="shield" title="Local-first by design" body="Keys are encrypted with your OS keychain. State is readable JSON on disk." />
-            </div>
-          ) : null}
+          {step === 'welcome' ? <WelcomeTicker /> : null}
 
           {step === 'profile' ? (
             <div className="onboard__profile">
@@ -271,35 +266,7 @@ export function Onboarding(): JSX.Element {
             </div>
           ) : null}
 
-          {step === 'welcome' ? (
-            <div className="onboard__welcomeCard">
-              <div className="onboard__welcomeHead">
-                <span className="n-badge n-badge--accent">v1.0 · kernel ready</span>
-                <span className="tiny faint mono">build 2026.11</span>
-              </div>
-              <div className="onboard__terminalPreview mono">
-                <div className="onboard__terminalBar">
-                  <span className="n-dot n-dot--offline" />
-                  <span className="n-dot n-dot--warn" />
-                  <span className="n-dot n-dot--online" />
-                  <span className="tiny faint">neuro@kernel — shell</span>
-                </div>
-                <div className="onboard__terminalBody">
-                  <div><span className="prompt">❯</span> neuro status</div>
-                  <div className="ok">✔ 36 tools online · 6 surfaces mounted · 0 pending approvals</div>
-                  <div><span className="prompt">❯</span> neuro providers</div>
-                  <div className="dim">deepseek · anthropic · gemini · ollama · acp · custom</div>
-                  <div><span className="prompt">❯</span> <span className="caret" /></div>
-                </div>
-              </div>
-              <div className="onboard__welcomeStats">
-                <div><span className="mono big">36</span><span className="tiny faint uppercase">tools</span></div>
-                <div><span className="mono big">9</span><span className="tiny faint uppercase">surfaces</span></div>
-                <div><span className="mono big">14</span><span className="tiny faint uppercase">languages</span></div>
-                <div><span className="mono big">∞</span><span className="tiny faint uppercase">spaces</span></div>
-              </div>
-            </div>
-          ) : null}
+          {step === 'welcome' ? <WelcomePanel /> : null}
 
           {step === 'language' ? (
             <div className="onboard__languages n-scroll">

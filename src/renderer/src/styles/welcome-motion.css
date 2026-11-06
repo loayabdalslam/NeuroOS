@@ -1,0 +1,315 @@
+/* ==================================================================== *
+ * Welcome step — motion graphic system map
+ * ==================================================================== */
+
+.wmTicker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+.wmTicker__card {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--n-radius-lg);
+  border: 1px solid var(--n-line);
+  background: linear-gradient(120deg, var(--n-layer-1), transparent 75%), var(--n-layer-1);
+  animation: wm-slide 420ms var(--n-ease-out);
+}
+@keyframes wm-slide {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.wmTicker__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  flex: none;
+}
+.wmTicker__title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--n-text);
+}
+.wmTicker__body {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--n-text-4);
+  max-width: 480px;
+}
+.wmTicker__dots {
+  display: flex;
+  gap: 5px;
+}
+.wmTicker__dots button {
+  width: 34px;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--n-layer-3);
+  overflow: hidden;
+  padding: 0;
+}
+.wmTicker__dots button[data-active='true'] {
+  background: var(--n-accent-soft);
+}
+.wmTicker__dots button span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--n-accent);
+  border-radius: 99px;
+}
+.wmTicker__dots button[data-active='true'] span {
+  animation: wm-progress linear forwards;
+}
+@keyframes wm-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+.wmTicker__traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.wmTicker__trait {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--n-line);
+  font-size: 9.5px;
+  color: var(--n-text-4);
+  background: var(--n-layer-1);
+}
+
+/* ------------------------------- panel -------------------------------- */
+.wmPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--n-radius-xl);
+  border: 1px solid var(--n-line-2);
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(86, 134, 254, 0.1), transparent 70%),
+    var(--n-layer-1);
+  overflow: hidden;
+}
+.wmPanel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.wmMap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 520 / 416;
+  max-height: 44vh;
+  margin: 0 auto;
+}
+.wmMap__wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.wmMap__ring {
+  fill: none;
+  stroke: rgba(148, 163, 184, 0.13);
+  stroke-width: 1;
+  stroke-dasharray: 3 7;
+  transform-origin: 260px 208px;
+  animation: wm-spin 60s linear infinite;
+}
+.wmMap__ring--inner {
+  stroke-dasharray: 2 9;
+  animation-duration: 38s;
+  animation-direction: reverse;
+}
+.wmMap__ring--outer {
+  stroke: rgba(86, 134, 254, 0.18);
+  animation-duration: 90s;
+}
+@keyframes wm-spin {
+  to { transform: rotate(360deg); }
+}
+.wmMap__line {
+  stroke: rgba(148, 163, 184, 0.18);
+  stroke-width: 1;
+  stroke-dasharray: 2 6;
+  animation: wm-dash 12s linear infinite;
+}
+@keyframes wm-dash {
+  to { stroke-dashoffset: -80; }
+}
+.wmMap__pulse {
+  fill: #8be9fd;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 4px rgba(139, 233, 253, 0.9));
+}
+.wmMap__hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: radial-gradient(circle at 50% 35%, rgba(86, 134, 254, 0.28), rgba(86, 134, 254, 0.06) 70%);
+  border: 1px solid rgba(86, 134, 254, 0.4);
+  box-shadow: 0 0 40px rgba(86, 134, 254, 0.25), inset 0 0 26px rgba(86, 134, 254, 0.15);
+  animation: wm-hub 4s ease-in-out infinite;
+  z-index: 2;
+}
+.wmMap__hub span {
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  color: rgba(139, 233, 253, 0.85);
+  font-family: var(--n-font-mono);
+}
+@keyframes wm-hub {
+  0%, 100% { box-shadow: 0 0 34px rgba(86, 134, 254, 0.22), inset 0 0 22px rgba(86, 134, 254, 0.12); }
+  50% { box-shadow: 0 0 58px rgba(86, 134, 254, 0.4), inset 0 0 30px rgba(86, 134, 254, 0.2); }
+}
+.wmMap__node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 64px;
+  opacity: 0;
+  animation: wm-node 620ms var(--n-ease-out) forwards, wm-float 6s ease-in-out infinite;
+}
+@keyframes wm-node {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes wm-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -3px; }
+}
+.wmMap__chip {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  backdrop-filter: blur(6px);
+}
+.wmMap__label {
+  font-size: 8.5px;
+  color: var(--n-text-4);
+  text-align: center;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.wmPanel__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.wmPanel__stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 4px;
+  border-radius: 9px;
+  background: var(--n-bg);
+  border: 1px solid var(--n-line);
+}
+.wmPanel__stats .big {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.wmPanel__stats .uppercase {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+.wmPanel__caps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+.wmCap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: var(--n-bg);
+  border: 1px solid var(--n-line);
+  font-size: 9px;
+  color: var(--n-text-4);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wmTicker__card,
+  .wmMap__node,
+  .wmMap__hub,
+  .wmMap__ring,
+  .wmMap__line,
+  .wmMap__pulse { animation: none !important; opacity: 1 !important; }
+  .wmTicker__dots button[data-active='true'] span { animation: none; width: 100%; }
+}
+
+/* all-features ribbon */
+.wmMarquee {
+  position: relative;
+  overflow: hidden;
+  margin-top: 4px;
+  padding: 2px 0;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.wmMarquee__track {
+  display: flex;
+  width: max-content;
+  animation: wm-marquee 42s linear infinite;
+}
+.wmMarquee__group {
+  display: flex;
+  gap: 14px;
+  padding-right: 14px;
+}
+.wmMarquee__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--n-text-4);
+  white-space: nowrap;
+}
+.wmMarquee__item i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--n-accent);
+  opacity: 0.7;
+}
+@keyframes wm-marquee {
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wmMarquee__track { animation: none; flex-wrap: wrap; }
+}
