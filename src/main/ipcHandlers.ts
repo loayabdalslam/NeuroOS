@@ -501,6 +501,24 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
     'composio.toggle': ({ slug, enabled }) => kernel.composio.toggle(slug, enabled),
     'composio.execute': ({ slug, args }) => kernel.composio.execute(slug, args),
 
+    'web.status': () => kernel.web.stats(),
+    'web.list': () => kernel.web.list(),
+    'web.publish': (input) => kernel.web.publish(input),
+    'web.publishFolder': async ({ domain, title }) => {
+      const win = getWindow();
+      const picked = win
+        ? await dialog.showOpenDialog(win, { properties: ['openDirectory'], title: 'Choose a folder to publish' })
+        : await dialog.showOpenDialog({ properties: ['openDirectory'], title: 'Choose a folder to publish' });
+      if (picked.canceled || !picked.filePaths[0]) return { ok: false, error: 'cancelled' };
+      return kernel.web.publishFolder(picked.filePaths[0], domain, title);
+    },
+    'web.unpublish': ({ domain }) => kernel.web.unpublish(domain),
+    'web.resolve': ({ domain }) => kernel.web.resolve(domain),
+    'web.peers': () => kernel.web.peers(),
+    'web.peerAdd': ({ host, port }) => kernel.web.addPeer(host, Number(port)),
+    'web.peerRemove': ({ nodeId }) => kernel.web.removePeer(nodeId),
+    'web.gateway': () => ({ gateway: kernel.web.stats().gateway, port: kernel.web.stats().port }),
+
     'onboarding.state': () => ({ complete: settings.public().onboardingComplete }),
   } as HandlerMap;
 }

@@ -1,12 +1,12 @@
-<p align="center">
+﻿<p align="center">
   <img src="resources/brand/icon-256.png" width="120" alt="Neuro OS" />
 </p>
 
 <h1 align="center">Neuro OS</h1>
 
 <p align="center">
-  An AI-native desktop environment where every surface — chat, files, terminal, browser, notebooks,
-  spaces, the taskbar, the Anchor — is driven by the same agent and the same tool bus.
+  An AI-native desktop environment where every surface â€” chat, files, terminal, browser, notebooks,
+  spaces, the taskbar, the Anchor â€” is driven by the same agent and the same tool bus.
   <br />
   Built on the DeepSeek Harness design language.
 </p>
@@ -32,28 +32,30 @@ Neuro OS is not a chat window with a sidebar. It is a small operating environmen
 | **Workspace** | File explorer, content search, CodeMirror editor with save, git status, language breakdown. |
 | **Spaces** | Long-lived contexts that bind a folder, notes, notebooks and conversations together. |
 | **Notebook** | Live kernel: JavaScript/TypeScript in a sandboxed VM, Python and shell as processes. |
+| **Sites** | Publish and host .neuro sites from this machine, with signed manifests, peer replication and live counters. |
 | **Browser** | A real Chromium surface (`webview`) with tabs, history, its own partition, and agent control. |
 | **Terminal** | A **real ConPTY** PowerShell session rendered with xterm.js, plus a pipe fallback. |
 | **Mail** | Serverless, peer-to-peer, end-to-end encrypted mail with LAN discovery, relay and live delivery. |
 | **Automation** | n8n-style workflow canvas: schedule/mail/file triggers, agents, tools, HTTP, code, conditions, mail. |
 | **Composer** | Chain agents into pipelines where each step sees the original input and the previous output. |
-| **Marketplace** | Skills, plugins (that add real tools), agents and themes — plus a plugin installer for folders, zips and URLs. |
+| **Marketplace** | Skills, plugins (that add real tools), agents and themes â€” plus a plugin installer for folders, zips and URLs. |
 | **Settings** | Themes, languages, providers, agents, per-tool permissions, **Composio integrations**, taskbar, Anchor, workspace, data. |
 
 Cross-cutting:
 
-- **Custom iconography** — a hand-built, colour-coded duotone icon set for every app, tool category and system surface, plus original brand marks (simple-icons, CC0) for model providers, operating systems and integrations.
-- **Composio integrations** — one key connects 100+ real services (Gmail, GitHub, Slack, Notion, Linear, Jira, Sheets…). Enabled actions become `composio.<slug>` tools; `composio.search` + `composio.execute` expose the whole catalog. See [docs/COMPOSIO.md](docs/COMPOSIO.md).
-- **Real desktop simulation** — windows with drag/resize/snap, z-ordering, a start menu, a lockscreen, taskbar window buttons and a desktop context menu. Apps run inside windows *and* as full-page tabs.
-- **Theme gallery** — Neuro OS, Windows 11, Ubuntu (Yaru) and iOS design languages, each in dark and light, plus a pure **White** theme. Presets also move the taskbar and change wallpapers, typography, radii and elevation.
+- **Custom iconography** â€” a hand-built, colour-coded duotone icon set for every app, tool category and system surface, plus original brand marks (simple-icons, CC0) for model providers, operating systems and integrations.
+- **Neuro Web (decentralized hosting)** — claim a .neuro domain, drag a folder in, and your machine becomes the host. Peers replicate the signed site, and the browser switches between the central internet and the mesh. See [docs/WEB.md](docs/WEB.md).
+- **Composio integrations** â€” one key connects 100+ real services (Gmail, GitHub, Slack, Notion, Linear, Jira, Sheetsâ€¦). Enabled actions become `composio.<slug>` tools; `composio.search` + `composio.execute` expose the whole catalog. See [docs/COMPOSIO.md](docs/COMPOSIO.md).
+- **Real desktop simulation** â€” windows with drag/resize/snap, z-ordering, a start menu, a lockscreen, taskbar window buttons and a desktop context menu. Apps run inside windows *and* as full-page tabs.
+- **Theme gallery** â€” Neuro OS, Windows 11, Ubuntu (Yaru) and iOS design languages, each in dark and light, plus a pure **White** theme. Presets also move the taskbar and change wallpapers, typography, radii and elevation.
 - **14 languages with hand-drawn vector flags** and full RTL layout for Arabic.
-- **Anchor** — pin conversations, notes, files, spaces, notebooks, links or terminals to a persistent rail.
-- **Command palette** (`Ctrl/⌘ K`) — navigation, actions, conversations, all keyboard-first.
-- **Customizable taskbar** — bottom/top/left/right, size, labels, clock, metrics, language, pinned apps, running windows.
-- **Plugin platform** — install from folder, `.zip` or URL; contribute tools, themes, provider presets, streaming adapters and commands. See [docs/PLUGINS.md](docs/PLUGINS.md).
-- **Decentralized mail** — no server, no account: Ed25519 identities, X25519 + AES-256-GCM payloads, direct peer delivery, LAN discovery and store-and-forward relay. See [docs/MAIL.md](docs/MAIL.md).
-- **Automation** — a typed workflow engine with triggers, agents, tools, HTTP, code, branching, delays and mail. See [docs/AUTOMATION.md](docs/AUTOMATION.md).
-- **Agent composition** — multi-agent pipelines (Research → Draft → Review) that can be run standalone or from a workflow.
+- **Anchor** â€” pin conversations, notes, files, spaces, notebooks, links or terminals to a persistent rail.
+- **Command palette** (`Ctrl/âŒ˜ K`) â€” navigation, actions, conversations, all keyboard-first.
+- **Customizable taskbar** â€” bottom/top/left/right, size, labels, clock, metrics, language, pinned apps, running windows.
+- **Plugin platform** â€” install from folder, `.zip` or URL; contribute tools, themes, provider presets, streaming adapters and commands. See [docs/PLUGINS.md](docs/PLUGINS.md).
+- **Decentralized mail** â€” no server, no account: Ed25519 identities, X25519 + AES-256-GCM payloads, direct peer delivery, LAN discovery and store-and-forward relay. See [docs/MAIL.md](docs/MAIL.md).
+- **Automation** â€” a typed workflow engine with triggers, agents, tools, HTTP, code, branching, delays and mail. See [docs/AUTOMATION.md](docs/AUTOMATION.md).
+- **Agent composition** â€” multi-agent pipelines (Research â†’ Draft â†’ Review) that can be run standalone or from a workflow.
 
 ## Screenshots
 
@@ -89,6 +91,10 @@ Cross-cutting:
 | --- | --- |
 | ![Start menu](screenshots/20-start-menu.png) | ![Anchor](screenshots/11-anchor.png) |
 
+| Neuro Web (publish + counters) | Neuro Web browser mode |
+| --- | --- |
+| ![Sites](screenshots/22-sites.png) | ![Neuro Web](screenshots/23-neuroweb.png) |
+
 | Composio integrations | |
 | --- | --- |
 | ![Integrations](screenshots/21-integrations.png) | Composio turns Gmail, GitHub, Slack, Notion and 100+ other services into agent tools. |
@@ -117,21 +123,21 @@ npm run dist:win
 
 1. Pick a language (the layout flips for Arabic).
 2. Set your name and role.
-3. Choose a theme — the whole OS restyles live.
+3. Choose a theme â€” the whole OS restyles live.
 4. Connect a provider (or skip and add one later).
 5. Pick a workspace (a demo project is generated for you).
 
 ## Providers
 
-Any of these work out of the box — no SDKs, just typed HTTP adapters:
+Any of these work out of the box â€” no SDKs, just typed HTTP adapters:
 
 - **OpenAI-compatible**: OpenAI, DeepSeek, Groq, OpenRouter, xAI, Mistral, Together, Qwen/DashScope, LM Studio, any self-hosted endpoint (`/v1/chat/completions`).
 - **Anthropic** Messages API (streaming, tool use, thinking blocks).
 - **Google Gemini** `streamGenerateContent` with function declarations.
 - **Ollama** via its OpenAI-compatible endpoint.
-- **ACP agents** — any Agent Client Protocol v1 process over stdio.
+- **ACP agents** â€” any Agent Client Protocol v1 process over stdio.
 
-Keys are encrypted with the OS keychain (`safeStorage` → DPAPI on Windows) and stored in
+Keys are encrypted with the OS keychain (`safeStorage` â†’ DPAPI on Windows) and stored in
 `%APPDATA%/Neuro OS/state/vault.json`. They never leave the machine.
 
 ## ACP (Agent Client Protocol)
@@ -145,45 +151,45 @@ Neuro OS implements the **client** half of ACP v1:
 - `terminal/create|output|wait_for_exit|kill|release`
 - `session/request_permission` mediated through Neuro's policy layer
 
-Add an ACP provider in **Settings → Providers → ACP Agent** and give it a command such as
+Add an ACP provider in **Settings â†’ Providers â†’ ACP Agent** and give it a command such as
 `npx -y <agent> --acp`.
 
 ## Tool calling, with real control
 
 36 built-in tools across `filesystem`, `shell`, `network`, `ui`, `system`, `knowledge`, `agent`
-and `marketplace` — plus every tool contributed by installed plugins.
+and `marketplace` â€” plus every tool contributed by installed plugins.
 
 Every tool has an explicit policy: **auto**, **ask** or **deny**. High-risk tools (shell, delete,
 launch app) ask by default; the chat UI renders an approval card inline and the agent waits for
-your decision. Settings → Tools lets you override any tool individually.
+your decision. Settings â†’ Tools lets you override any tool individually.
 
 ## Architecture in one page
 
 ```
-┌──────────────────────────── renderer (React) ────────────────────────────┐
-│  Shell (titlebar · tabs · dock · taskbar · anchor · palette · toasts)    │
-│  Surfaces: Desktop Chat Workspace Spaces Notebook Browser Terminal …     │
-│  Zustand stores · typed bridge (window.neuro) · zero Node access          │
-└───────────────────────────────────▲──────────────────────────────────────┘
-                                    │ typed IPC (request/response + events)
-┌───────────────────────────────────▼──────────────────────────────────────┐
-│                                 kernel                                    │
-│  SettingsService  WorkspaceService  TerminalService  ContentService       │
-│  ToolRegistry  MarketplaceService  AgentService  ApprovalRegistry         │
-│  Provider adapters (OpenAI / Anthropic / Gemini)  ·  ACP client           │
-│  JsonStore (atomic writes) · SecretVault (DPAPI) · append-only sessions   │
-└──────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ renderer (React) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  Shell (titlebar Â· tabs Â· dock Â· taskbar Â· anchor Â· palette Â· toasts)    â”‚
+â”‚  Surfaces: Desktop Chat Workspace Spaces Notebook Browser Terminal â€¦     â”‚
+â”‚  Zustand stores Â· typed bridge (window.neuro) Â· zero Node access          â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–²â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                    â”‚ typed IPC (request/response + events)
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                 kernel                                    â”‚
+â”‚  SettingsService  WorkspaceService  TerminalService  ContentService       â”‚
+â”‚  ToolRegistry  MarketplaceService  AgentService  ApprovalRegistry         â”‚
+â”‚  Provider adapters (OpenAI / Anthropic / Gemini)  Â·  ACP client           â”‚
+â”‚  JsonStore (atomic writes) Â· SecretVault (DPAPI) Â· append-only sessions   â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 - **One typed contract** (`src/shared/ipc.ts`) is the only way across the boundary; adding a
   capability is a single-file change and cannot drift.
 - **One event bus** for streaming: agent deltas, terminal bytes, fs changes, stats, toasts.
 - **One tool bus** shared by chat, plugins and the UI.
-- **One persistence layer** — readable JSON, atomic rename writes, per-session documents.
+- **One persistence layer** â€” readable JSON, atomic rename writes, per-session documents.
 
 Full detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-Docs: [Architecture](docs/ARCHITECTURE.md) · [Plugins](docs/PLUGINS.md) · [Composio](docs/COMPOSIO.md) · [Mail](docs/MAIL.md) · [Automation](docs/AUTOMATION.md) · [Extending](docs/EXTENDING.md).
+Docs: [Architecture](docs/ARCHITECTURE.md) Â· [Plugins](docs/PLUGINS.md) Â· [Composio](docs/COMPOSIO.md) Â· [Mail](docs/MAIL.md) Â· [Automation](docs/AUTOMATION.md) Â· [Extending](docs/EXTENDING.md).
 
 ## Project layout
 
@@ -214,13 +220,14 @@ scripts/                 # icon generation, maintenance scripts
 `npm run selftest` boots the app headlessly, resets the profile, walks the onboarding, and asserts:
 
 - the agent loop streams text, calls `system.info`, receives the tool result and finishes the turn
-- filesystem write → read → search → delete round-trip
+- filesystem write â†’ read â†’ search â†’ delete round-trip
 - notebook kernel execution
 - `shell.exec` through the real tool registry
 - **two mail nodes exchange an encrypted, signed message** (no server)
 - **a plugin installs from a folder, contributes a callable tool, then uninstalls**
-- **a workflow runs trigger → transform → notify with per-node results**
+- **a workflow runs trigger â†’ transform â†’ notify with per-node results**
 - **an agent composition runs end to end**
+- **a second node publishes, resolves and serves a .neuro site end to end**
 - **Composio syncs a catalog and executes an action end to end** against a local stand-in of the REST API
 - real webview navigation (`example.com`, Wikipedia)
 - screenshots of every surface, every theme, the Anchor, the command palette and the start menu
@@ -247,7 +254,7 @@ Screenshots land in `screenshots/`.
 - ACP is verified against the protocol spec and handled defensively; it is not tested against every
   agent implementation.
 - Plugins execute in the main process. The `vm` context and permission gating remove ambient
-  capabilities, but they are not a security boundary against deliberately malicious native code —
+  capabilities, but they are not a security boundary against deliberately malicious native code â€”
   install plugins you trust.
 - Mail has no global directory: peers are found on the LAN or added manually. There is no
   multi-device key sync or attachment support yet.
@@ -259,3 +266,5 @@ Screenshots land in `screenshots/`.
 ## License
 
 MIT. Montserrat is licensed under the SIL Open Font License (see `resources/fonts`).
+
+

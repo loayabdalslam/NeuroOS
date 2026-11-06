@@ -65,6 +65,18 @@ export const OS_APPS: AppDef[] = [
     minHeight: 320,
   },
   {
+    id: 'sites',
+    name: 'Sites',
+    icon: 'network',
+    accent: '#14b8a6',
+    surface: 'sites',
+    description: 'Host a site from this machine on the decentralized web',
+    width: 1120,
+    height: 760,
+    minWidth: 780,
+    minHeight: 520,
+  },
+  {
     id: 'browser',
     name: 'Browser',
     icon: 'globe',

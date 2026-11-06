@@ -1,29 +1,29 @@
-# Architecture
+﻿# Architecture
 
 > Design goal: a desktop environment small enough to reason about in one sitting, with seams that
-> stay clean as it grows — new surface, new tool, new provider, new theme, without touching the core.
+> stay clean as it grows â€” new surface, new tool, new provider, new theme, without touching the core.
 
 ## 1. Process model
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│ main process (Node 20)                                             │
-│  · owns the filesystem, shell, network, windows, secrets           │
-│  · runs the agent loop and the tool bus                            │
-│  · single source of truth for settings and sessions                │
-└───────────────▲──────────────────────────────┬─────────────────────┘
-                │ ipcMain.handle (request)      │ webContents.send (events)
-┌───────────────┴──────────────────────────────▼─────────────────────┐
-│ preload (contextBridge, sandbox: false, contextIsolation: true)    │
-│  · window.neuro.invoke(channel, params) → Promise<result>          │
-│  · window.neuro.on(channel, listener) → unsubscribe                │
-└───────────────▲──────────────────────────────┬─────────────────────┘
-                │ window.neuro                  │
-┌───────────────┴──────────────────────────────▼─────────────────────┐
-│ renderer (React 18, no Node)                                       │
-│  · nine surfaces, shell chrome, zustand stores                     │
-│  · never touches disk, network or child processes directly         │
-└────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ main process (Node 20)                                             â”‚
+â”‚  Â· owns the filesystem, shell, network, windows, secrets           â”‚
+â”‚  Â· runs the agent loop and the tool bus                            â”‚
+â”‚  Â· single source of truth for settings and sessions                â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–²â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                â”‚ ipcMain.handle (request)      â”‚ webContents.send (events)
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ preload (contextBridge, sandbox: false, contextIsolation: true)    â”‚
+â”‚  Â· window.neuro.invoke(channel, params) â†’ Promise<result>          â”‚
+â”‚  Â· window.neuro.on(channel, listener) â†’ unsubscribe                â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–²â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                â”‚ window.neuro                  â”‚
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ renderer (React 18, no Node)                                       â”‚
+â”‚  Â· nine surfaces, shell chrome, zustand stores                     â”‚
+â”‚  Â· never touches disk, network or child processes directly         â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 Hard rules:
@@ -38,13 +38,13 @@ Hard rules:
 export interface IpcMap {
   'chat.send': { params: { sessionId: ID; text: string }; result: { ok: boolean; messageId: ID } };
   'fs.read':   { params: { path: string }; result: { content: string; stat: FileStat } };
-  // …
+  // â€¦
 }
 
 export interface EventMap {
   'agent:event': AgentEvent;
   'terminal:data': { id: ID; data: string };
-  // …
+  // â€¦
 }
 ```
 
@@ -55,7 +55,7 @@ export interface EventMap {
 - Adding a capability = add the channel, add a handler, call it. No registry to update.
 
 Failure isolation: every surface renders inside a `SurfaceBoundary`. A crash in one surface shows a
-retry card and leaves the shell (and your other work) alive — verified by the webview incident that
+retry card and leaves the shell (and your other work) alive â€” verified by the webview incident that
 motivated it.
 
 ## 3. Kernel services
@@ -78,16 +78,17 @@ singleton and no service locator; dependencies are passed explicitly.
 | `PluginService` | Manifest validation, install sources, vm host, contributions | `plugins/` |
 | `AutomationService` | Workflow graph, execution, triggers, run history | `state/automation.json` |
 | `CompositionService` | Agent pipelines and their runs | `state/compositions.json` |
+| `WebService` | Decentralized domains, signed site manifests, blob store, peer replication, gateway | `state/web.json` + `state/web-blobs` |
 | `ComposioService` | Catalog sync, connected accounts, action execution, tool registration | `state/composio.json` + vault |
 
 Startup order matters and is explicit in `kernel.ts`:
 
 ```
-settings.init() → terminal → tools(registry) → marketplace → agent → mail → compositions
-→ automation → plugins → ensureProfileDirs()
+settings.init() â†’ terminal â†’ tools(registry) â†’ marketplace â†’ agent â†’ mail â†’ compositions
+â†’ automation â†’ plugins â†’ ensureProfileDirs()
 ```
 
-The kernel exposes `status()` — the same data the Settings/Desktop surfaces render — so health is
+The kernel exposes `status()` â€” the same data the Settings/Desktop surfaces render â€” so health is
 observable rather than guessed.
 
 ## 4. Persistence
@@ -121,19 +122,19 @@ Why: users can read, diff, back up and repair their own OS state with a text edi
 
 ```
 send()
- ├─ build system prompt (agent prompt + environment + skills + recalled memory)
- ├─ for step in 1..maxSteps:
- │    ├─ adapter.stream(request, signal)          ← SSE from the provider
- │    │    ├─ text / reasoning deltas  → AgentEvent.text_delta / reasoning_delta
- │    │    └─ tool_call deltas         → accumulated per index
- │    ├─ no tool calls? → finish
- │    └─ for each call:
- │         ├─ policy = registry.policyFor(name)
- │         ├─ ask  → emit tool_call(pending) → await ApprovalRegistry → denied if refused
- │         ├─ deny → status 'denied'
- │         └─ auto → registry.invoke(name, args) → emit tool_result
- │         └─ append tool message → next model step
- └─ persist transcript, emit turn_end(reason)
+ â”œâ”€ build system prompt (agent prompt + environment + skills + recalled memory)
+ â”œâ”€ for step in 1..maxSteps:
+ â”‚    â”œâ”€ adapter.stream(request, signal)          â† SSE from the provider
+ â”‚    â”‚    â”œâ”€ text / reasoning deltas  â†’ AgentEvent.text_delta / reasoning_delta
+ â”‚    â”‚    â””â”€ tool_call deltas         â†’ accumulated per index
+ â”‚    â”œâ”€ no tool calls? â†’ finish
+ â”‚    â””â”€ for each call:
+ â”‚         â”œâ”€ policy = registry.policyFor(name)
+ â”‚         â”œâ”€ ask  â†’ emit tool_call(pending) â†’ await ApprovalRegistry â†’ denied if refused
+ â”‚         â”œâ”€ deny â†’ status 'denied'
+ â”‚         â””â”€ auto â†’ registry.invoke(name, args) â†’ emit tool_result
+ â”‚         â””â”€ append tool message â†’ next model step
+ â””â”€ persist transcript, emit turn_end(reason)
 ```
 
 Key properties:
@@ -203,12 +204,12 @@ the tool catalog.
 ### Shell
 
 ```
-TitleBar          brand · page tabs · command button · window controls
- ├ Dock           primary rail (9 surfaces + anchor + avatar + collapse)
- ├ main           active surface, keyed by page id → fresh state per tab
- ├ AnchorRail     pins, active agent, live stats, notes
- └ Taskbar        pinned apps, running pages, CPU/RAM, language, clock, tray
-CommandPalette · ToastHost · modals
+TitleBar          brand Â· page tabs Â· command button Â· window controls
+ â”œ Dock           primary rail (9 surfaces + anchor + avatar + collapse)
+ â”œ main           active surface, keyed by page id â†’ fresh state per tab
+ â”œ AnchorRail     pins, active agent, live stats, notes
+ â”” Taskbar        pinned apps, running pages, CPU/RAM, language, clock, tray
+CommandPalette Â· ToastHost Â· modals
 ```
 
 Pages (`PageInstance`) are persisted in settings. Navigating to a surface activates an existing page
@@ -217,8 +218,8 @@ with per-page component state.
 
 ### State
 
-- `useAppStore` — settings, stats, kernel status, tools, pages, toasts, window state.
-- `useChatStore` — sessions, active transcript, streaming flags, approvals; consumes `agent:event`.
+- `useAppStore` â€” settings, stats, kernel status, tools, pages, toasts, window state.
+- `useChatStore` â€” sessions, active transcript, streaming flags, approvals; consumes `agent:event`.
 - Surfaces keep local state for drafts/UI, and write through IPC for anything durable.
 
 No Redux, no API cache library: the event stream already is the cache.
@@ -235,7 +236,7 @@ languages and a pure-white surface, all as attribute selectors on `:root`:
 
 Switching a preset flips attributes; CSS variables cascade to every component with no re-render
 cost beyond one React pass. Chrome details (square window buttons for Windows, aubergine headerbar
-for Ubuntu, pill controls for iOS) are scoped in `shell.css` under `[data-design=…]`.
+for Ubuntu, pill controls for iOS) are scoped in `shell.css` under `[data-design=â€¦]`.
 
 ### Internationalization
 
@@ -247,8 +248,8 @@ for Ubuntu, pill controls for iOS) are scoped in `shell.css` under `[data-design
 
 The shell has two navigation modes that share one page model:
 
-1. **Full-page surfaces** — the titlebar tabs (`PageInstance` in settings). Dock clicks open a tab.
-2. **Desktop windows** — the Desktop page renders a simulated OS: icons, windows, start menu.
+1. **Full-page surfaces** â€” the titlebar tabs (`PageInstance` in settings). Dock clicks open a tab.
+2. **Desktop windows** â€” the Desktop page renders a simulated OS: icons, windows, start menu.
 
 `useWindowStore` (renderer-only) owns `windows`, `focusedId`, `zTop`, `startOpen`, `locked`. Each
 `OsWindow` records app id, bounds, z-order, minimized/maximized and a restore rectangle.
@@ -268,7 +269,7 @@ There is no mail server. Each `MailService` is a node:
 - **Identity**: Ed25519 signing key + X25519 encryption key, generated locally; address is
   `slug(name)@<sha256(publicKey)[0..16]>.neuro`.
 - **Envelope**: stable-serialised JSON, signed over everything except the signature; payload is
-  JSON `{subject, body}` encrypted with X25519 ECDH (ephemeral per message) → HKDF-SHA256 →
+  JSON `{subject, body}` encrypted with X25519 ECDH (ephemeral per message) â†’ HKDF-SHA256 â†’
   AES-256-GCM.
 - **Transport**: an HTTP server with `/mail/hello`, `/mail/deliver`, `/mail/peers`; peers POST
   envelopes directly.
@@ -290,7 +291,7 @@ Full protocol notes: [MAIL.md](MAIL.md).
 2. **Load** by reading `manifest.main` and executing it inside a `vm` context with only `module`,
    `exports`, a permissioned `neuro` object and safe globals. No `require`, `process` or ambient
    `fetch`.
-3. **Register** contributions: tools go into `ToolRegistry.setSource('plugin:<id>', …)`, themes and
+3. **Register** contributions: tools go into `ToolRegistry.setSource('plugin:<id>', â€¦)`, themes and
    provider presets into the service, streaming adapters into an in-memory map consumed by
    `AgentService` through the `pluginAdapter` hook.
 4. **Unload** removes the tool source and the contributions atomically; reload re-runs the entry.
@@ -323,9 +324,9 @@ either interactively (`composition.run` + events) or inline (`runInline`) from a
 2. `sync()` pages through `GET /tools` (v3.1), normalises each action (slug, name,
    description, toolkit, input JSON Schema) and persists a trimmed catalog.
 3. `registerTools()` publishes the two meta tools plus one tool per enabled action into
-   `ToolRegistry.setSource('composio', …)`, so policies, approvals, transcripts and
+   `ToolRegistry.setSource('composio', â€¦)`, so policies, approvals, transcripts and
    automation `tool.call` all treat them like built-ins.
-4. Connect uses `GET /auth_configs?toolkit_slug=…` then `POST /connected_accounts/link`,
+4. Connect uses `GET /auth_configs?toolkit_slug=â€¦` then `POST /connected_accounts/link`,
    opening the returned URL in the system browser; accounts are cached per user.
 5. Execution posts `{ user_id, arguments }` to `/tools/execute/{slug}` and returns the
    response payload as text plus data.
@@ -337,8 +338,8 @@ without a real key.
 **Iconography** is a single renderer module, not an asset pipeline:
 
 - `SystemIcon.tsx` holds a glyph registry. Feature glyphs are duotone filled shapes with
-  their own palette (`dashboard`, `message`, `terminal`, `mail`, `automation`…); utility
-  glyphs are custom strokes (`chevron-*`, `x`, `check`, `search`…). Names resolve through
+  their own palette (`dashboard`, `message`, `terminal`, `mail`, `automation`â€¦); utility
+  glyphs are custom strokes (`chevron-*`, `x`, `check`, `search`â€¦). Names resolve through
   an alias table so the rest of the codebase keeps using semantic names.
 - `Icon.tsx` is the only entry point and forwards to `SystemIcon`, with `mono` for contexts
   that need a neutral tint.
@@ -348,20 +349,35 @@ without a real key.
 - Coloured icons are identity markers (apps, providers, integrations); neutral strokes are
   controls. That separation keeps the desktop lively without turning the chrome into noise.
 
-## 15. Performance notes
+## 15. Neuro Web
+
+`WebService` turns every installation into a host and resolver:
+
+1. **Identity** — an Ed25519 key in the vault derives the node id (`sha256(pubkey)[0..16]`).
+2. **Publish** — files are hashed (SHA-256), stored content-addressed under `state/web-blobs`, and described by a signed manifest (domain, files, entry, timestamps).
+3. **Claims** — the first valid manifest for a domain binds it to that key; conflicting keys are rejected and surfaced in the UI.
+4. **Transport** — a dedicated HTTP server exposes `/web/{hello,resolve,blob,announce}` plus a `/dweb/<domain>/` gateway.
+5. **Discovery** — a UDP beacon on `47813` finds LAN peers; peers can also be added manually.
+6. **Replication** — announce verifies every manifest signature and blob hash before storing; bounded by a store cap.
+7. **Browser** — the renderer never speaks the mesh protocol; it loads the local gateway and switches modes in the toolbar.
+
+The harness publishes on one node, resolves on a second node and fetches the page through its gateway.
+
+## 16. Performance notes
 
 - Terminal output is forwarded as raw chunks; xterm.js handles rendering off the React tree.
 - Stats poll at 2.5 s; the UI reads them from the store.
 - Writes are coalesced and atomic; session saves are debounced by the turn boundary.
-- Message lists are not virtualized yet — fine for typical sessions, a known growth item.
+- Message lists are not virtualized yet â€” fine for typical sessions, a known growth item.
 
-## 16. Scaling roadmap
+## 17. Scaling roadmap
 
-1. **Multi-agent rooms** — several agents sharing a tool bus with explicit hand-off events.
-2. **Remote workspaces** — `WorkspaceService` behind an SSH/FS provider interface.
-3. **Virtualized transcripts** — windowing for 10k-message sessions.
-4. **Plugin sandbox** — move command plugins behind a permissioned worker with a manifest capability
+1. **Multi-agent rooms** â€” several agents sharing a tool bus with explicit hand-off events.
+2. **Remote workspaces** â€” `WorkspaceService` behind an SSH/FS provider interface.
+3. **Virtualized transcripts** â€” windowing for 10k-message sessions.
+4. **Plugin sandbox** â€” move command plugins behind a permissioned worker with a manifest capability
    model.
-5. **signed builds + auto-update** — `electron-updater` with a release channel.
+5. **signed builds + auto-update** â€” `electron-updater` with a release channel.
 
 None of these require changing the IPC contract or the agent loop; that is the point of the seams.
+

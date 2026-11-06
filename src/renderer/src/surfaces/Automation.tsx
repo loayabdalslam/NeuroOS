@@ -470,8 +470,12 @@ export function AutomationSurface(): JSX.Element {
             ) : null}
           </div>
 
-          {run ? (
-            <div className="auto__runPanel">
+        </div>
+      </section>
+
+      <aside className="auto__inspector">
+        {run ? (
+          <div className="auto__runBox">
               <div className="row" style={{ gap: 8 }}>
                 <span className="n-dot" style={{ background: STATUS_COLOR[run.status] }} />
                 <span className="small strong">Run {run.status}</span>
@@ -501,11 +505,8 @@ export function AutomationSurface(): JSX.Element {
                 ))}
               </div>
             </div>
-          ) : null}
-        </div>
-      </section>
+        ) : null}
 
-      <aside className="auto__inspector">
         {selected && selectedSpec ? (
           <>
             <div className="auto__inspectorHead">

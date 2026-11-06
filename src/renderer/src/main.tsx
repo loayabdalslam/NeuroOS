@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './styles/tokens.css';
@@ -11,6 +11,8 @@ import './styles/settings.css';
 import './styles/onboarding.css';
 import './styles/os.css';
 import './styles/composio.css';
+import './styles/sites.css';
+import './styles/audit.css';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -51,3 +53,5 @@ createRoot(container).render(
     </ErrorBoundary>
   </React.StrictMode>,
 );
+
+

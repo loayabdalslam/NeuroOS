@@ -8,6 +8,7 @@ import { Paths, ensureProfileDirs } from './core/store';
 import { startMockProvider } from './selftest/mockProvider';
 import { startMockComposio } from './selftest/mockComposio';
 import { MailService } from './services/mail.service';
+import { WebService } from './services/web.service';
 
 const isDev = !app.isPackaged;
 const isSelftest = process.argv.includes('--selftest');
@@ -128,7 +129,7 @@ async function startStatsLoop(): Promise<void> {
 async function runSelfTest(win: BrowserWindow): Promise<void> {
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
   const watchdog = setTimeout(() => {
-    log.error('selftest', 'watchdog timeout — exiting');
+    log.error('selftest', 'watchdog timeout Ã¢â‚¬â€ exiting');
     app.exit(2);
   }, 180_000);
   watchdog.unref();
@@ -138,7 +139,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     // Force two composited frames: capturePage can otherwise return the previous
     // surface's frame when the window is not focused (headless harness).
     await win.webContents
-      .executeJavaScript('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))')
+      .executeJavaScript('Promise.race([new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))), new Promise((resolve) => setTimeout(() => resolve(false), 500))])')
       .catch(() => {});
     await wait(160);
     const image = await win.webContents.capturePage();
@@ -165,7 +166,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   await wait(1400);
   await screenshot('01-onboarding');
 
-  // Walk to the appearance step (welcome → language → profile → appearance).
+  // Walk to the appearance step (welcome Ã¢â€ â€™ language Ã¢â€ â€™ profile Ã¢â€ â€™ appearance).
   for (let i = 0; i < 3; i += 1) {
     const clicked = await win.webContents
       .executeJavaScript(`(() => {
@@ -245,7 +246,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
 
   // Exercise the real agent loop against the sandbox endpoint: streaming,
   // a tool call, the tool result round-trip and persistence.
-  const session = await kernel.agent.createSession({ title: 'Sandbox · system check' });
+  const session = await kernel.agent.createSession({ title: 'Sandbox Ã‚Â· system check' });
   await kernel.agent.send(session.id, 'Check this machine and summarise it in one line.');
   await wait(5200);
   const transcript = await kernel.agent.getSession(session.id);
@@ -310,14 +311,14 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     await peerNode.send({
       to: myMail.identity!.address,
       subject: 'Welcome to the mesh',
-      body: 'This message travelled directly between two nodes — no server in between.',
+      body: 'This message travelled directly between two nodes Ã¢â‚¬â€ no server in between.',
     });
     await wait(1400);
     const inbox = kernel.mail.messages('inbox', 5);
     const received = inbox.find((message) => message.subject === 'Welcome to the mesh');
     log.info(
       'selftest',
-      `mail p2p: peers=${kernel.mail.status().peers.length} inbox=${inbox.length} unread=${inboxBefore}→${kernel.mail.status().unread} encrypted=${received?.encrypted} verified=${received?.verified}`,
+      `mail p2p: peers=${kernel.mail.status().peers.length} inbox=${inbox.length} unread=${inboxBefore}Ã¢â€ â€™${kernel.mail.status().unread} encrypted=${received?.encrypted} verified=${received?.verified}`,
     );
   } catch (error) {
     log.error('selftest', `mail test failed: ${(error as Error).message}`);
@@ -346,7 +347,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   const workflow = {
     id: 'flow_selftest',
     name: 'Selftest pipeline',
-    description: 'trigger → transform → notify',
+    description: 'trigger Ã¢â€ â€™ transform Ã¢â€ â€™ notify',
     nodes: [
       { id: 'n1', type: 'trigger.manual' as const, name: 'Start', x: 60, y: 80, config: {} },
       { id: 'n2', type: 'transform.code' as const, name: 'Uppercase', x: 330, y: 80, config: { code: 'return input.toUpperCase();' } },
@@ -396,6 +397,40 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     log.error('selftest', `composio test failed: ${(error as Error).message}`);
   }
 
+  /* --------------------- decentralized web (two nodes) ---------------------- */
+  const peerWebFile = path.join(Paths.cache, 'selftest-web-peer.json');
+  try {
+    fs.rmSync(peerWebFile, { force: true });
+  } catch {
+    /* ignore */
+  }
+  const peerWebVault = (() => {
+    const map = new Map<string, string>();
+    return { get: (key: string) => map.get(key) ?? '', set: (key: string, value: string) => map.set(key, value) };
+  })();
+  const peerWeb = new WebService({ dataFile: peerWebFile, vault: peerWebVault, onEvent: () => {} });
+  await peerWeb.start();
+  kernel.web.addPeer('127.0.0.1', peerWeb.stats().port);
+  peerWeb.addPeer('127.0.0.1', kernel.web.stats().port);
+  const siteHtml = '<!doctype html><html><head><title>Selftest</title></head><body><h1 id="neuro-web-ok">Hello from the mesh</h1></body></html>';
+  const published = await kernel.web.publish({
+    domain: 'selftest',
+    title: 'Selftest site',
+    description: 'Hosted by the QA harness',
+    files: [{ path: 'index.html', data: Buffer.from(siteHtml).toString('base64') }],
+  });
+  await wait(700);
+  const resolvedSite = await peerWeb.resolve('selftest');
+  const served = resolvedSite
+    ? await fetch(`http://127.0.0.1:${peerWeb.stats().port}/dweb/selftest/`)
+        .then((response) => response.text())
+        .catch((error) => `ERR ${(error as Error).message}`)
+    : 'NO_RESOLVE';
+  log.info(
+    'selftest',
+    `web p2p: published=${published.ok} domain=${published.manifest?.domain}.neuro resolved=${Boolean(resolvedSite)} served=${served.includes('neuro-web-ok')} peerSites=${peerWeb.stats().sites} hits=${peerWeb.stats().hits} bytes=${kernel.web.stats().bytes}`,
+  );
+
   const surfaces: [string, string, Record<string, string>?][] = [
     ['02-desktop', 'desktop'],
     ['03-chat', 'chat'],
@@ -408,6 +443,8 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     ['09b-extensions', 'marketplace', { tab: 'plugins' }],
     ['10-settings', 'settings'],
     ['21-integrations', 'settings', { section: 'integrations' }],
+    ['22-sites', 'sites'],
+    ['23-neuroweb', 'browser', { mode: 'dweb' }],
     ['17-mail', 'mail'],
     ['18-automation', 'automation'],
     ['19-composer', 'composer'],
@@ -437,7 +474,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
         `(() => { const w = document.querySelector('webview'); try { return JSON.stringify({ title: w.getTitle(), url: w.getURL(), loading: w.isLoading() }); } catch (e) { return 'probe error: ' + e.message; } })()`,
       )
       .catch((error) => `probe failed: ${String(error)}`);
-    log.info('selftest', `webview ${url} → ${probe}`);
+    log.info('selftest', `webview ${url} Ã¢â€ â€™ ${probe}`);
   }
   router?.emit('ui:navigate', { surface: 'browser', params: {} });
   await wait(600);
@@ -483,6 +520,20 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   await win.webContents.executeJavaScript(`document.querySelector('.taskbar__start')?.click()`).catch(() => {});
   await wait(700);
   await screenshot('20-start-menu');
+  await win.webContents.executeJavaScript(`document.querySelector('.startScrim')?.click()`).catch(() => {});
+  await wait(400);
+  const sidebarClick = await win.webContents
+    .executeJavaScript(`(() => { const button = document.querySelector('.dock__collapse'); if (!button) return 'missing'; button.click(); return 'clicked'; })()`)
+    .catch((error) => String(error));
+  await wait(900);
+  const dockProbe = await win.webContents
+    .executeJavaScript(
+      `JSON.stringify({ className: document.querySelector('.dock')?.className, width: Math.round(document.querySelector('.dock')?.getBoundingClientRect().width ?? 0), labels: [...document.querySelectorAll('.dock__label')].map((node) => node.textContent?.trim()).filter(Boolean) })`,
+    )
+    .catch((error) => String(error));
+  log.info('selftest', `sidebar ${sidebarClick} ${dockProbe}`);
+  await screenshot('24-sidebar');
+  await win.webContents.executeJavaScript(`document.querySelector('.dock__collapse')?.click()`).catch(() => {});
   await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`).catch(() => {});
 
   // Settings / integrations probe.
@@ -507,6 +558,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   await kernel.composio.toggle('GITHUB_CREATE_ISSUE', false).catch(() => undefined);
   kernel.composio.configure({ apiKey: '', baseUrl: 'https://backend.composio.dev/api/v3.1' });
   await mockComposio.close();
+  await peerWeb.dispose();
   await mock.close();
   await peerNode?.dispose();
   await kernel.dispose();
@@ -577,3 +629,5 @@ function bootstrap(): void {
 }
 
 bootstrap();
+
+

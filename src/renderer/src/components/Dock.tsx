@@ -70,7 +70,7 @@ export function Dock(): JSX.Element {
         </button>
         <button
           type="button"
-          className="dock__avatar"
+          className="dock__item dock__profile"
           data-tip={profile?.name || 'Profile'}
           data-tip-side="right"
           onClick={() => {
@@ -78,10 +78,14 @@ export function Dock(): JSX.Element {
             navigate('settings');
           }}
         >
-          {(profile?.name || 'N').slice(0, 1).toUpperCase()}
+          <span className="dock__avatar">{(profile?.name || 'N').slice(0, 1).toUpperCase()}</span>
+          <span className="dock__label">{profile?.name || 'Profile'}</span>
         </button>
-        <button type="button" className="dock__collapse" data-tip={collapsed ? 'Expand' : 'Collapse'} data-tip-side="right" onClick={toggleDock}>
-          <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={13} />
+        <button type="button" className="dock__item dock__collapse" data-tip={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} data-tip-side="right" onClick={toggleDock}>
+          <span className="dock__icon">
+            <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={16} />
+          </span>
+          <span className="dock__label">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
         </button>
       </div>
     </nav>

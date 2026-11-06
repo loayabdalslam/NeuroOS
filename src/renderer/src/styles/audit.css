@@ -1,0 +1,142 @@
+/* ==================================================================== *
+ * Layout audit: one spacing rhythm across the shell
+ * ==================================================================== */
+
+/* Expanded sidebar: real labels instead of an icon rail. */
+.dock {
+  transition: width 170ms var(--n-ease);
+}
+.dock:not(.is-collapsed) {
+  width: 212px;
+  align-items: stretch;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.dock:not(.is-collapsed) .dock__label {
+  opacity: 1;
+  width: auto;
+  text-align: left;
+}
+.dock:not(.is-collapsed) .dock__item {
+  justify-content: flex-start;
+  padding: 0 10px;
+  height: 38px;
+}
+.dock:not(.is-collapsed) .dock__orb {
+  align-self: flex-start;
+  margin-left: 2px;
+}
+.dock__avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.dock:not(.is-collapsed) .dock__profile {
+  gap: 10px;
+}
+.dock__group {
+  gap: 2px;
+}
+
+/* Automation: every control lives in the right inspector, nothing floats over
+   the canvas and nothing is duplicated at the bottom of the page. */
+.auto__runBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--n-line);
+  background: var(--n-bg);
+}
+.auto__runBox .auto__runLog {
+  max-height: 170px;
+}
+
+/* Settings: consistent page gutters and section rhythm. */
+.settings__main {
+  padding: 20px 26px 44px;
+}
+.settings__sectionHead {
+  gap: 10px;
+}
+
+/* Marketplace: header and grid share the same 22px gutter as Sites/Settings. */
+.mkt {
+  padding: 20px 22px 0;
+}
+.mkt__filters {
+  padding: 12px 0;
+}
+.mkt__scroll {
+  padding-bottom: 24px;
+}
+
+/* Mail: one gutter for the three columns. */
+.mail__identity,
+.mail__discovery {
+  padding: 13px 14px;
+}
+.mail__listHead {
+  padding: 12px 14px;
+}
+.mail__readerHead {
+  padding: 18px 22px 14px;
+}
+.mail__readerBody {
+  padding: 20px 22px;
+}
+.mail__readerFoot {
+  padding: 11px 22px;
+}
+
+/* Anchor rail: consistent card padding and section titles. */
+.anchor__section-title {
+  padding: 14px 14px 6px;
+}
+.anchor__widget,
+.anchor__agent {
+  margin: 0 10px;
+}
+
+/* Page shells should always fill their host, never leave a stray strip. */
+.sites,
+.settings,
+.mkt,
+.auto,
+.composer,
+.mail,
+.browser {
+  min-height: 0;
+}
+
+/* Sidebar height discipline: the top group scrolls, the footer stays visible. */
+.dock {
+  overflow: hidden;
+}
+.dock__group {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.dock__group--bottom {
+  flex: none;
+}
+.dock__spacer {
+  flex: 0 0 6px;
+  min-height: 0;
+}
+.dock:not(.is-collapsed) .dock__item {
+  flex: none;
+}
+
+/* compact expanded sidebar so all 13 apps and the footer fit without clipping */
+.dock:not(.is-collapsed) { gap: 1px; padding-bottom: 4px; }
+.dock:not(.is-collapsed) .dock__item { height: 34px; }
+.dock:not(.is-collapsed) .dock__label { font-size: 11px; }
+.dock__group--bottom { padding-bottom: 2px; }
+
+
+.dock:not(.is-collapsed) .dock__item { height: 30px; }
+.dock:not(.is-collapsed) .dock__label { font-size: 10.5px; }
+.dock:not(.is-collapsed) { padding-bottom: 10px; }
+

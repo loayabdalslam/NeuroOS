@@ -85,7 +85,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   toasts: [],
   commandOpen: false,
   anchorOpen: false,
-  dockCollapsed: false,
+  dockCollapsed: true,
   windowState: { maximized: false, focused: true, fullscreen: false },
   settingsSection: 'appearance',
   searchQuery: '',

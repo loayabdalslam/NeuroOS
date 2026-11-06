@@ -17,6 +17,7 @@ import { AcpClient } from './services/providers/acpClient';
 import { MailService } from './services/mail.service';
 import { PluginService } from './services/plugins.service';
 import { ComposioService } from './services/composio.service';
+import { WebService } from './services/web.service';
 import { shell } from 'electron';
 import { CompositionService } from './services/composition.service';
 import { AutomationService } from './services/automation.service';
@@ -33,6 +34,7 @@ export interface Kernel {
   mail: MailService;
   plugins: PluginService;
   composio: ComposioService;
+  web: WebService;
   compositions: CompositionService;
   automation: AutomationService;
   approvals: ApprovalRegistry;
@@ -173,6 +175,12 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
 
   late.plugins = plugins;
 
+  const web = new WebService({
+    dataFile: path.join(Paths.state, 'web.json'),
+    vault: settings.secretVault,
+    onEvent: (payload) => emitRaw('web:event', payload as never),
+  });
+
   const composio = new ComposioService({
     dataFile: path.join(Paths.state, 'composio.json'),
     hooks: {
@@ -196,6 +204,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
     mail,
     plugins,
     composio,
+    web,
     compositions,
     automation,
     approvals,
@@ -215,6 +224,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
           { name: 'mail', status: mail.status().listening ? 'online' : 'degraded', detail: mail.status().identity ? mail.status().identity!.address : 'no identity' },
           { name: 'plugins', status: 'online', detail: `${plugins.list().length} installed` },
           { name: 'composio', status: composio.status().configured ? 'online' : 'degraded', detail: composio.status().configured ? `${composio.status().tools} tools` : 'not configured' },
+          { name: 'web', status: web.stats().port ? 'online' : 'degraded', detail: `${web.list().length} sites · ${web.peers().length} peers` },
           { name: 'automation', status: 'online', detail: `${automation.list().length} workflows` },
           { name: 'workspace', status: s.workspaceRoot ? 'online' : 'degraded', detail: s.workspaceRoot },
         ],
@@ -233,6 +243,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
       workspace.dispose();
       automation?.dispose();
       composio.dispose();
+      await web.dispose();
       await mail.dispose();
       await agent.shutdown();
     },
@@ -247,6 +258,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
     automation!.init();
     await plugins!.init();
     await composio.start();
+    await web.start();
     const s = settings.public();
     if (s.workspaceRoot) await workspace.ensureDemoWorkspace(s.workspaceRoot).catch(() => {});
     log.info('kernel', `ready · ${tools.list().length} tools · ${s.providers.length} providers`);

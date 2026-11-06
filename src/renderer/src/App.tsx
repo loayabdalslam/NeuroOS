@@ -18,6 +18,7 @@ import { Workspace } from './surfaces/Workspace';
 import { Spaces } from './surfaces/Spaces';
 import { NotebookSurface } from './surfaces/Notebook';
 import { BrowserSurface } from './surfaces/Browser';
+import { SitesSurface } from './surfaces/Sites';
 import { TerminalSurface } from './surfaces/Terminal';
 import { MailSurface } from './surfaces/Mail';
 import { AutomationSurface } from './surfaces/Automation';
@@ -202,6 +203,8 @@ function SurfaceHost({ page }: { page: ReturnType<typeof useAppStore.getState>['
       return <NotebookSurface params={page.params} />;
     case 'browser':
       return <BrowserSurface params={page.params} />;
+    case 'sites':
+      return <SitesSurface />;
     case 'terminal':
       return <TerminalSurface />;
     case 'mail':

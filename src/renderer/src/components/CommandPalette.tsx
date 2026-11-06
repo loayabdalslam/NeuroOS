@@ -46,6 +46,7 @@ export function CommandPalette(): JSX.Element | null {
       { id: 'nav-space', group: 'Navigate', label: t('nav.space'), icon: iconForSurface('space'), run: nav('space') },
       { id: 'nav-notebook', group: 'Navigate', label: t('nav.notebook'), icon: iconForSurface('notebook'), run: nav('notebook') },
       { id: 'nav-browser', group: 'Navigate', label: t('nav.browser'), icon: iconForSurface('browser'), run: nav('browser') },
+      { id: 'nav-sites', group: 'Navigate', label: t('nav.sites'), icon: iconForSurface('sites'), run: nav('sites') },
       { id: 'nav-terminal', group: 'Navigate', label: t('nav.terminal'), icon: iconForSurface('terminal'), run: nav('terminal') },
       { id: 'nav-mail', group: 'Navigate', label: t('nav.mail'), icon: iconForSurface('mail'), run: nav('mail') },
       { id: 'nav-automation', group: 'Navigate', label: t('nav.automation'), icon: iconForSurface('automation'), run: nav('automation') },

@@ -36,6 +36,7 @@ import type {
   PluginProviderEntry,
   ProviderConfig,
   SearchHit,
+  SiteManifest,
   Settings,
   Space,
   SystemStats,
@@ -43,6 +44,10 @@ import type {
   ToastPayload,
   ToolDescriptor,
   ToolInvocation,
+  WebPeer,
+  WebPublishFile,
+  WebPublishResult,
+  WebStats,
   WindowInfo,
   Workflow,
   WorkflowRun,
@@ -253,6 +258,18 @@ export interface IpcMap {
   'composio.connect': { params: { toolkit: string }; result: { redirectUrl: string; accountId: string } };
   'composio.toggle': { params: { slug: string; enabled: boolean }; result: ComposioStatus };
   'composio.execute': { params: { slug: string; args: Record<string, unknown> }; result: { ok: boolean; output: string; data?: unknown } };
+
+  /* neuro web (decentralized domains + hosting) */
+  'web.status': { params: void; result: WebStats };
+  'web.list': { params: void; result: SiteManifest[] };
+  'web.publish': { params: { domain: string; title?: string; description?: string; files: WebPublishFile[] }; result: WebPublishResult };
+  'web.publishFolder': { params: { domain: string; title?: string }; result: WebPublishResult };
+  'web.unpublish': { params: { domain: string }; result: SiteManifest[] };
+  'web.resolve': { params: { domain: string }; result: { manifest: SiteManifest; host: string; port: number } | null };
+  'web.peers': { params: void; result: WebPeer[] };
+  'web.peerAdd': { params: { host: string; port: number }; result: WebPeer[] };
+  'web.peerRemove': { params: { nodeId: string }; result: WebPeer[] };
+  'web.gateway': { params: void; result: { gateway: string; port: number } };
 }
 
 export type IpcChannel = keyof IpcMap;
@@ -282,6 +299,7 @@ export interface EventMap {
     status?: MailStatus;
   };
   'plugins:changed': PluginRecord[];
+  'web:event': { kind: string; stats?: WebStats };
   'automation:event': {
     runId: ID;
     workflowId: ID;
@@ -440,6 +458,16 @@ export const IPC_CHANNELS = [
   'composio.connect',
   'composio.toggle',
   'composio.execute',
+  'web.status',
+  'web.list',
+  'web.publish',
+  'web.publishFolder',
+  'web.unpublish',
+  'web.resolve',
+  'web.peers',
+  'web.peerAdd',
+  'web.peerRemove',
+  'web.gateway',
 ] as const satisfies readonly IpcChannel[];
 
 export const EVENT_CHANNELS = [
@@ -460,6 +488,7 @@ export const EVENT_CHANNELS = [
   'os:open',
   'mail:event',
   'plugins:changed',
+  'web:event',
   'automation:event',
   'composition:event',
 ] as const satisfies readonly EventChannel[];
