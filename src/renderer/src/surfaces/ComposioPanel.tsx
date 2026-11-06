@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ComposioAccountInfo, ComposioStatus, ComposioTool, ComposioToolkitInfo } from '@shared/types';
 import { useAppStore } from '../state/store';
 import { invoke } from '../lib/ipc';
+import { useT } from '../lib/i18n';
 import { BrandIcon } from '../components/BrandIcon';
 import { Icon } from '../components/Icon';
 import { Button, EmptyState, Field, Spinner, Switch } from '../components/ui';
@@ -9,6 +10,7 @@ import { Button, EmptyState, Field, Spinner, Switch } from '../components/ui';
 type Tab = 'toolkits' | 'tools';
 
 export function ComposioPanel(): JSX.Element {
+  const t = useT();
   const pushToast = useAppStore((s) => s.pushToast);
   const [status, setStatus] = useState<ComposioStatus | null>(null);
   const [accounts, setAccounts] = useState<ComposioAccountInfo[]>([]);
@@ -138,21 +140,19 @@ export function ComposioPanel(): JSX.Element {
         <div className="grow" style={{ minWidth: 0 }}>
           <div className="row" style={{ gap: 8 }}>
             <span className="composio__title">Composio</span>
-            <span className={`n-badge ${status.configured ? 'n-badge--success' : ''}`}>{status.configured ? 'connected' : 'not configured'}</span>
+            <span className={`n-badge ${status.configured ? 'n-badge--success' : ''}`}>{status.configured ? t('composio.connected') : t('composio.notConfigured')}</span>
           </div>
           <div className="tiny faint" style={{ lineHeight: 1.65, maxWidth: 720 }}>
-            One connection layer for 100+ real tools — Gmail, GitHub, Slack, Notion, Linear, Jira, Sheets, HubSpot and more.
-            Enabled actions become first-class Neuro tools the agent can call, and the whole catalog is reachable through
-            <code> composio.search</code> + <code> composio.execute</code>.
+            {t('composio.tagline')}
           </div>
         </div>
         {status.configured ? (
           <div className="row" style={{ gap: 6 }}>
             <Button variant="outline" size="sm" icon="refresh" onClick={() => void syncCatalog()} disabled={busy !== null}>
-              {busy === 'sync' ? <Spinner size={12} /> : null} Sync catalog
+              {busy === 'sync' ? <Spinner size={12} /> : null} {t('composio.sync')}
             </Button>
             <Button variant="ghost" size="sm" icon="key-round" onClick={() => setEditingKey((value) => !value)}>
-              API key
+              {t('composio.apiKey')}
             </Button>
           </div>
         ) : null}
@@ -193,7 +193,7 @@ export function ComposioPanel(): JSX.Element {
             <Stat label="User" value={status.userId} icon="user" mono />
             <div className="grow" />
             <Button variant="ghost" size="sm" icon="refresh" onClick={() => void refreshAccounts()} disabled={busy !== null}>
-              {busy === 'accounts' ? <Spinner size={12} /> : null} Refresh accounts
+              {busy === 'accounts' ? <Spinner size={12} /> : null} {t('composio.refresh')}
             </Button>
           </div>
 
@@ -219,10 +219,10 @@ export function ComposioPanel(): JSX.Element {
           <div className="composio__tabs">
             <div className="n-segmented">
               <button type="button" data-active={tab === 'toolkits'} onClick={() => setTab('toolkits')}>
-                Toolkits · {toolkits.length}
+                {t('composio.toolkits')} · {toolkits.length}
               </button>
               <button type="button" data-active={tab === 'tools'} onClick={() => setTab('tools')}>
-                Actions · {tools.length}
+                {t('composio.actions')} · {tools.length}
               </button>
             </div>
             <div className="composio__search">

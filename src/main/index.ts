@@ -199,6 +199,25 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
       .catch((error) => `js-error: ${String(error)}`);
     log.info('selftest', `onboarding step click ${i + 1}: ${clicked}`);
     await wait(900);
+    if (i === 0) {
+      const pickLanguage = async (label: string): Promise<string> =>
+        win.webContents
+          .executeJavaScript(
+            `(() => { const card = [...document.querySelectorAll('.langcard')].find((element) => element.textContent?.includes(${JSON.stringify(label)})); if (!card) return 'missing'; card.click(); return 'clicked'; })()`,
+          )
+          .catch((error) => String(error));
+      const pickedArabic = await pickLanguage('العربية');
+      await wait(800);
+      await screenshot('01c-onboarding-arabic');
+      const liveLocale = await win.webContents
+        .executeJavaScript(
+          `JSON.stringify({ dir: document.documentElement.dir, lang: document.documentElement.lang, heading: document.querySelector('.onboard__title')?.textContent?.trim() ?? '', next: document.querySelector('.onboard__footRight .n-btn--primary')?.textContent?.trim() ?? '' })`,
+        )
+        .catch((error) => String(error));
+      log.info('selftest', `live locale: ${pickedArabic} ${liveLocale}`);
+      await pickLanguage('English');
+      await wait(700);
+    }
   }
   await screenshot('01b-onboarding-appearance');
 
@@ -711,6 +730,7 @@ function bootstrap(): void {
 }
 
 bootstrap();
+
 
 
 

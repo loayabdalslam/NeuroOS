@@ -183,6 +183,7 @@
   animation: story-rise 900ms 250ms var(--n-ease) forwards;
 }
 .story__title {
+  white-space: pre-line;
   margin: 0;
   font-family: var(--n-font-display, 'Montserrat', system-ui);
   font-size: clamp(30px, 3.6vw, 52px);
@@ -345,3 +346,7 @@
 
 .story__quote { white-space: pre-line; min-height: 208px; line-height: 1.85; }
 .story__name { margin-top: 6px; }
+
+.story[dir='ltr'] .story__quote { direction: ltr; text-align: left; }
+.story[dir='ltr'] .story__copy { align-items: flex-start; }
+

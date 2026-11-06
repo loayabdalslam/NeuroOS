@@ -3,6 +3,7 @@ import { OS_APPS } from '@shared/apps';
 import { useAppStore } from '../state/store';
 import { Icon } from '../components/Icon';
 import { BrandMark } from '../components/BrandMark';
+import { useT } from '../lib/i18n';
 
 const FEATURES = [
   {
@@ -43,20 +44,23 @@ const FEATURES = [
   },
 ];
 
-const TRAITS = ['local-first', 'bring your own model', 'keychain secrets', 'offline memory', 'signed plugins'];
+const TRAITS = ['welcome.t1', 'welcome.t2', 'welcome.t3', 'welcome.t4', 'welcome.t5'];
 
 const CAPS = [
-  { icon: 'message', label: 'agents' },
-  { icon: 'wrench', label: 'tools' },
-  { icon: 'mail', label: 'p2p mail' },
-  { icon: 'network', label: 'neuro web' },
-  { icon: 'brain', label: 'memory' },
-  { icon: 'plug', label: 'composio' },
+  { icon: 'message', key: 'welcome.c1' },
+  { icon: 'wrench', key: 'welcome.c2' },
+  { icon: 'mail', key: 'welcome.c3' },
+  { icon: 'network', key: 'welcome.c4' },
+  { icon: 'brain', key: 'welcome.c5' },
+  { icon: 'plug', key: 'welcome.c6' },
 ];
 
 export function WelcomeTicker(): JSX.Element {
+  const t = useT();
   const [index, setIndex] = useState(0);
   const feature = FEATURES[index];
+  const title = t(`welcome.f${index + 1}t`);
+  const body = t(`welcome.f${index + 1}b`);
 
   useEffect(() => {
     const timer = setInterval(() => setIndex((current) => (current + 1) % FEATURES.length), 3800);
@@ -65,13 +69,13 @@ export function WelcomeTicker(): JSX.Element {
 
   return (
     <div className="wmTicker">
-      <div className="wmTicker__card" key={feature.title}>
+      <div className="wmTicker__card" key={title}>
         <span className="wmTicker__icon" style={{ background: `${feature.accent}1f`, borderColor: `${feature.accent}44` }}>
           <Icon name={feature.icon} size={20} />
         </span>
         <div className="grow" style={{ minWidth: 0 }}>
-          <div className="wmTicker__title">{feature.title}</div>
-          <div className="wmTicker__body">{feature.body}</div>
+          <div className="wmTicker__title">{title}</div>
+          <div className="wmTicker__body">{body}</div>
         </div>
       </div>
       <div className="wmTicker__dots">
@@ -90,7 +94,7 @@ export function WelcomeTicker(): JSX.Element {
       <div className="wmTicker__traits">
         {TRAITS.map((trait) => (
           <span key={trait} className="wmTicker__trait">
-            <Icon name="check" size={10} /> {trait}
+            <Icon name="check" size={10} /> {t(trait)}
           </span>
         ))}
       </div>
@@ -115,6 +119,7 @@ export function WelcomeTicker(): JSX.Element {
 }
 
 export function WelcomePanel(): JSX.Element {
+  const t = useT();
   const tools = useAppStore((s) => s.tools.length);
   const apps = useMemo(() => OS_APPS.slice(0, 14), []);
   const nodes = useMemo(() => {
@@ -137,8 +142,8 @@ export function WelcomePanel(): JSX.Element {
   return (
     <div className="wmPanel">
       <div className="wmPanel__head">
-        <span className="n-badge n-badge--accent">system map</span>
-        <span className="tiny faint mono">14 surfaces · live</span>
+        <span className="n-badge n-badge--accent">{t('welcome.map')}</span>
+        <span className="tiny faint mono">{t('welcome.live', { count: apps.length })}</span>
       </div>
 
       <div className="wmMap">
@@ -179,16 +184,16 @@ export function WelcomePanel(): JSX.Element {
       </div>
 
       <div className="wmPanel__stats">
-        <div><span className="mono big">{apps.length}</span><span className="tiny faint uppercase">surfaces</span></div>
-        <div><span className="mono big">{tools || 50}</span><span className="tiny faint uppercase">tools</span></div>
-        <div><span className="mono big">9</span><span className="tiny faint uppercase">providers</span></div>
-        <div><span className="mono big">14</span><span className="tiny faint uppercase">languages</span></div>
+        <div><span className="mono big">{apps.length}</span><span className="tiny faint uppercase">{t('welcome.s1')}</span></div>
+        <div><span className="mono big">{tools || 50}</span><span className="tiny faint uppercase">{t('welcome.s2')}</span></div>
+        <div><span className="mono big">9</span><span className="tiny faint uppercase">{t('welcome.s3')}</span></div>
+        <div><span className="mono big">14</span><span className="tiny faint uppercase">{t('welcome.s4')}</span></div>
       </div>
 
       <div className="wmPanel__caps">
         {CAPS.map((cap) => (
-          <span key={cap.label} className="wmCap">
-            <Icon name={cap.icon} size={11} /> {cap.label === 'tools' ? `${tools || 50} tools` : cap.label}
+          <span key={cap.key} className="wmCap">
+            <Icon name={cap.icon} size={11} /> {cap.key === 'welcome.c2' ? `${tools || 50} ${t('welcome.c2')}` : t(cap.key)}
           </span>
         ))}
       </div>

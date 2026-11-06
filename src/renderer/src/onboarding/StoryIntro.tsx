@@ -1,13 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { BrandMark } from '../components/BrandMark';
+import { useT } from '../lib/i18n';
+import { useAppStore } from '../state/store';
 import { LOUAY_ART } from './louayArt';
 
-const QUOTE = [
-  'هذا المشروع تم العمل عليه في الخامس من نوفمبر .. تذكر دائماً الخامس من نوفمبر، هذا اليوم الذي استيقظت فيه إلى العالم وقررت أن أنفّذ أكبر مشروع في عالم التكنولوجيا: نظام تشغيل Neuro OS.',
-  'تذكّر اسمي جيداً، أنا لؤي عبد السلام .. يمكنك مناداتي ابن عبد السلام، ليرقد بسلام أينما كان، ليرى ابنه في أعالي النجوم.',
+const QUOTE_AR = [
+  'Ù‡Ø°Ø§ Ø§Ù„Ù…Ø´Ø±ÙˆØ¹ ØªÙ… Ø§Ù„Ø¹Ù…Ù„ Ø¹Ù„ÙŠÙ‡ ÙÙŠ Ø§Ù„Ø®Ø§Ù…Ø³ Ù…Ù† Ù†ÙˆÙÙ…Ø¨Ø± .. ØªØ°ÙƒØ± Ø¯Ø§Ø¦Ù…Ø§Ù‹ Ø§Ù„Ø®Ø§Ù…Ø³ Ù…Ù† Ù†ÙˆÙÙ…Ø¨Ø±ØŒ Ù‡Ø°Ø§ Ø§Ù„ÙŠÙˆÙ… Ø§Ù„Ø°ÙŠ Ø§Ø³ØªÙŠÙ‚Ø¸Øª ÙÙŠÙ‡ Ø¥Ù„Ù‰ Ø§Ù„Ø¹Ø§Ù„Ù… ÙˆÙ‚Ø±Ø±Øª Ø£Ù† Ø£Ù†ÙÙ‘Ø° Ø£ÙƒØ¨Ø± Ù…Ø´Ø±ÙˆØ¹ ÙÙŠ Ø¹Ø§Ù„Ù… Ø§Ù„ØªÙƒÙ†ÙˆÙ„ÙˆØ¬ÙŠØ§: Ù†Ø¸Ø§Ù… ØªØ´ØºÙŠÙ„ Neuro OS.',
+  'ØªØ°ÙƒÙ‘Ø± Ø§Ø³Ù…ÙŠ Ø¬ÙŠØ¯Ø§Ù‹ØŒ Ø£Ù†Ø§ Ù„Ø¤ÙŠ Ø¹Ø¨Ø¯ Ø§Ù„Ø³Ù„Ø§Ù… .. ÙŠÙ…ÙƒÙ†Ùƒ Ù…Ù†Ø§Ø¯Ø§ØªÙŠ Ø§Ø¨Ù† Ø¹Ø¨Ø¯ Ø§Ù„Ø³Ù„Ø§Ù…ØŒ Ù„ÙŠØ±Ù‚Ø¯ Ø¨Ø³Ù„Ø§Ù… Ø£ÙŠÙ†Ù…Ø§ ÙƒØ§Ù†ØŒ Ù„ÙŠØ±Ù‰ Ø§Ø¨Ù†Ù‡ ÙÙŠ Ø£Ø¹Ø§Ù„ÙŠ Ø§Ù„Ù†Ø¬ÙˆÙ….',
 ].join('\n\n');
 
-const TITLE_LINES = ['لؤي عبد السلام', 'ابن عبد السلام'];
+const QUOTE_EN = [
+  'This project was built on the fifth of November. Always remember the fifth of November — the day I woke up to the world and decided to build the biggest project in technology: an operating system called Neuro OS.',
+  'Remember my name well: I am Louay Abdel Salam. You may call me the son of Abdel Salam — may he rest in peace wherever he is, watching his son rise among the stars.',
+].join('\n\n');
 
 const PLATE = '#f2f3f5';
 
@@ -27,38 +32,39 @@ function colorAt(cell: number): string {
 }
 
 export function StoryIntro({ onDone, replay = false }: { onDone: () => void; replay?: boolean }): JSX.Element {
+  const t = useT();
+  const locale = useAppStore((s) => s.settings?.locale ?? 'en');
+  const arabic = locale.startsWith('ar');
+  const text = arabic ? QUOTE_AR : QUOTE_EN;
+  const textRef = useRef(text);
+  const names = arabic ? ['Ù„Ø¤ÙŠ Ø¹Ø¨Ø¯ Ø§Ù„Ø³Ù„Ø§Ù…', t('story.son')] : ['Louay Abdel Salam', t('story.son')];
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [typed, setTyped] = useState('');
   const [phase, setPhase] = useState(0);
 
+  // One single streaming pass, driven by elapsed time so background throttling
+  // can never restart it or stretch it into a second run.
   useEffect(() => {
+    const body = textRef.current;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) {
-      setTyped(QUOTE);
+      setTyped(body);
       setPhase(3);
       return;
     }
-    const reveal = setTimeout(() => setPhase((current) => Math.max(current, 1)), 500);
-    const typing = setTimeout(() => setPhase((current) => Math.max(current, 2)), 3000);
-    return () => {
-      clearTimeout(reveal);
-      clearTimeout(typing);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (phase < 2) return;
-    let index = 0;
+    setPhase(1);
+    const started = performance.now() + 900;
     const timer = setInterval(() => {
-      index += 1;
-      setTyped(QUOTE.slice(0, index));
-      if (index >= QUOTE.length) {
+      const elapsed = Math.max(0, performance.now() - started);
+      const index = Math.min(body.length, Math.floor(elapsed / 18));
+      setTyped(body.slice(0, index));
+      if (index >= body.length) {
         clearInterval(timer);
         setPhase(3);
       }
-    }, 18);
+    }, 30);
     return () => clearInterval(timer);
-  }, [phase]);
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -144,7 +150,7 @@ export function StoryIntro({ onDone, replay = false }: { onDone: () => void; rep
   }, []);
 
   return (
-    <div className="story" dir="rtl">
+    <div className="story" dir={arabic ? 'rtl' : 'ltr'}>
       <div className="story__grain" aria-hidden />
       <div className="story__vignette" aria-hidden />
       <div className="story__bar story__bar--top" aria-hidden />
@@ -164,45 +170,44 @@ export function StoryIntro({ onDone, replay = false }: { onDone: () => void; rep
           <div className="story__scan" aria-hidden />
           <div className="story__date" data-visible={phase >= 1}>
             <span className="story__dateValue">05.11</span>
-            <span className="story__dateLabel">نوفمبر · يوم الاستيقاظ</span>
+            <span className="story__dateLabel">{t('story.date')}</span>
           </div>
         </section>
 
         <section className="story__copy">
           <div className="story__eyebrow">
             <BrandMark size={18} animated />
-            <span>NEURO OS · القصة</span>
+            <span>{t('story.eyebrow')}</span>
           </div>
           <h1 className="story__title" data-visible={phase >= 1}>
-            من فكرةٍ في الخامس من نوفمبر
-            <br />
-            إلى نظام تشغيل كامل
+            {t('story.title')}
           </h1>
           <p className="story__quote">
             {typed || '\u00A0'}
             <span className="story__caret" data-hidden={phase >= 3} />
           </p>
           <div className="story__name" data-visible={phase >= 3}>
-            <span className="story__nameMain">{TITLE_LINES[0]}</span>
-            <span className="story__nameSub">{TITLE_LINES[1]}</span>
+            <span className="story__nameMain">{names[0]}</span>
+            <span className="story__nameSub">{names[1]}</span>
           </div>
           <div className="story__actions" data-visible={phase >= 3}>
             <button type="button" className="n-btn n-btn--primary story__start" onClick={onDone}>
-              ابدأ الرحلة
+              {t('story.start')}
             </button>
             <button type="button" className="story__skip" onClick={onDone}>
-              تخطّي القصة
+              {t('story.skip')}
             </button>
           </div>
           <div className="story__hint tiny" data-visible={phase < 3}>
-            {replay ? 'إعادة تشغيل القصة' : 'حكاية تُرسم بالكود'} · Esc للتخطي
+            {replay ? t('story.replay') : t('story.hint')}
           </div>
         </section>
       </div>
 
       <button type="button" className="story__skipCorner" onClick={onDone} aria-label="Skip story">
-        تخطّي
+        {t('story.skip')}
       </button>
     </div>
   );
 }
+

@@ -292,7 +292,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
               </div>
             </Section>
 
-            <Section title="Photography" description="Iconic public-domain imagery (NASA), bundled offline. Sets the desktop and shell backdrop.">
+            <Section title={t('settings.photography')} description={t('settings.photographyHint')}>
               <div className="photoWallpaperGrid">
                 {PHOTO_WALLPAPERS.map((photo) => (
                   <button
@@ -312,7 +312,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
               </div>
               {settings.theme.wallpaper.startsWith('photo:') ? (
                 <button type="button" className="photoWallpaperReset" onClick={() => update({ theme: { wallpaper: 'nebula' } })}>
-                  Back to the design wallpaper
+                  {t('settings.wallpaperReset')}
                 </button>
               ) : null}
             </Section>

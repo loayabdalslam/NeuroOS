@@ -3,6 +3,7 @@ import type { BrainGraph, BrainHit, BrainNode, BrainProfile, BrainStats, BrainEv
 import { useAppStore } from '../state/store';
 import { invoke, on } from '../lib/ipc';
 import { relativeTime } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { Icon } from '../components/Icon';
 import { Button, EmptyState, IconButton, Spinner, Switch } from '../components/ui';
 
@@ -29,6 +30,7 @@ interface SimNode extends BrainNode {
 }
 
 export function BrainSurface(): JSX.Element {
+  const t = useT();
   const pushToast = useAppStore((s) => s.pushToast);
   const [stats, setStats] = useState<BrainStats | null>(null);
   const [graph, setGraph] = useState<BrainGraph>({ nodes: [], edges: [] });
@@ -320,21 +322,21 @@ export function BrainSurface(): JSX.Element {
           </span>
           <div>
             <div className="row" style={{ gap: 8 }}>
-              <span className="brain__title">Graph Brain</span>
-              <span className="n-badge n-badge--accent">local memory</span>
+              <span className="brain__title">{t('brain.title')}</span>
+              <span className="n-badge n-badge--accent">{t('brain.local')}</span>
             </div>
-            <div className="tiny faint">Every action becomes a node. Every click is remembered, locally.</div>
+            <div className="tiny faint">{t('brain.tagline')}</div>
           </div>
         </div>
         <div className="row" style={{ gap: 12 }}>
           <div className="brain__stats">
-            <Stat label="nodes" value={stats?.nodes ?? 0} />
-            <Stat label="edges" value={stats?.edges ?? 0} />
-            <Stat label="events" value={stats?.events ?? 0} />
-            <Stat label="today" value={stats?.today ?? 0} />
+            <Stat label={t('brain.nodes')} value={stats?.nodes ?? 0} />
+            <Stat label={t('brain.edges')} value={stats?.edges ?? 0} />
+            <Stat label={t('brain.events')} value={stats?.events ?? 0} />
+            <Stat label={t('brain.today')} value={stats?.today ?? 0} />
           </div>
           <div className="brain__rec">
-            <span className="tiny faint">{stats?.recording ? 'recording' : 'paused'}</span>
+            <span className="tiny faint">{stats?.recording ? t('brain.recording') : t('brain.paused')}</span>
             <Switch on={Boolean(stats?.recording)} onChange={(enabled) => void toggleRecording(enabled)} label="Record actions" />
           </div>
         </div>
@@ -348,14 +350,14 @@ export function BrainSurface(): JSX.Element {
               {item === 'timeline' ? <Icon name="clock" size={11} /> : null}
               {item === 'ask' ? <Icon name="message" size={11} /> : null}
               {item === 'profile' ? <Icon name="user" size={11} /> : null}
-              {item}
+              {t(`brain.tab.${item}`)}
             </button>
           ))}
         </div>
         <span className="grow" />
         <span className="tiny faint mono">{formatBytes(stats?.storageBytes ?? 0)} on disk</span>
         <Button variant="ghost" size="sm" icon="trash" onClick={() => void wipe()} disabled={busy}>
-          Wipe
+          {t('brain.wipe')}
         </Button>
       </div>
 
@@ -457,8 +459,8 @@ export function BrainSurface(): JSX.Element {
               <div className="brain__askHead">
                 <Icon name="brain" size={18} />
                 <div>
-                  <div className="small strong">Ask your brain</div>
-                  <div className="tiny faint">Search the graph and get an answer from what this device remembers.</div>
+                  <div className="small strong">{t('brain.askTitle')}</div>
+                  <div className="tiny faint">{t('brain.askHint')}</div>
                 </div>
               </div>
               <div className="brain__askRow">
@@ -471,7 +473,7 @@ export function BrainSurface(): JSX.Element {
                   autoFocus
                 />
                 <Button variant="primary" icon="search" onClick={() => void ask()} disabled={asking || !query.trim()}>
-                  {asking ? <Spinner size={13} /> : null} Recall
+                  {asking ? <Spinner size={13} /> : null} {t('brain.recall')}
                 </Button>
               </div>
               {answer ? (
@@ -500,11 +502,11 @@ export function BrainSurface(): JSX.Element {
                 </div>
               )}
               <div className="brain__teach">
-                <div className="tiny faint uppercase">Teach a durable memory</div>
+                <div className="tiny faint uppercase">{t('brain.teach')}</div>
                 <div className="brain__askRow">
                   <input className="n-input" value={teaching} onChange={(event) => setTeaching(event.target.value)} placeholder="e.g. Prefers concise answers, no emojis" />
                   <Button variant="soft" icon="plus" onClick={() => void teach()} disabled={!teaching.trim()}>
-                    Remember
+                    {t('brain.remember')}
                   </Button>
                 </div>
               </div>
@@ -570,7 +572,7 @@ export function BrainSurface(): JSX.Element {
                   ))}
                 </div>
               ) : null}
-              <div className="brain__sectionTitle">Relations</div>
+              <div className="brain__sectionTitle">{t('brain.relations')}</div>
               <div className="brain__relations">
                 {related.length ? (
                   related.map((item, index) => (
@@ -593,13 +595,13 @@ export function BrainSurface(): JSX.Element {
           ) : (
             <div className="brain__inspectorEmpty">
               <Icon name="brain" size={26} className="faint" />
-              <div className="small strong">Select a node</div>
-              <div className="tiny faint">Click any dot to inspect what the brain knows about it, its relations, and to forget it.</div>
+              <div className="small strong">{t('brain.select')}</div>
+              <div className="tiny faint">{t('brain.selectBody')}</div>
             </div>
           )}
           <div className="brain__privacy">
             <Icon name="shield" size={13} className="faint" />
-            <span className="tiny faint">Everything is stored in <span className="mono">state/brain.json</span> on this device. Nothing is uploaded.</span>
+            <span className="tiny faint">{t('brain.privacy')}</span>
           </div>
         </aside>
       </div>

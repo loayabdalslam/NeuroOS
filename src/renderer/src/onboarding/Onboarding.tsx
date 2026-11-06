@@ -29,6 +29,16 @@ export function Onboarding(): JSX.Element {
   const setSettings = useAppStore((s) => s.setSettings);
   const [step, setStep] = useState<Step>('welcome');
   const [locale, setLocale] = useState('en');
+
+  const applyLocale = (code: string): void => {
+    setLocale(code);
+    const state = useAppStore.getState();
+    const current = state.settings;
+    if (!current || current.locale === code) return;
+    // optimistic so the whole onboarding flips language + direction instantly
+    state.setSettings({ ...current, locale: code });
+    void invoke('settings.patch', { locale: code }).catch(() => {});
+  };
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
@@ -276,7 +286,7 @@ export function Onboarding(): JSX.Element {
                   type="button"
                   className="langcard"
                   data-active={locale === item.code}
-                  onClick={() => setLocale(item.code)}
+                  onClick={() => applyLocale(item.code)}
                 >
                   <Flag code={item.flag} size={30} radius={4} title={item.name} />
                   <span className="langcard__native">{item.nativeName}</span>

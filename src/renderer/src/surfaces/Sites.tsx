@@ -3,6 +3,7 @@ import type { SiteManifest, WebPeer, WebStats } from '@shared/types';
 import { useAppStore } from '../state/store';
 import { invoke, on } from '../lib/ipc';
 import { relativeTime } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { Icon } from '../components/Icon';
 import { Button, EmptyState, Field, IconButton, Spinner } from '../components/ui';
 
@@ -44,6 +45,7 @@ async function readEntry(entry: FileSystemEntry, prefix = ''): Promise<DraftFile
 }
 
 export function SitesSurface(): JSX.Element {
+  const t = useT();
   const pushToast = useAppStore((s) => s.pushToast);
   const navigate = useAppStore((s) => s.navigate);
   const [sites, setSites] = useState<SiteManifest[]>([]);
@@ -189,12 +191,12 @@ export function SitesSurface(): JSX.Element {
       <header className="sites__head">
         <div className="grow" style={{ minWidth: 0 }}>
           <div className="row" style={{ gap: 8 }}>
-            <span className="sites__title">Neuro Web</span>
-            <span className="n-badge n-badge--accent">decentralized</span>
+            <span className="sites__title">{t('sites.title')}</span>
+            <span className="n-badge n-badge--accent">{t('sites.decentralized')}</span>
             {stats ? <span className="n-chip mono">{stats.nodeId.slice(0, 12)}</span> : null}
           </div>
           <div className="small faint" style={{ marginTop: 4 }}>
-            Host a site from this machine, or replicate one from a peer. Names resolve through the mesh — no registry, no hosting bill.
+            {t('sites.tagline')}
           </div>
         </div>
         {gateway ? (
@@ -205,17 +207,17 @@ export function SitesSurface(): JSX.Element {
       </header>
 
       <div className="sites__counters">
-        <Counter label="Sites hosted" value={stats?.sites ?? 0} icon="layers" accent="#a78bfa" />
-        <Counter label="Peers online" value={stats?.online ?? 0} icon="network" accent="#14b8a6" suffix={`/ ${stats?.peers ?? 0}`} />
-        <Counter label="Visits served" value={stats?.hits ?? 0} icon="activity" accent="#22c55e" live />
-        <Counter label="Content" value={formatBytes(stats?.bytes ?? 0)} icon="database" accent="#f59e0b" />
+        <Counter label={t('sites.c1')} value={stats?.sites ?? 0} icon="layers" accent="#a78bfa" />
+        <Counter label={t('sites.c2')} value={stats?.online ?? 0} icon="network" accent="#14b8a6" suffix={`/ ${stats?.peers ?? 0}`} />
+        <Counter label={t('sites.c3')} value={stats?.hits ?? 0} icon="activity" accent="#22c55e" live />
+        <Counter label={t('sites.c4')} value={formatBytes(stats?.bytes ?? 0)} icon="database" accent="#f59e0b" />
       </div>
 
       <div className="sites__grid">
         <section className="sites__publish">
           <div className="sites__sectionHead">
             <Icon name="package" size={15} />
-            <span className="small strong">Publish a site</span>
+            <span className="small strong">{t('sites.publish')}</span>
             <span className="grow" />
             <button type="button" className="tiny faint" onClick={() => fileInput.current?.click()}>
               pick files
@@ -280,7 +282,7 @@ export function SitesSurface(): JSX.Element {
 
           <div className="sites__actions">
             <Button variant="outline" icon="folder" onClick={() => void publishFolder()} disabled={busy !== null}>
-              {busy === 'folder' ? <Spinner size={13} /> : null} Publish a local folder
+              {busy === 'folder' ? <Spinner size={13} /> : null} {t('sites.publishFolder')}
             </Button>
             <span className="grow" />
             {files.length ? (
@@ -289,7 +291,7 @@ export function SitesSurface(): JSX.Element {
               </Button>
             ) : null}
             <Button variant="primary" icon="upload" onClick={() => void publish()} disabled={!domain.trim() || !files.length || busy !== null}>
-              {busy === 'publish' || busy === 'drop' ? <Spinner size={13} /> : null} Publish to the mesh
+              {busy === 'publish' || busy === 'drop' ? <Spinner size={13} /> : null} {t('sites.publishMesh')}
             </Button>
           </div>
         </section>
@@ -297,7 +299,7 @@ export function SitesSurface(): JSX.Element {
         <aside className="sites__side">
           <div className="sites__sectionHead">
             <Icon name="server" size={15} />
-            <span className="small strong">My sites</span>
+            <span className="small strong">{t('sites.mySites')}</span>
             <span className="grow" />
             <span className="tiny faint">{sites.length}</span>
           </div>
@@ -320,7 +322,7 @@ export function SitesSurface(): JSX.Element {
                   </div>
                   <div className="siteCard__actions">
                     <Button variant="soft" size="sm" icon="external-link" onClick={() => openSite(site)}>
-                      Open
+                      {t('sites.open')}
                     </Button>
                     <IconButton icon="copy" label="Copy URL" size={13} onClick={() => void navigator.clipboard.writeText(`${gateway}/dweb/${site.domain}/`)} />
                     <span className="grow" />
@@ -330,12 +332,12 @@ export function SitesSurface(): JSX.Element {
               ))}
             </div>
           ) : (
-            <EmptyState icon="globe" title="No sites yet" body="Publish your first .neuro site from the panel on the left. It becomes reachable to peers immediately." />
+            <EmptyState icon="globe" title={t('sites.empty')} body={t('sites.emptyBody')} />
           )}
 
           <div className="sites__sectionHead" style={{ marginTop: 10 }}>
             <Icon name="network" size={15} />
-            <span className="small strong">Peers</span>
+            <span className="small strong">{t('sites.peers')}</span>
             <span className="grow" />
             <span className="tiny faint">{peers.length}</span>
           </div>
