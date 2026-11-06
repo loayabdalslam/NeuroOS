@@ -1,0 +1,10 @@
+﻿const ctx={client:{clientName:'MWEB',clientVersion:'2.20240726.01.00',hl:'en',gl:'US'}};
+const KEY='AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+const UA='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148';
+const r=await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${KEY}&prettyPrint=false`,{method:'POST',headers:{'content-type':'application/json','user-agent':UA},body:JSON.stringify({context:ctx,browseId:'UC9x0AN7BWHpCDHSm9NiJFJQ'})});
+const t=await r.text();
+console.log('channelExternalLinkViewModel count:',(t.match(/channelExternalLinkViewModel/g)||[]).length);
+console.log('instagram/twitter mentions:',/instagram|twitter|x\.com/i.test(t));
+let i=t.indexOf('channelExternalLinkViewModel');
+if(i>0) console.log(JSON.stringify(t.slice(i,i+600)));
+console.log('--- microformat:',JSON.stringify(t.slice(t.indexOf('microformatDataRenderer'),t.indexOf('microformatDataRenderer')+500)));

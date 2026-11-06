@@ -708,6 +708,16 @@ function bootstrap(): void {
     router.register(buildHandlers(kernel, getWindow));
     router.attach();
 
+    if (process.argv.includes('--qa')) {
+      const { runQa, renderQa } = await import('./qa');
+      const findings = await runQa(kernel);
+      fs.writeFileSync(path.join(process.cwd(), 'qa-report.json'), JSON.stringify(findings, null, 2), 'utf8');
+      fs.writeFileSync(path.join(process.cwd(), 'qa-report.md'), renderQa(findings), 'utf8');
+      log.info('qa', `${findings.filter((item) => item.status === 'fail').length} failures / ${findings.length} checks`);
+      app.exit(0);
+      return;
+    }
+
     mainWindow = createWindow(() => {
       log.info('window', 'renderer loaded');
       if (isSelftest) setTimeout(() => void runSelfTest(mainWindow!), 400);

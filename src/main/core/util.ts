@@ -30,14 +30,38 @@ export async function writeJsonAtomic(file: string, data: unknown): Promise<void
   const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
   const payload = JSON.stringify(data, null, 2);
   await fsp.writeFile(tmp, payload, 'utf8');
-  await fsp.rename(tmp, file);
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      await fsp.rename(tmp, file);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!code || !['EPERM', 'EBUSY', 'EACCES'].includes(code) || attempt === 5) {
+        await fsp.rm(tmp, { force: true }).catch(() => undefined);
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+    }
+  }
 }
 
 export function writeJsonAtomicSync(file: string, data: unknown): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
-  fs.renameSync(tmp, file);
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      fs.renameSync(tmp, file);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!code || !['EPERM', 'EBUSY', 'EACCES'].includes(code) || attempt === 5) {
+        try { fs.rmSync(tmp, { force: true }); } catch { /* ignore */ }
+        throw error;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25 * (attempt + 1));
+    }
+  }
 }
 
 export async function readJson<T>(file: string, fallback: T): Promise<T> {

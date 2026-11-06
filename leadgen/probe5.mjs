@@ -1,0 +1,13 @@
+﻿const body={context:{client:{clientName:'MWEB',clientVersion:'2.20240726.01.00',hl:'en',gl:'US'}},browseId:'UC9x0AN7BWHpCDHSm9NiJFJQ'};
+const r=await fetch('https://www.youtube.com/youtubei/v1/browse?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false',{method:'POST',headers:{'content-type':'application/json','user-agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'},body:JSON.stringify(body)});
+const j=await r.json();
+const meta=j.metadata?.channelMetadataRenderer;
+console.log('title:',meta?.title,'| country:',meta?.country,'| vanity:',meta?.vanityChannelUrl);
+console.log('desc len:',meta?.description?.length);
+console.log('DESC:',JSON.stringify((meta?.description||'').slice(0,600)));
+const s=JSON.stringify(j);
+console.log('\nhas aboutChannelViewModel:',s.includes('aboutChannelViewModel'));
+const m=s.match(/"subscriberCountText":\{[^}]*\}/); console.log('subs raw:',m?m[0].slice(0,200):'none');
+const m2=s.match(/"videoCountText"[^}]*\}/); console.log('videos raw:',m2?m2[0].slice(0,200):'none');
+const links=[...s.matchAll(/"channelExternalLinkViewModel":\{"title":\{"content":"([^"]+)"\}[\s\S]{0,400}?"content":"(https?:[^"]+)"/g)].map(m=>[m[1],m[2]]);
+console.log('links:',JSON.stringify(links.slice(0,6)));

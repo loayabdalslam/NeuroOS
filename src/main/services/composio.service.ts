@@ -196,14 +196,17 @@ export class ComposioService {
     this.syncing = true;
     try {
       const collected: StoredTool[] = [];
-      for (let page = 1; page <= 4; page += 1) {
-        const payload = await this.request<unknown>(`/tools?limit=100&page=${page}`);
+      let cursor: string | undefined;
+      for (let page = 0; page < 10; page += 1) {
+        const payload = await this.request<unknown>(`/tools?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
         const rows = this.items<Record<string, unknown>>(payload);
         for (const row of rows) {
           const normalized = this.normalizeTool(row);
           if (normalized) collected.push(normalized);
         }
-        if (rows.length < 100) break;
+        const next = (payload as { next_cursor?: string }).next_cursor;
+        if (rows.length < 100 || !next) break;
+        cursor = next;
       }
       const unique = new Map(collected.map((tool) => [tool.slug, tool]));
       const catalog = [...unique.values()];
@@ -298,8 +301,13 @@ export class ComposioService {
       return [];
     }
     const userId = encodeURIComponent(this.store.get().userId);
-    const payload = await this.request<unknown>(`/connected_accounts?user_ids=${userId}&limit=100`);
-    const rows = this.items<Record<string, unknown>>(payload);
+    let payload = await this.request<unknown>(`/connected_accounts?user_ids=${userId}&limit=100`);
+    let rows = this.items<Record<string, unknown>>(payload);
+    if (!rows.length) {
+      // Accounts may be owned by a different Composio user (API key scope).
+      payload = await this.request<unknown>('/connected_accounts?limit=100');
+      rows = this.items<Record<string, unknown>>(payload);
+    }
     this.accountsCache = rows.map((row) => {
       const toolkit = row.toolkit as Record<string, unknown> | string | undefined;
       return {

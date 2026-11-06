@@ -1,0 +1,53 @@
+[
+  {
+    "id": "ACP-01",
+    "area": "acp",
+    "severity": "high",
+    "status": "pass",
+    "title": "ACP provider handshake, session and streamed prompt",
+    "evidence": "user: ping\nassistant: MOCK_ACP_OK",
+    "repro": "Add a provider with kind=acp and command \"node scripts/mock-acp-agent.cjs\", then send a message."
+  },
+  {
+    "id": "ACP-02",
+    "area": "acp",
+    "severity": "high",
+    "status": "pass",
+    "title": "OpenCode exposes an ACP server",
+    "evidence": "agent=OpenCode v1.18.33 protocol=ok",
+    "repro": "opencode acp â†’ initialize â†’ session/new"
+  },
+  {
+    "id": "ACP-03",
+    "area": "acp",
+    "severity": "medium",
+    "status": "warn",
+    "title": "ACP availability of the locally installed agents",
+    "evidence": "No ACP-capable CLI on PATH: Codex CLI, DeepSeek Harness, Antigravity CLI. Only opencode exposes \"acp\".",
+    "repro": "where codex / where dsh / where antigravity"
+  },
+  {
+    "id": "CMP-01",
+    "area": "composio",
+    "severity": "high",
+    "status": "pass",
+    "title": "Composio catalog sync with a real API key",
+    "evidence": "configured=true tools=1000 toolkits=26 accounts=13"
+  },
+  {
+    "id": "CMP-02",
+    "area": "composio",
+    "severity": "medium",
+    "status": "fail",
+    "title": "Composio catalog search",
+    "evidence": "gmail hits=0"
+  },
+  {
+    "id": "CMP-03",
+    "area": "composio",
+    "severity": "medium",
+    "status": "warn",
+    "title": "Composio action execution through the tool bridge",
+    "evidence": "No github authenticated-user action in the catalog"
+  }
+]
