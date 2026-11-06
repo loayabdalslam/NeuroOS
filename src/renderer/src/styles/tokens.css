@@ -225,3 +225,273 @@
 :root[data-font='system'] {
   --n-font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
+
+/* ================================================================== *
+ * Design languages
+ *
+ * Each design restyles the same component tree: type, radii, elevation,
+ * glass, chrome and state colours. Component-level tweaks live in shell.css.
+ * ================================================================== */
+
+/* ---------------------------- Windows 11 -------------------------- */
+:root[data-design='windows'] {
+  --n-radius-xs: 3px;
+  --n-radius-sm: 4px;
+  --n-radius: 8px;
+  --n-radius-lg: 8px;
+  --n-radius-xl: 10px;
+
+  --n-font-ui: 'Segoe UI Variable Text', 'Segoe UI', 'Segoe UI Web (West European)', system-ui, sans-serif;
+  --n-font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --n-font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, monospace;
+
+  --n-accent: #4cc2ff;
+  --n-violet: #60cdff;
+  --n-accent-strong: #0078d4;
+  --n-accent-soft: rgba(76, 194, 255, 0.16);
+  --n-accent-softer: rgba(76, 194, 255, 0.09);
+  --n-accent-line: rgba(76, 194, 255, 0.4);
+  --n-on-accent: #001a26;
+  --n-aurora-1: rgba(0, 120, 212, 0.35);
+  --n-aurora-2: rgba(76, 194, 255, 0.18);
+
+  --n-bg: #202020;
+  --n-bg-deep: #1a1a1a;
+  --n-layer-1: #2b2b2b;
+  --n-layer-2: #323232;
+  --n-layer-3: #3a3a3a;
+  --n-elevated: #2d2d2d;
+  --n-line: rgba(255, 255, 255, 0.08);
+  --n-line-2: rgba(255, 255, 255, 0.13);
+  --n-line-3: rgba(255, 255, 255, 0.2);
+  --n-text: #ffffff;
+  --n-text-2: #f0f0f0;
+  --n-text-3: #c8c8c8;
+  --n-text-4: #9a9a9a;
+
+  --n-glass: rgba(43, 43, 43, 0.86);
+  --n-glass-strong: rgba(43, 43, 43, 0.96);
+  --n-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --n-shadow-2: 0 8px 20px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --n-shadow-3: 0 24px 54px -20px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255, 255, 255, 0.09);
+  --n-shadow-glow: 0 0 0 1px var(--n-accent-line);
+  --n-titlebar-h: 44px;
+  --n-taskbar-h: 48px;
+}
+:root[data-design='windows'][data-theme='light'] {
+  --n-accent: #0067c0;
+  --n-violet: #0f83d6;
+  --n-accent-strong: #005ba1;
+  --n-accent-soft: rgba(0, 103, 192, 0.12);
+  --n-accent-softer: rgba(0, 103, 192, 0.07);
+  --n-accent-line: rgba(0, 103, 192, 0.34);
+  --n-on-accent: #ffffff;
+  --n-bg: #f3f3f3;
+  --n-bg-deep: #ebebeb;
+  --n-layer-1: #ffffff;
+  --n-layer-2: #f8f8f8;
+  --n-layer-3: #efefef;
+  --n-elevated: #ffffff;
+  --n-line: rgba(0, 0, 0, 0.08);
+  --n-line-2: rgba(0, 0, 0, 0.14);
+  --n-line-3: rgba(0, 0, 0, 0.22);
+  --n-text: #1a1a1a;
+  --n-text-2: #2b2b2b;
+  --n-text-3: #5a5a5a;
+  --n-text-4: #7a7a7a;
+  --n-glass: rgba(249, 249, 249, 0.86);
+  --n-glass-strong: rgba(249, 249, 249, 0.96);
+  --n-scrim: rgba(0, 0, 0, 0.32);
+}
+
+/* ----------------------------- Ubuntu ----------------------------- */
+:root[data-design='ubuntu'] {
+  --n-radius-xs: 5px;
+  --n-radius-sm: 7px;
+  --n-radius: 10px;
+  --n-radius-lg: 12px;
+  --n-radius-xl: 16px;
+
+  --n-font-ui: 'Ubuntu', 'Ubuntu Sans', Cantarell, 'Segoe UI', system-ui, sans-serif;
+  --n-font-display: 'Ubuntu', 'Ubuntu Sans', Cantarell, 'Segoe UI', system-ui, sans-serif;
+  --n-font-mono: 'Ubuntu Mono', 'Cascadia Code', 'DejaVu Sans Mono', monospace;
+
+  --n-accent: #e95420;
+  --n-violet: #77216f;
+  --n-accent-strong: #c7461a;
+  --n-accent-soft: rgba(233, 84, 32, 0.18);
+  --n-accent-softer: rgba(233, 84, 32, 0.1);
+  --n-accent-line: rgba(233, 84, 32, 0.44);
+  --n-on-accent: #ffffff;
+
+  --n-bg: #1e1b1a;
+  --n-bg-deep: #171413;
+  --n-layer-1: #2c2c2c;
+  --n-layer-2: #333333;
+  --n-layer-3: #3d3d3d;
+  --n-elevated: #303030;
+  --n-line: rgba(255, 255, 255, 0.1);
+  --n-line-2: rgba(255, 255, 255, 0.16);
+  --n-line-3: rgba(255, 255, 255, 0.24);
+  --n-text: #f6f5f4;
+  --n-text-2: #deddda;
+  --n-text-3: #b5b3b0;
+  --n-text-4: #8c8a87;
+
+  --n-glass: rgba(44, 44, 44, 0.94);
+  --n-glass-strong: rgba(44, 44, 44, 0.98);
+  --n-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --n-shadow-2: 0 10px 26px -14px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --n-shadow-3: 0 28px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --n-shadow-glow: 0 0 0 1px var(--n-accent-line);
+  --n-aurora-1: rgba(233, 84, 32, 0.28);
+  --n-aurora-2: rgba(119, 33, 111, 0.28);
+}
+:root[data-design='ubuntu'][data-theme='light'] {
+  --n-accent: #c7162b;
+  --n-violet: #77216f;
+  --n-accent-strong: #a5111f;
+  --n-accent-soft: rgba(199, 22, 43, 0.12);
+  --n-accent-softer: rgba(199, 22, 43, 0.07);
+  --n-accent-line: rgba(199, 22, 43, 0.34);
+  --n-bg: #fafafa;
+  --n-bg-deep: #f0f0f0;
+  --n-layer-1: #ffffff;
+  --n-layer-2: #f2f2f2;
+  --n-layer-3: #e8e8e8;
+  --n-elevated: #ffffff;
+  --n-line: rgba(0, 0, 0, 0.09);
+  --n-line-2: rgba(0, 0, 0, 0.16);
+  --n-line-3: rgba(0, 0, 0, 0.25);
+  --n-text: #2c2c2c;
+  --n-text-2: #3c3c3c;
+  --n-text-3: #626262;
+  --n-text-4: #838383;
+  --n-glass: rgba(255, 255, 255, 0.96);
+  --n-glass-strong: rgba(255, 255, 255, 0.99);
+  --n-scrim: rgba(0, 0, 0, 0.3);
+}
+
+/* ------------------------------- iOS ------------------------------ */
+:root[data-design='ios'] {
+  --n-radius-xs: 7px;
+  --n-radius-sm: 10px;
+  --n-radius: 14px;
+  --n-radius-lg: 20px;
+  --n-radius-xl: 26px;
+
+  --n-font-ui: -apple-system, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --n-font-display: -apple-system, 'SF Pro Display', 'Segoe UI Variable Display', system-ui, sans-serif;
+  --n-font-mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace;
+
+  --n-accent: #0a84ff;
+  --n-violet: #5e5ce6;
+  --n-accent-strong: #0060df;
+  --n-accent-soft: rgba(10, 132, 255, 0.18);
+  --n-accent-softer: rgba(10, 132, 255, 0.1);
+  --n-accent-line: rgba(10, 132, 255, 0.42);
+  --n-on-accent: #ffffff;
+
+  --n-bg: #000000;
+  --n-bg-deep: #000000;
+  --n-layer-1: #1c1c1e;
+  --n-layer-2: #2c2c2e;
+  --n-layer-3: #3a3a3c;
+  --n-elevated: #1c1c1e;
+  --n-line: rgba(255, 255, 255, 0.1);
+  --n-line-2: rgba(255, 255, 255, 0.16);
+  --n-line-3: rgba(255, 255, 255, 0.24);
+  --n-text: #ffffff;
+  --n-text-2: #ebebf5;
+  --n-text-3: rgba(235, 235, 245, 0.7);
+  --n-text-4: rgba(235, 235, 245, 0.48);
+
+  --n-glass: rgba(28, 28, 30, 0.62);
+  --n-glass-strong: rgba(28, 28, 30, 0.82);
+  --n-shadow-2: 0 16px 40px -18px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --n-shadow-3: 0 40px 90px -30px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --n-shadow-glow: 0 0 0 1px var(--n-accent-line);
+  --n-titlebar-h: 50px;
+  --n-taskbar-h: 58px;
+}
+:root[data-design='ios'][data-theme='light'] {
+  --n-accent: #007aff;
+  --n-violet: #5e5ce6;
+  --n-accent-strong: #0057cc;
+  --n-bg: #f2f2f7;
+  --n-bg-deep: #ececf1;
+  --n-layer-1: #ffffff;
+  --n-layer-2: #f7f7fa;
+  --n-layer-3: #e9e9ee;
+  --n-elevated: #ffffff;
+  --n-line: rgba(60, 60, 67, 0.12);
+  --n-line-2: rgba(60, 60, 67, 0.2);
+  --n-line-3: rgba(60, 60, 67, 0.3);
+  --n-text: #1c1c1e;
+  --n-text-2: #2c2c2e;
+  --n-text-3: rgba(60, 60, 67, 0.7);
+  --n-text-4: rgba(60, 60, 67, 0.48);
+  --n-glass: rgba(255, 255, 255, 0.7);
+  --n-glass-strong: rgba(255, 255, 255, 0.9);
+  --n-scrim: rgba(0, 0, 0, 0.24);
+}
+
+/* --------------------------- Pure white --------------------------- */
+:root[data-surface='white'] {
+  --n-bg: #ffffff;
+  --n-bg-deep: #f7f8fa;
+  --n-layer-1: #ffffff;
+  --n-layer-2: #f7f8fa;
+  --n-layer-3: #eef0f4;
+  --n-elevated: #ffffff;
+  --n-line: rgba(15, 17, 21, 0.09);
+  --n-line-2: rgba(15, 17, 21, 0.15);
+  --n-line-3: rgba(15, 17, 21, 0.24);
+  --n-text: #0f1115;
+  --n-text-2: #2a2e34;
+  --n-text-3: #565c63;
+  --n-text-4: #7b8188;
+  --n-glass: rgba(255, 255, 255, 0.86);
+  --n-glass-strong: rgba(255, 255, 255, 0.96);
+  --n-scrim: rgba(15, 17, 21, 0.28);
+}
+
+/* ---------------------------- Wallpapers -------------------------- */
+:root[data-wallpaper='void'] .app__bg {
+  background: linear-gradient(165deg, #0b0c10 0%, #151517 55%, #101827 100%);
+}
+:root[data-wallpaper='paper'] .app__bg {
+  background: radial-gradient(75% 60% at 72% 0%, #eaf0ff 0%, #ffffff 68%);
+}
+:root[data-wallpaper='mica'] .app__bg {
+  background: radial-gradient(120% 90% at 18% 0%, #2f3b4a 0%, #202020 58%, #1a1a1a 100%);
+}
+:root[data-wallpaper='mica-light'] .app__bg {
+  background: radial-gradient(110% 80% at 18% 0%, #e8f0fb 0%, #f3f3f3 62%, #ececec 100%);
+}
+:root[data-wallpaper='aubergine'] .app__bg {
+  background: radial-gradient(95% 75% at 18% 0%, #4b0f33 0%, #2a0a1e 45%, #1e1b1a 100%);
+}
+:root[data-wallpaper='yaru-light'] .app__bg {
+  background: radial-gradient(85% 60% at 18% 0%, #ffe6da 0%, #fafafa 66%);
+}
+:root[data-wallpaper='aurora'] .app__bg {
+  background: linear-gradient(160deg, #dbeafe 0%, #eef2ff 42%, #fdf2f8 100%);
+}
+:root[data-wallpaper='midnight'] .app__bg {
+  background: radial-gradient(110% 85% at 50% 0%, #101a2e 0%, #05070c 55%, #000000 100%);
+}
+:root[data-design='windows'] .n-aurora,
+:root[data-design='ubuntu'] .n-aurora {
+  display: none;
+}
+:root[data-design='ios'] .n-aurora {
+  opacity: 0.28;
+  filter: blur(90px);
+}
+:root[data-surface='white'] .n-aurora {
+  opacity: 0.2;
+}
+:root[data-surface='white'] .n-grid-bg {
+  opacity: 0.4;
+}

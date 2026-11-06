@@ -9,6 +9,7 @@ interface Block {
   lang?: string;
   text?: string;
   items?: { text: string; ordered: boolean; index: number }[];
+  ordered?: boolean;
   rows?: string[][];
   header?: string[];
 }

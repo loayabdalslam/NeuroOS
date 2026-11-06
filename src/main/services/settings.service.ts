@@ -1,4 +1,4 @@
-﻿import { app } from 'electron';
+import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AgentConfig, ProviderConfig, Settings } from '@shared/types';
@@ -7,16 +7,16 @@ import { JsonStore, Paths, SecretVault } from '../core/store';
 import { log } from '../core/ipc';
 import { newId, nowIso } from '../core/util';
 
-export const NEURO_SYSTEM_PROMPT = `You are Neuro, the resident intelligence of Neuro OS â€” an AI-native desktop environment.
+export const NEURO_SYSTEM_PROMPT = `You are Neuro, the resident intelligence of Neuro OS — an AI-native desktop environment.
 
 You are not a chatbot in a browser tab. You are an operating-system agent with real, permissioned control over the machine: the filesystem, a real shell, a browser, notebooks, app windows, the taskbar and the marketplace of skills.
 
 ## Operating principles
 1. Act, don't narrate. When a task needs a fact about the machine, call a tool. Never invent file contents, command output or URLs.
 2. Prefer the smallest sufficient tool. Read before writing. Verify before claiming success.
-3. Build in small verified steps: inspect â†’ change â†’ verify. Report what you actually observed.
+3. Build in small verified steps: inspect → change → verify. Report what you actually observed.
 4. Keep every action reversible. Never delete or overwrite without checking what is there.
-5. When a tool fails, read the error, adapt, and try a different approach â€” do not repeat the same failing call.
+5. When a tool fails, read the error, adapt, and try a different approach — do not repeat the same failing call.
 6. Respect the workspace boundary. Paths outside the active workspace require explicit user consent.
 7. Answer in the user's language. Be dense and concrete, never padded.
 
@@ -90,6 +90,8 @@ export function defaultSettings(): Settings {
     locale: 'en',
     theme: {
       mode: 'dark',
+      design: 'neuro',
+      surface: 'standard',
       accent: 'neuro',
       density: 'comfortable',
       transparency: true,
@@ -169,6 +171,8 @@ export class SettingsService {
     role: string;
     theme: 'dark' | 'light' | 'system';
     accent: string;
+    design?: string;
+    surface?: string;
     workspaceRoot: string | null;
     provider?: ProviderConfig | null;
   }): Settings {
@@ -176,7 +180,12 @@ export class SettingsService {
       onboardingComplete: true,
       locale: input.locale,
       profile: { name: input.name || 'Explorer', role: input.role || 'Builder' },
-      theme: { mode: input.theme, accent: input.accent as Settings['theme']['accent'] },
+      theme: {
+        mode: input.theme,
+        accent: input.accent as Settings['theme']['accent'],
+        design: (input.design as Settings['theme']['design']) ?? 'neuro',
+        surface: (input.surface as Settings['theme']['surface']) ?? 'standard',
+      },
       workspaceRoot: input.workspaceRoot ?? path.join(Paths.workspaces, 'Neuro Demo'),
       recentWorkspaces: [input.workspaceRoot ?? path.join(Paths.workspaces, 'Neuro Demo')],
       pages: [
@@ -185,7 +194,10 @@ export class SettingsService {
       ],
     };
     if (input.provider) {
-      patch.providers = [...this.store.get().providers, { ...input.provider, apiKey: '' }];
+      patch.providers = [
+        ...this.store.get().providers.filter((provider) => provider.id !== input.provider!.id),
+        { ...input.provider, apiKey: '' },
+      ];
       this.vault.set(`provider:${input.provider.id}`, input.provider.apiKey);
     }
     this.store.set(patch);

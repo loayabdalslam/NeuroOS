@@ -1,4 +1,4 @@
-﻿import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -91,6 +91,7 @@ export class TerminalService {
     this.sessions.set(id, session);
 
     const pty = loadPty();
+    log.info('terminal', `spawn ${shell} ${JSON.stringify(shellArgsFor(shell))} pty=${Boolean(pty)} cwd=${cwd}`);
     if (pty) {
       try {
         const proc = pty.spawn(shell, shellArgsFor(shell), {
@@ -128,14 +129,14 @@ export class TerminalService {
     session.info.usingPty = false;
     this.emitData(
       session.info.id,
-      `\x1b[38;5;111mNeuro OS shell\x1b[0m \x1b[90mÂ· pipe mode (native PTY unavailable)\x1b[0m\r\n` +
+      `\x1b[38;5;111mNeuro OS shell\x1b[0m \x1b[90m· pipe mode (native PTY unavailable)\x1b[0m\r\n` +
         `\x1b[90mType a command and press Enter. \`cd\` changes directory.\x1b[0m\r\n\r\n`,
     );
     this.printPrompt(session);
   }
 
   private printPrompt(session: Session): void {
-    const short = session.info.cwd.length > 46 ? `â€¦${session.info.cwd.slice(-44)}` : session.info.cwd;
+    const short = session.info.cwd.length > 46 ? `…${session.info.cwd.slice(-44)}` : session.info.cwd;
     this.emitData(session.info.id, `\x1b[38;5;75m${short}\x1b[0m \x1b[90m>\x1b[0m `);
   }
 
@@ -259,9 +260,14 @@ export class TerminalService {
 }
 
 function shellArgsFor(shell: string): string[] {
-  const name = path.basename(shell).toLowerCase();
-  if (name.includes('cmd')) return [];
-  if (name.includes('bash') || name.includes('zsh') || name.includes('sh')) return ['-i'];
-  return ['-NoLogo'];
+  const base = path.basename(shell).toLowerCase().replace(/\.exe$/, '');
+  if (base === 'cmd') return ['/K'];
+  if (base === 'powershell' || base === 'pwsh') {
+    // -NoProfile matters: a broken user profile makes ConPTY drop into
+    // PowerShell's help text and exit, which looks like a dead terminal.
+    return ['-NoLogo', '-NoProfile'];
+  }
+  if (base === 'bash' || base === 'zsh' || base === 'sh' || base === 'fish') return ['-i'];
+  return [];
 }
 

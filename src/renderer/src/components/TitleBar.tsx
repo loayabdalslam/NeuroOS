@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import type { PageInstance } from '@shared/types';
 import { useAppStore } from '../state/store';
 import { useT } from '../lib/i18n';
@@ -59,7 +59,7 @@ export function TitleBar(): JSX.Element {
       <div className="titlebar__actions no-drag">
         <button type="button" className="cmdbtn" onClick={() => setCommandOpen(true)}>
           <Icon name="search" size={13} />
-          <span className="cmdbtn__label">{t('common.search')}â€¦</span>
+          <span className="cmdbtn__label">{t('common.search')}</span>
           <span className="n-kbd">{modKey}</span>
           <span className="n-kbd">K</span>
         </button>

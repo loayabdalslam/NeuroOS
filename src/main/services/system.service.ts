@@ -42,8 +42,8 @@ export class SystemService {
     let gpu = 'Unknown';
     if (process.platform === 'win32') {
       try {
-        const out = await runFile('wmic', ['path', 'win32_VideoController', 'get', 'name'], 4000);
-        const line = out.split('\n').map((l) => l.trim()).filter((l) => l && l.toLowerCase() !== 'name')[0];
+        const out = await runPowerShell('(Get-CimInstance Win32_VideoController | Select-Object -First 1).Name', 6000);
+        const line = out.trim().split('\n')[0]?.trim();
         if (line) gpu = line.replace(/\s+/g, ' ');
       } catch {
         gpu = 'Unavailable';

@@ -202,7 +202,7 @@ export function Workspace({ params }: { params: Record<string, string> }): JSX.E
           </div>
           <div className="row" style={{ gap: 0 }}>
             <IconButton icon="refresh" label={t('workspace.refresh')} size={14} onClick={() => void refresh()} />
-            <IconButton icon="folder-plus" label={t('workspace.openFolder')} size={14} onClick={() => void invoke('system.pickDirectory', { title: t('workspace.openFolder') }).then((r) => r.path && useAppStore.getState().patchSettings({ workspaceRoot: r.path }))} />
+            <IconButton icon="folder-plus" label={t('workspace.openFolder')} size={14} onClick={() => void invoke('system.pickDirectory', { title: t('workspace.openFolder') }).then((r) => { if (r.path) void useAppStore.getState().patchSettings({ workspaceRoot: r.path }); })} />
           </div>
         </div>
 
@@ -290,7 +290,7 @@ export function Workspace({ params }: { params: Record<string, string> }): JSX.E
         <div className="ws__fileTabs">
           {openFiles.length === 0 ? (
             <div className="ws__fileTabsEmpty tiny faint">
-              <Icon name="folder-open" size={13} /> {root || 'No workspace'}
+              <Icon name="folder-open" size={13} /> {root ? 'No file open — pick one from the explorer' : 'No workspace'}
             </div>
           ) : (
             openFiles.map((file) => (
@@ -525,3 +525,4 @@ function Stat({ label, value }: { label: string; value: string }): JSX.Element {
 }
 
 export const workspaceHelpers = { dirname };
+

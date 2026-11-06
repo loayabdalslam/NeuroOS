@@ -101,6 +101,18 @@ export interface IpcMap {
   'tools.run': { params: { name: string; args: Record<string, unknown> }; result: ToolInvocation };
   'tools.policies': { params: void; result: Record<string, string> };
 
+  /* terminal */
+  'terminal.list': { params: void; result: TerminalInfo[] };
+  'terminal.create': {
+    params: { cwd?: string; shell?: string; cols?: number; rows?: number; title?: string };
+    result: TerminalInfo;
+  };
+  'terminal.write': { params: { id: ID; data: string }; result: { ok: boolean } };
+  'terminal.resize': { params: { id: ID; cols: number; rows: number }; result: { ok: boolean } };
+  'terminal.kill': { params: { id: ID }; result: { ok: boolean } };
+  'terminal.buffer': { params: { id: ID }; result: { data: string } };
+  'terminal.shells': { params: void; result: { shells: { name: string; path: string }[]; default: string; pty: boolean } };
+
   /* workspace */
   'fs.list': { params: { path: string; showHidden?: boolean }; result: FsEntry[] };
   'fs.read': { params: { path: string }; result: { content: string; stat: FileStat } };
@@ -157,6 +169,8 @@ export interface IpcMap {
       role: string;
       theme: 'dark' | 'light' | 'system';
       accent: string;
+      design?: string;
+      surface?: string;
       workspaceRoot: string | null;
       provider?: ProviderConfig | null;
       pages?: PageInstance[];
@@ -234,6 +248,13 @@ export const IPC_CHANNELS = [
   'tools.list',
   'tools.run',
   'tools.policies',
+  'terminal.list',
+  'terminal.create',
+  'terminal.write',
+  'terminal.resize',
+  'terminal.kill',
+  'terminal.buffer',
+  'terminal.shells',
   'fs.list',
   'fs.read',
   'fs.write',

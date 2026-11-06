@@ -117,7 +117,7 @@ export function Chat(): JSX.Element {
           </div>
           <div className="chat__sessionList n-scroll">
             {filteredSessions.length === 0 ? (
-              <div className="tiny faint" style={{ padding: '14px 10px' }}>{t('chat.emptyTitle')}</div>
+              <div className="tiny faint" style={{ padding: '14px 10px' }}>No conversations yet.</div>
             ) : (
               filteredSessions.map((session) => (
                 <button
@@ -217,7 +217,7 @@ export function Chat(): JSX.Element {
                     </span>
                     <span className="grow" style={{ textAlign: 'left' }}>
                       <span className="small strong" style={{ display: 'block' }}>{suggestion.title}</span>
-                      <span className="tiny faint" style={{ display: 'block', marginTop: 2 }}>{suggestion.prompt.slice(0, 78)}…</span>
+                      <span className="tiny faint chat__suggestionBody">{suggestion.prompt}</span>
                     </span>
                   </button>
                 ))}
@@ -236,16 +236,18 @@ export function Chat(): JSX.Element {
             </div>
           ) : (
             <div className="chat__thread">
-              {active.messages.map((message) => (
-                <MessageRow
-                  key={message.id}
-                  message={message}
-                  agentName={agent?.name ?? 'Neuro'}
-                  streaming={streaming}
-                  menuOpen={messageMenu === message.id}
-                  onMenu={() => setMessageMenu(messageMenu === message.id ? null : message.id)}
-                />
-              ))}
+              {active.messages
+                .filter((message) => message.role !== 'tool')
+                .map((message) => (
+                  <MessageRow
+                    key={message.id}
+                    message={message}
+                    agentName={agent?.name ?? 'Neuro'}
+                    streaming={streaming}
+                    menuOpen={messageMenu === message.id}
+                    onMenu={() => setMessageMenu(messageMenu === message.id ? null : message.id)}
+                  />
+                ))}
               {streaming ? (
                 <div className="chat__thinking">
                   <span className="chat__thinkingDots">
@@ -273,7 +275,7 @@ export function Chat(): JSX.Element {
               </button>
               <span className="grow" />
               <span className="composer__hint tiny faint">
-                <span className="n-kbd">↵</span> send <span className="n-kbd">⇧↵</span> newline
+                <span className="n-kbd">←µ</span> send <span className="n-kbd">⇧←µ</span> newline
               </span>
             </div>
             <textarea
@@ -539,3 +541,4 @@ function ToolCallCard({ call, onApprove }: { call: ToolInvocation; onApprove: (i
     </div>
   );
 }
+

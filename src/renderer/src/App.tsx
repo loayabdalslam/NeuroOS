@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Component, useEffect, useState, type ReactNode } from 'react';
 import type { SurfaceKind } from '@shared/types';
 import { languageByCode } from '@shared/i18n';
 import { useAppStore } from './state/store';
@@ -41,6 +41,9 @@ export function App(): JSX.Element {
     const language = languageByCode(settings.locale);
     root.dataset.theme = mode;
     root.dataset.accent = settings.theme.accent;
+    root.dataset.design = settings.theme.design;
+    root.dataset.surface = settings.theme.surface;
+    root.dataset.wallpaper = settings.theme.wallpaper;
     root.dataset.density = settings.theme.density;
     root.dataset.transparency = settings.theme.transparency ? 'on' : 'off';
     root.dataset.motion = settings.theme.motion === 'reduced' ? 'reduced' : 'full';
@@ -155,7 +158,13 @@ function Shell(): JSX.Element {
       <TitleBar />
       <div className="app__body">
         <Dock />
-        <main className="app__main">{activePage ? <SurfaceHost page={activePage} key={`${activePage.id}-${activePage.surface}`} /> : null}</main>
+        <main className="app__main">
+          {activePage ? (
+            <SurfaceBoundary key={`${activePage.id}-${activePage.surface}`} surface={activePage.surface}>
+              <SurfaceHost page={activePage} />
+            </SurfaceBoundary>
+          ) : null}
+        </main>
         {anchorOpen ? <AnchorRail /> : null}
       </div>
       <Taskbar />
@@ -165,8 +174,7 @@ function Shell(): JSX.Element {
   );
 }
 
-function SurfaceHost({ page }: { page: ReturnType<typeof useAppStore.getState>['pages'][number] }): JSX.Element {
-  switch (page.surface) {
+function SurfaceHost({ page }: { page: ReturnType<typeof useAppStore.getState>['pages'][number] }): JSX.Element {  switch (page.surface) {
     case 'desktop':
       return <Desktop />;
     case 'chat':
@@ -190,8 +198,39 @@ function SurfaceHost({ page }: { page: ReturnType<typeof useAppStore.getState>['
   }
 }
 
-export function Boot(): JSX.Element {
-  return (
+class SurfaceBoundary extends Component<{ surface: string; children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error): { error: Error } {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+    console.error(`[surface:${this.props.surface}] crashed`, error, info);
+  }
+
+  render(): ReactNode {
+    if (this.state.error) {
+      return (
+        <div className="surfaceError">
+          <div className="surfaceError__icon">
+            <BrandMark size={34} />
+          </div>
+          <div className="small strong">The {this.props.surface} surface hit an error</div>
+          <div className="tiny faint mono" style={{ maxWidth: 560, textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+            {this.state.error.message}
+          </div>
+          <button type="button" className="n-btn n-btn--outline" onClick={() => this.setState({ error: null })}>
+            Retry surface
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export function Boot(): JSX.Element {  return (
     <div className="boot">
       <div className="boot__glow" />
       <div className="boot__mark">

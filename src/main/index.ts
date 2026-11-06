@@ -5,6 +5,7 @@ import { IpcRouter, log } from './core/ipc';
 import { createKernel, type Kernel } from './kernel';
 import { buildHandlers } from './ipcHandlers';
 import { Paths, ensureProfileDirs } from './core/store';
+import { startMockProvider } from './selftest/mockProvider';
 
 const isDev = !app.isPackaged;
 const isSelftest = process.argv.includes('--selftest');
@@ -134,10 +135,36 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     if (ready) break;
     await wait(200);
   }
-  await wait(1200);
-  await screenshot('01-onboarding');
 
   if (!kernel) return;
+
+  const mock = await startMockProvider();
+
+  // Force a clean first-run experience so the harness is deterministic.
+  kernel.settings.reset();
+  for (const existing of kernel.agent.listSessions()) await kernel.agent.deleteSession(existing.id);
+  router?.emit('settings:changed', kernel.settings.public());
+  await wait(1400);
+  await screenshot('01-onboarding');
+
+  // Walk to the appearance step (welcome → language → profile → appearance).
+  for (let i = 0; i < 3; i += 1) {
+    await win.webContents
+      .executeJavaScript(`(() => {
+        const nameInput = document.querySelector('.onboard__fields input');
+        if (nameInput && !nameInput.value) {
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+          setter.call(nameInput, 'Youssef');
+          nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        const btn = document.querySelector('.onboard__footRight .n-btn--primary');
+        if (btn && !btn.disabled) btn.click();
+        return Boolean(btn && !btn.disabled);
+      })()`)
+      .catch(() => {});
+    await wait(800);
+  }
+  await screenshot('01b-onboarding-appearance');
 
   // Fast-forward onboarding so every surface can be captured.
   kernel.settings.completeOnboarding({
@@ -146,7 +173,21 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     role: 'AI systems engineer',
     theme: 'dark',
     accent: 'neuro',
+    design: 'neuro',
+    surface: 'standard',
     workspaceRoot: path.join(Paths.workspaces, 'Neuro Demo'),
+    provider: {
+      id: 'sandbox',
+      name: 'Neuro Sandbox',
+      kind: 'openai',
+      baseUrl: `${mock.url}/v1`,
+      apiKey: 'sandbox',
+      enabled: true,
+      models: [{ id: 'neuro-sandbox', label: 'Neuro Sandbox', supportsTools: true, contextWindow: 128000 }],
+      defaultModel: 'neuro-sandbox',
+      color: '#22c55e',
+      createdAt: new Date().toISOString(),
+    },
   });
   await kernel.workspace.ensureDemoWorkspace(path.join(Paths.workspaces, 'Neuro Demo'));
   kernel.content.seedSpaces();
@@ -163,13 +204,48 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   router?.emit('settings:changed', kernel.settings.public());
   await wait(1600);
 
+  // Exercise the real agent loop against the sandbox endpoint: streaming,
+  // a tool call, the tool result round-trip and persistence.
+  const session = await kernel.agent.createSession({ title: 'Sandbox · system check' });
+  await kernel.agent.send(session.id, 'Check this machine and summarise it in one line.');
+  await wait(5200);
+  const transcript = await kernel.agent.getSession(session.id);
+  const assistant = [...transcript.messages].reverse().find((message) => message.role === 'assistant');
+  log.info(
+    'selftest',
+    `chat turn: messages=${transcript.messages.length} chars=${assistant?.content.length ?? 0} tools=${
+      assistant?.toolCalls?.map((call) => `${call.name}:${call.status}`).join(',') ?? 'none'
+    }`,
+  );
+
+  // Filesystem round-trip (real disk I/O inside the demo workspace).
+  const root = kernel.settings.public().workspaceRoot;
+  const probeFile = path.join(root, 'selftest-probe.md');
+  await kernel.workspace.write(probeFile, '# Probe\n\nWritten by the selftest harness.\n');
+  const read = await kernel.workspace.read(probeFile);
+  const hits = await kernel.workspace.search(root, 'selftest harness');
+  await kernel.workspace.remove([probeFile]);
+  log.info('selftest', `fs round-trip: bytes=${read.content.length} searchHits=${hits.length}`);
+
+  // Notebook kernel.
+  const notebook = kernel.content.notebooks()[0];
+  const codeCell = notebook?.cells.find((cell) => cell.kind === 'code');
+  if (notebook && codeCell) {
+    const ran = await kernel.content.runCell(notebook.id, codeCell.id);
+    log.info('selftest', `notebook: status=${ran.status} output=${(ran.output ?? '').slice(0, 80).replace(/\n/g, ' ')}`);
+  }
+
+  // Tool bus through the real registry.
+  const shellTool = await kernel.tools.invoke('shell.exec', { command: 'echo neuro-tool-bus' });
+  log.info('selftest', `tool shell.exec: ${shellTool.status} ${(shellTool.output ?? '').slice(0, 60).replace(/\n/g, ' ')}`);
+
   const surfaces: [string, string, Record<string, string>?][] = [
     ['02-desktop', 'desktop'],
     ['03-chat', 'chat'],
     ['04-workspace', 'workspace'],
     ['05-space', 'space'],
     ['06-notebook', 'notebook'],
-    ['07-browser', 'browser', { url: 'https://deepseek.com' }],
+    ['07-browser', 'browser'],
     ['08-terminal', 'terminal'],
     ['09-marketplace', 'marketplace'],
     ['10-settings', 'settings'],
@@ -177,11 +253,63 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
 
   for (const [name, surface, params] of surfaces) {
     router?.emit('ui:navigate', { surface, params: params ?? {} });
-    await wait(surface === 'browser' ? 2600 : 900);
+    await wait(surface === 'browser' ? 1800 : 900);
     await screenshot(name);
   }
 
+  // Guest-webview verification: capturePage cannot composite guest surfaces, so
+  // assert the loaded page title and URL instead of a screenshot.
+  for (const url of ['https://example.com', 'https://en.wikipedia.org/wiki/Operating_system']) {
+    router?.emit('ui:navigate', { surface: 'browser', params: { url } });
+    await wait(4200);
+    const probe = await win.webContents
+      .executeJavaScript(
+        `(() => { const w = document.querySelector('webview'); try { return JSON.stringify({ title: w.getTitle(), url: w.getURL(), loading: w.isLoading() }); } catch (e) { return 'probe error: ' + e.message; } })()`,
+      )
+      .catch((error) => `probe failed: ${String(error)}`);
+    log.info('selftest', `webview ${url} → ${probe}`);
+  }
+  router?.emit('ui:navigate', { surface: 'browser', params: {} });
+  await wait(600);
+
+  // Theme gallery verification: render the desktop under each design language.
+  const themes: [string, Record<string, unknown>, Record<string, unknown>][] = [
+    ['13-theme-windows', { design: 'windows', mode: 'light', surface: 'standard', accent: 'deepseek', radius: 8, wallpaper: 'mica-light', transparency: true, glow: false }, { position: 'bottom' }],
+    ['14-theme-ubuntu', { design: 'ubuntu', mode: 'dark', surface: 'standard', accent: 'amber', radius: 10, wallpaper: 'aubergine', transparency: false, glow: false }, { position: 'top' }],
+    ['15-theme-ios', { design: 'ios', mode: 'light', surface: 'white', accent: 'neuro', radius: 20, wallpaper: 'aurora', transparency: true, glow: false }, { position: 'bottom' }],
+    ['16-theme-white', { design: 'neuro', mode: 'light', surface: 'white', accent: 'deepseek', radius: 14, wallpaper: 'paper', transparency: true, glow: false }, { position: 'bottom' }],
+  ];
+  for (const [name, theme, taskbar] of themes) {
+    kernel.settings.patch({ theme: { ...(theme as object) } as never, taskbar: taskbar as never });
+    router?.emit('settings:changed', kernel.settings.public());
+    router?.emit('ui:navigate', { surface: 'desktop', params: {} });
+    await wait(700);
+    await win.webContents.executeJavaScript("document.querySelector('.desk__scroll')?.scrollTo(0,0)").catch(() => {});
+    await wait(400);
+    await screenshot(name);
+  }
+  kernel.settings.patch({
+    theme: { design: 'neuro', mode: 'dark', surface: 'standard', accent: 'neuro', radius: 14, wallpaper: 'nebula', transparency: true, glow: true },
+    taskbar: { position: 'bottom' },
+  });
+  router?.emit('settings:changed', kernel.settings.public());
+
+  // Interaction states: Anchor rail and the command palette.
+  await win.webContents.executeJavaScript(
+    `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', ctrlKey: true, bubbles: true }))`,
+  );
+  await wait(900);
+  await screenshot('11-anchor');
+
+  await win.webContents.executeJavaScript(
+    `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))`,
+  );
+  await wait(700);
+  await screenshot('12-command-palette');
+  await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+
   log.info('selftest', 'complete');
+  await mock.close();
   await kernel.dispose();
   app.exit(0);
 }

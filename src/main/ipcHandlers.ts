@@ -1,4 +1,5 @@
-﻿import fs from 'node:fs/promises';
+import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import { app, dialog, BrowserWindow } from 'electron';
 import type { HandlerMap } from './core/ipc';
@@ -170,6 +171,44 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
     'tools.run': async ({ name, args }) => tools.invoke(name, args),
     'tools.policies': () => settings.public().toolPolicies,
 
+    'terminal.list': () => kernel.terminal.list(),
+    'terminal.create': (params) => kernel.terminal.create(params ?? {}),
+    'terminal.write': ({ id, data }) => {
+      kernel.terminal.write(id, data);
+      return { ok: true };
+    },
+    'terminal.resize': ({ id, cols, rows }) => {
+      kernel.terminal.resize(id, cols, rows);
+      return { ok: true };
+    },
+    'terminal.kill': ({ id }) => {
+      kernel.terminal.kill(id);
+      return { ok: true };
+    },
+    'terminal.buffer': ({ id }) => ({ data: kernel.terminal.buffer(id) }),
+    'terminal.shells': () => {
+      const shells =
+        process.platform === 'win32'
+          ? [
+              { name: 'PowerShell 7', path: 'C:\\Program Files\\PowerShell\\7\\pwsh.exe' },
+              { name: 'Windows PowerShell', path: 'powershell.exe' },
+              { name: 'Command Prompt', path: 'cmd.exe' },
+              { name: 'Git Bash', path: 'C:\\Program Files\\Git\\bin\\bash.exe' },
+            ].filter((shell) => {
+              try {
+                return shell.path.includes('\\') ? fsSync.existsSync(shell.path) : true;
+              } catch {
+                return false;
+              }
+            })
+          : [
+              { name: 'bash', path: '/bin/bash' },
+              { name: 'zsh', path: '/bin/zsh' },
+              { name: 'sh', path: '/bin/sh' },
+            ];
+      return { shells, default: shells[0]?.path ?? 'powershell.exe', pty: kernel.terminal.list().some((session) => session.usingPty) };
+    },
+
     'fs.list': ({ path: target, showHidden }) => workspace.list(target, showHidden),
     'fs.read': ({ path: target }) => workspace.read(target),
     'fs.write': async ({ path: target, content: body }) => ({ ok: true, stat: await workspace.write(target, body) }),
@@ -286,6 +325,40 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
         } catch (error) {
           log.warn('marketplace', 'seed install failed', error);
         }
+      }
+      // Seed the Anchor with the workspace and the first note so the rail is
+      // immediately useful instead of empty.
+      const current = settings.public();
+      if (!current.anchor.pins.length && current.workspaceRoot) {
+        const { basename } = path;
+        const firstNote = content.notes()[0];
+        settings.patch({
+          anchor: {
+            ...current.anchor,
+            pins: [
+              {
+                id: `pin_${Date.now().toString(36)}`,
+                kind: 'file',
+                ref: current.workspaceRoot,
+                label: basename(current.workspaceRoot) || 'Workspace',
+                subtitle: 'workspace root',
+                order: 0,
+              },
+              ...(firstNote
+                ? [
+                    {
+                      id: `pin_${Date.now().toString(36)}n`,
+                      kind: 'note' as const,
+                      ref: firstNote.id,
+                      label: firstNote.title,
+                      subtitle: firstNote.body.slice(0, 60),
+                      order: 1,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        });
       }
       kernel.emit('settings:changed', settings.public());
       return settings.public();

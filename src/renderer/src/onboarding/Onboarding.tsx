@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ProviderConfig } from '@shared/types';
 import { LANGUAGES } from '@shared/i18n';
 import { PROVIDER_PRESETS, presetToProvider, type ProviderPreset } from '@shared/providers';
+import { THEME_PRESETS } from '@shared/themes';
 import { useAppStore } from '../state/store';
 import { useT } from '../lib/i18n';
 import { invoke } from '../lib/ipc';
@@ -29,6 +30,8 @@ export function Onboarding(): JSX.Element {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
+  const [design, setDesign] = useState<'neuro' | 'windows' | 'ubuntu' | 'ios'>('neuro');
+  const [white, setWhite] = useState(false);
   const [accent, setAccent] = useState('neuro');
   const [preset, setPreset] = useState<ProviderPreset | null>(null);
   const [apiKey, setApiKey] = useState('');
@@ -43,14 +46,18 @@ export function Onboarding(): JSX.Element {
   const index = STEPS.indexOf(step);
   const progress = ((index + 1) / STEPS.length) * 100;
 
-  /* Locale preview applies instantly to the onboarding itself. */
+  /* Locale + theme preview applies instantly to the onboarding itself. */
   useEffect(() => {
     const root = document.documentElement;
     root.lang = language.code;
     root.dir = language.dir;
     root.dataset.theme = theme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;
     root.dataset.accent = accent;
-  }, [language, theme, accent]);
+    root.dataset.design = design;
+    root.dataset.surface = white ? 'white' : 'standard';
+    const preset = THEME_PRESETS.find((item) => item.design === design && item.mode === (theme === 'system' ? 'dark' : theme));
+    root.dataset.wallpaper = preset?.wallpaper ?? (white ? 'paper' : 'nebula');
+  }, [language, theme, accent, design, white]);
 
   const next = (): void => setStep(STEPS[Math.min(STEPS.length - 1, index + 1)]);
   const back = (): void => setStep(STEPS[Math.max(0, index - 1)]);
@@ -92,6 +99,8 @@ export function Onboarding(): JSX.Element {
         role: role.trim(),
         theme,
         accent,
+        design,
+        surface: white ? 'white' : 'standard',
         workspaceRoot: workspace,
         provider,
       });
@@ -233,6 +242,34 @@ export function Onboarding(): JSX.Element {
         </div>
 
         <div className="onboard__panel" key={step}>
+          {step === 'profile' ? (
+            <div className="onboard__profileCard">
+              <div className="onboard__profileAvatar" style={{ ['--hue' as string]: name.length * 12 }}>
+                {(name.trim()[0] ?? 'N').toUpperCase()}
+              </div>
+              <div className="onboard__profileName display">{name.trim() || 'Your name'}</div>
+              <div className="onboard__profileRole">{role.trim() || 'What you build'}</div>
+              <div className="onboard__profileChips">
+                <span className="n-chip">
+                  <Flag code={language.flag} size={13} /> {language.nativeName}
+                </span>
+                <span className="n-chip">
+                  <Icon name="palette" size={11} /> {design === 'neuro' ? 'Neuro' : design}
+                </span>
+                <span className="n-chip">
+                  <Icon name="lock" size={11} /> local-first
+                </span>
+              </div>
+              <div className="onboard__profileNote">
+                Your profile is a plain JSON file on this machine. Neuro OS never uploads it, and you can edit or delete it at any
+                time.
+              </div>
+              <div className="onboard__profileQuote">
+                “An operating system should know how you work — and never phone home about it.”
+              </div>
+            </div>
+          ) : null}
+
           {step === 'welcome' ? (
             <div className="onboard__welcomeCard">
               <div className="onboard__welcomeHead">
@@ -288,11 +325,42 @@ export function Onboarding(): JSX.Element {
 
           {step === 'appearance' ? (
             <div className="onboard__appearance">
-              <div className="themePreview" data-theme-preview={theme}>
+              <div className="designGrid">
+                {(['neuro', 'windows', 'ubuntu', 'ios'] as const).map((item) => {
+                  const preset = THEME_PRESETS.find((entry) => entry.design === item)!;
+                  const [bg, surface, accentColor, text] = preset.colors;
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      className="designCard"
+                      data-active={design === item}
+                      onClick={() => {
+                        setDesign(item);
+                        if (item === 'windows') setAccent('deepseek');
+                        if (item === 'ubuntu') setAccent('amber');
+                        if (item === 'ios') setAccent('neuro');
+                      }}
+                    >
+                      <span className="designCard__preview" style={{ background: bg }}>
+                        <span className="designCard__surface" style={{ background: surface }} />
+                        <span className="designCard__accent" style={{ background: accentColor }} />
+                        <span className="designCard__text" style={{ background: text, opacity: 0.65 }} />
+                      </span>
+                      <span className="designCard__name">{preset.design === 'neuro' ? 'Neuro OS' : preset.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="themePreview" data-theme-preview={theme} data-design-preview={design}>
                 <div className="themePreview__bar">
                   <span className="n-dot n-dot--offline" />
                   <span className="n-dot n-dot--warn" />
                   <span className="n-dot n-dot--online" />
+                  <span className="tiny faint" style={{ marginLeft: 6 }}>
+                    {design === 'windows' ? 'Mica' : design === 'ubuntu' ? 'Yaru' : design === 'ios' ? 'Glass' : 'Aurora'}
+                  </span>
                 </div>
                 <div className="themePreview__body">
                   <div className="themePreview__side">
@@ -306,10 +374,11 @@ export function Onboarding(): JSX.Element {
                     <div className="themePreview__title" />
                     <div className="themePreview__line" style={{ width: '74%' }} />
                     <div className="themePreview__line" style={{ width: '52%' }} />
-                    <div className="themePreview__chip">{accent}</div>
+                    <div className="themePreview__chip">{design === 'windows' ? 'fluent' : design === 'ubuntu' ? 'yaru' : design === 'ios' ? 'ios' : accent}</div>
                   </div>
                 </div>
               </div>
+
               <div className="onboard__controlRow">
                 <span className="n-label">{t('common.theme')}</span>
                 <div className="n-segmented">
@@ -321,6 +390,12 @@ export function Onboarding(): JSX.Element {
                   ))}
                 </div>
               </div>
+
+              <div className="onboard__controlRow">
+                <span className="n-label">White theme</span>
+                <button type="button" className="n-switch" data-on={white} onClick={() => setWhite(!white)} aria-label="White theme" />
+              </div>
+
               <div className="onboard__controlRow">
                 <span className="n-label">{t('settings.accent')}</span>
                 <div className="onboard__swatches">

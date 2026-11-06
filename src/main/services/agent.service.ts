@@ -1,4 +1,4 @@
-﻿import os from 'node:os';
+import os from 'node:os';
 import path from 'node:path';
 import type {
   AgentConfig,
@@ -232,7 +232,7 @@ export class AgentService {
     const assistant = session.messages.find((m) => m.id === assistantId)!;
 
     if (!provider) {
-      throw new Error('No provider configured. Open Settings â†’ Providers to connect one.');
+      throw new Error('No provider configured. Open Settings → Providers to connect one.');
     }
     if (provider.kind === 'acp') {
       await this.runAcpTurn(session, assistant, provider, controller);
@@ -334,7 +334,7 @@ export class AgentService {
   private async executeTool(invocation: ToolInvocation, sessionId: string, signal: AbortSignal): Promise<ToolInvocation> {
     const policy = this.deps.toolRegistry.policyFor(invocation.name);
     if (policy === 'deny') {
-      return { ...invocation, status: 'denied', output: 'Tool is disabled by policy in Settings â†’ Tools.', startedAt: nowIso(), endedAt: nowIso(), durationMs: 0 };
+      return { ...invocation, status: 'denied', output: 'Tool is disabled by policy in Settings → Tools.', startedAt: nowIso(), endedAt: nowIso(), durationMs: 0 };
     }
     if (policy === 'ask') {
       const approved = await this.deps.approvals.request(invocation.id);
@@ -378,7 +378,7 @@ export class AgentService {
   private async runAcpTurn(session: ChatSessionFull, assistant: ChatMessage, provider: ProviderConfig, controller: AbortController): Promise<void> {
     const client = await this.ensureAcp(provider);
     const sessionId = session.id;
-    this.deps.emit({ type: 'status', sessionId, status: `ACP Â· ${client.agentInfo?.title ?? provider.name}` });
+    this.deps.emit({ type: 'status', sessionId, status: `ACP · ${client.agentInfo?.title ?? provider.name}` });
 
     if (!client.currentSession) {
       await client.newSession(this.deps.settings.public().workspaceRoot || this.deps.cwd());

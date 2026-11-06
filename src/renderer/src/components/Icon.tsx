@@ -1,4 +1,4 @@
-﻿import {
+import {
   Activity,
   Paperclip,
   ArrowDownRight,

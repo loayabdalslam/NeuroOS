@@ -25,6 +25,8 @@ export type SurfaceKind =
   | 'settings';
 
 export type ThemeMode = 'dark' | 'light' | 'system';
+export type ThemeDesign = 'neuro' | 'windows' | 'ubuntu' | 'ios';
+export type ThemeSurface = 'standard' | 'white';
 export type Density = 'comfortable' | 'compact';
 export type MotionLevel = 'full' | 'reduced';
 export type TaskbarPosition = 'bottom' | 'top' | 'left' | 'right';
@@ -420,6 +422,8 @@ export interface AnchorConfig {
 
 export interface ThemeConfig {
   mode: ThemeMode;
+  design: ThemeDesign;
+  surface: ThemeSurface;
   accent: 'neuro' | 'deepseek' | 'violet' | 'teal' | 'amber';
   density: Density;
   transparency: boolean;
