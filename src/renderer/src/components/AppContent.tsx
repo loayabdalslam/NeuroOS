@@ -4,6 +4,7 @@ import { Workspace } from '../surfaces/Workspace';
 import { TerminalSurface } from '../surfaces/Terminal';
 import { BrowserSurface } from '../surfaces/Browser';
 import { SitesSurface } from '../surfaces/Sites';
+import { BrainSurface } from '../surfaces/Brain';
 import { NotebookSurface } from '../surfaces/Notebook';
 import { MailSurface } from '../surfaces/Mail';
 import { AutomationSurface } from '../surfaces/Automation';
@@ -27,6 +28,8 @@ export function AppContent({ appId }: { appId: string }): JSX.Element {
       return <BrowserSurface params={{}} />;
     case 'sites':
       return <SitesSurface />;
+    case 'brain':
+      return <BrainSurface />;
     case 'notebook':
       return <NotebookSurface params={{}} />;
     case 'mail':

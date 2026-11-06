@@ -1,4 +1,4 @@
-import os from 'node:os';
+﻿import os from 'node:os';
 import path from 'node:path';
 import type { AgentEvent, KernelStatus, ToastPayload, AnchorPin } from '@shared/types';
 import type { EventChannel, EventMap } from '@shared/ipc';
@@ -18,6 +18,7 @@ import { MailService } from './services/mail.service';
 import { PluginService } from './services/plugins.service';
 import { ComposioService } from './services/composio.service';
 import { WebService } from './services/web.service';
+import { BrainService } from './services/brain.service';
 import { shell } from 'electron';
 import { CompositionService } from './services/composition.service';
 import { AutomationService } from './services/automation.service';
@@ -35,6 +36,7 @@ export interface Kernel {
   plugins: PluginService;
   composio: ComposioService;
   web: WebService;
+  brain: BrainService;
   compositions: CompositionService;
   automation: AutomationService;
   approvals: ApprovalRegistry;
@@ -52,6 +54,10 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
   const workspace = new WorkspaceService();
   const system = new SystemService();
   const content = new ContentService();
+  const brain = new BrainService({
+    dataFile: path.join(Paths.state, 'brain.json'),
+    onEvent: (payload) => emitRaw('brain:event', payload as never),
+  });
   const approvals = new ApprovalRegistry();
 
   const activeAgentEvents = new Set<(event: AgentEvent) => void>();
@@ -95,6 +101,12 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
       },
       openApp: (appId) => emitRaw('os:open', { appId }),
     },
+    brain: {
+      recall: (query, limit) =>
+        brain.recall(query, limit).map((hit) => ({ label: hit.node.label, kind: hit.node.kind, weight: hit.node.weight, why: hit.why })),
+      remember: (text, tags) => void brain.remember(text, tags),
+      stats: () => ({ nodes: brain.stats().nodes, edges: brain.stats().edges, events: brain.stats().events }),
+    },
     mail: {
       status: () => late.mail!.status(),
       messages: (folder, limit) => late.mail!.messages(folder, limit),
@@ -125,6 +137,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
     approvals,
     cwd: () => settings.public().workspaceRoot || path.join(os.homedir(), 'Neuro Workspace'),
     pluginAdapter: (providerId) => plugins?.adapterFor(providerId) ?? null,
+    brainContext: (prompt) => brain.contextFor(prompt),
   });
 
   const compositions = new CompositionService({
@@ -139,6 +152,18 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
     onEvent: (event) => {
       emitRaw('mail:event', event);
       if (event.kind === 'message' && event.message?.direction === 'in') automation?.notifyMail(event.message);
+      if (event.kind === 'message' && event.message) {
+        brain.capture([
+          {
+            kind: 'mail',
+            label: event.message.from.address,
+            detail: event.message.subject,
+            surface: 'mail',
+            app: 'mail',
+            tags: ['mail', event.message.direction],
+          },
+        ]);
+      }
     },
   });
 
@@ -205,6 +230,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
     plugins,
     composio,
     web,
+    brain,
     compositions,
     automation,
     approvals,
@@ -224,7 +250,8 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
           { name: 'mail', status: mail.status().listening ? 'online' : 'degraded', detail: mail.status().identity ? mail.status().identity!.address : 'no identity' },
           { name: 'plugins', status: 'online', detail: `${plugins.list().length} installed` },
           { name: 'composio', status: composio.status().configured ? 'online' : 'degraded', detail: composio.status().configured ? `${composio.status().tools} tools` : 'not configured' },
-          { name: 'web', status: web.stats().port ? 'online' : 'degraded', detail: `${web.list().length} sites · ${web.peers().length} peers` },
+          { name: 'web', status: web.stats().port ? 'online' : 'degraded', detail: `${web.list().length} sites Â· ${web.peers().length} peers` },
+          { name: 'brain', status: 'online', detail: `${brain.stats().nodes} nodes Â· ${brain.stats().events} events` },
           { name: 'automation', status: 'online', detail: `${automation.list().length} workflows` },
           { name: 'workspace', status: s.workspaceRoot ? 'online' : 'degraded', detail: s.workspaceRoot },
         ],
@@ -244,6 +271,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
       automation?.dispose();
       composio.dispose();
       await web.dispose();
+      brain.dispose();
       await mail.dispose();
       await agent.shutdown();
     },
@@ -259,12 +287,14 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
     await plugins!.init();
     await composio.start();
     await web.start();
+    brain.start();
     const s = settings.public();
     if (s.workspaceRoot) await workspace.ensureDemoWorkspace(s.workspaceRoot).catch(() => {});
-    log.info('kernel', `ready · ${tools.list().length} tools · ${s.providers.length} providers`);
+    log.info('kernel', `ready Â· ${tools.list().length} tools Â· ${s.providers.length} providers`);
   })();
 
   return kernel;
 }
 
 export { Paths };
+

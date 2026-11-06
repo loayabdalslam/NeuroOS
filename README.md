@@ -44,6 +44,7 @@ Neuro OS is not a chat window with a sidebar. It is a small operating environmen
 Cross-cutting:
 
 - **Custom iconography** â€” a hand-built, colour-coded duotone icon set for every app, tool category and system surface, plus original brand marks (simple-icons, CC0) for model providers, operating systems and integrations.
+- **Graph Brain** — a local memory graph records every click, navigation, agent turn, mail, site and tool call, indexes it with Orama for instant recall, and feeds relevant memories into the agent. See [docs/BRAIN.md](docs/BRAIN.md).
 - **Neuro Web (decentralized hosting)** — claim a .neuro domain, drag a folder in, and your machine becomes the host. Peers replicate the signed site, and the browser switches between the central internet and the mesh. See [docs/WEB.md](docs/WEB.md).
 - **Composio integrations** â€” one key connects 100+ real services (Gmail, GitHub, Slack, Notion, Linear, Jira, Sheetsâ€¦). Enabled actions become `composio.<slug>` tools; `composio.search` + `composio.execute` expose the whole catalog. See [docs/COMPOSIO.md](docs/COMPOSIO.md).
 - **Real desktop simulation** â€” windows with drag/resize/snap, z-ordering, a start menu, a lockscreen, taskbar window buttons and a desktop context menu. Apps run inside windows *and* as full-page tabs.

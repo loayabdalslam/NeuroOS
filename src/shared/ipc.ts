@@ -6,6 +6,13 @@ import type {
   AgentConfig,
   AgentEvent,
   AppInfo,
+  BrainAnswer,
+  BrainCaptureInput,
+  BrainGraph,
+  BrainHit,
+  BrainNode,
+  BrainProfile,
+  BrainStats,
   CatalogItem,
   ChatSession,
   ChatSessionFull,
@@ -270,6 +277,19 @@ export interface IpcMap {
   'web.peerAdd': { params: { host: string; port: number }; result: WebPeer[] };
   'web.peerRemove': { params: { nodeId: string }; result: WebPeer[] };
   'web.gateway': { params: void; result: { gateway: string; port: number } };
+
+  /* brain (memory graph) */
+  'brain.stats': { params: void; result: BrainStats };
+  'brain.capture': { params: { items: BrainCaptureInput[] }; result: { recorded: number } };
+  'brain.graph': { params: { limit?: number } | void; result: BrainGraph };
+  'brain.recall': { params: { query: string; limit?: number }; result: BrainHit[] };
+  'brain.ask': { params: { query: string }; result: BrainAnswer };
+  'brain.timeline': { params: { limit?: number } | void; result: import('./types').BrainEventRecord[] };
+  'brain.profile': { params: void; result: BrainProfile };
+  'brain.forget': { params: { id: string }; result: BrainStats };
+  'brain.wipe': { params: void; result: BrainStats };
+  'brain.recording': { params: { enabled: boolean }; result: BrainStats };
+  'brain.remember': { params: { text: string; tags?: string[] }; result: BrainNode };
 }
 
 export type IpcChannel = keyof IpcMap;
@@ -300,6 +320,7 @@ export interface EventMap {
   };
   'plugins:changed': PluginRecord[];
   'web:event': { kind: string; stats?: WebStats };
+  'brain:event': { kind: string; stats?: BrainStats; node?: BrainNode };
   'automation:event': {
     runId: ID;
     workflowId: ID;
@@ -468,6 +489,17 @@ export const IPC_CHANNELS = [
   'web.peerAdd',
   'web.peerRemove',
   'web.gateway',
+  'brain.stats',
+  'brain.capture',
+  'brain.graph',
+  'brain.recall',
+  'brain.ask',
+  'brain.timeline',
+  'brain.profile',
+  'brain.forget',
+  'brain.wipe',
+  'brain.recording',
+  'brain.remember',
 ] as const satisfies readonly IpcChannel[];
 
 export const EVENT_CHANNELS = [
@@ -489,6 +521,7 @@ export const EVENT_CHANNELS = [
   'mail:event',
   'plugins:changed',
   'web:event',
+  'brain:event',
   'automation:event',
   'composition:event',
 ] as const satisfies readonly EventChannel[];

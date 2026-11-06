@@ -62,6 +62,7 @@ export interface AgentDeps {
   approvals: ApprovalRegistry;
   cwd: () => string;
   pluginAdapter?: (providerId: string) => import('./providers/adapters').ProviderAdapter | null;
+  brainContext?: (prompt: string) => string;
 }
 
 interface ActiveTurn {
@@ -421,6 +422,9 @@ export class AgentService {
       4,
     );
     const memoryBlock = memories.length ? `\n\n## Remembered context\n${memories.map((m) => `- ${m.text}`).join('\n')}` : '';
+    const lastPrompt = session.messages.filter((m) => m.role === 'user').slice(-1)[0]?.content ?? '';
+    const brainMemory = this.deps.brainContext?.(lastPrompt) ?? '';
+    const brainBlock = brainMemory ? `\n\n## Long-term memory\n${brainMemory}` : '';
     return `${base}
 
 ## Environment
@@ -433,7 +437,7 @@ export class AgentService {
 ## Rules of the environment
 - File tools accept absolute paths. Paths inside the workspace root are pre-approved; anything outside needs a reason.
 - Prefer \`shell.exec\` over describing commands. Prefer reading files over assuming.
-- Keep responses in the user's language.${memoryBlock}${skills}${session.messages.length > 0 ? '' : ''}`;
+- Keep responses in the user's language.${memoryBlock}${brainBlock}${skills}${session.messages.length > 0 ? '' : ''}`;
   }
 
   /* ------------------------------ ACP ------------------------------ */

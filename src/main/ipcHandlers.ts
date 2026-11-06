@@ -131,7 +131,19 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
     'chat.sessions': () => agent.listSessions(),
     'chat.session': ({ id }) => agent.getSession(id),
     'chat.create': (params) => agent.createSession(params),
-    'chat.send': ({ sessionId, text, attachments }) => agent.send(sessionId, text, attachments as never),
+    'chat.send': async ({ sessionId, text, attachments }) => {
+      kernel.brain.capture([
+        {
+          kind: 'chat',
+          label: `Asked Neuro: ${text.slice(0, 80)}`,
+          detail: text.slice(0, 300),
+          surface: 'chat',
+          app: 'chat',
+          tags: ['chat', 'agent'],
+        },
+      ]);
+      return agent.send(sessionId, text, attachments as never);
+    },
     'chat.cancel': ({ sessionId }) => ({ ok: agent.cancel(sessionId) }),
     'chat.regenerate': ({ sessionId }) => agent.regenerate(sessionId).then(() => ({ ok: true })),
     'chat.patch': ({ id, ...patch }) => agent.patchSession(id, patch),
@@ -503,7 +515,22 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
 
     'web.status': () => kernel.web.stats(),
     'web.list': () => kernel.web.list(),
-    'web.publish': (input) => kernel.web.publish(input),
+    'web.publish': async (input) => {
+      const result = await kernel.web.publish(input);
+      if (result.ok && result.manifest) {
+        kernel.brain.capture([
+          {
+            kind: 'site',
+            label: `${result.manifest.domain}.neuro`,
+            detail: result.manifest.title,
+            surface: 'sites',
+            app: 'sites',
+            tags: ['site', 'web', ...(input.domain ? [input.domain] : [])],
+          },
+        ]);
+      }
+      return result;
+    },
     'web.publishFolder': async ({ domain, title }) => {
       const win = getWindow();
       const picked = win
@@ -518,6 +545,18 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
     'web.peerAdd': ({ host, port }) => kernel.web.addPeer(host, Number(port)),
     'web.peerRemove': ({ nodeId }) => kernel.web.removePeer(nodeId),
     'web.gateway': () => ({ gateway: kernel.web.stats().gateway, port: kernel.web.stats().port }),
+
+    'brain.stats': () => kernel.brain.stats(),
+    'brain.capture': ({ items }) => kernel.brain.capture(items),
+    'brain.graph': (params) => kernel.brain.graph(params?.limit),
+    'brain.recall': ({ query, limit }) => kernel.brain.recall(query, limit),
+    'brain.ask': ({ query }) => kernel.brain.ask(query),
+    'brain.timeline': (params) => kernel.brain.timeline(params?.limit),
+    'brain.profile': () => kernel.brain.profile(),
+    'brain.forget': ({ id }) => kernel.brain.forget(id),
+    'brain.wipe': () => kernel.brain.wipe(),
+    'brain.recording': ({ enabled }) => kernel.brain.setRecording(enabled),
+    'brain.remember': ({ text, tags }) => kernel.brain.remember(text, tags),
 
     'onboarding.state': () => ({ complete: settings.public().onboardingComplete }),
   } as HandlerMap;

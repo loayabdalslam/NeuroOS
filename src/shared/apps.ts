@@ -137,6 +137,18 @@ export const OS_APPS: AppDef[] = [
     minHeight: 460,
   },
   {
+    id: 'brain',
+    name: 'Brain',
+    icon: 'brain',
+    accent: '#ec4899',
+    surface: 'brain',
+    description: 'The memory graph: every action, every click, remembered',
+    width: 1180,
+    height: 760,
+    minWidth: 820,
+    minHeight: 520,
+  },
+  {
     id: 'spaces',
     name: 'Spaces',
     icon: 'layers',

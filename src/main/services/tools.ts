@@ -36,6 +36,11 @@ export interface ToolRuntime {
     pin: (pin: Omit<AnchorPin, 'id' | 'order'>) => void;
     openApp: (appId: string) => void;
   };
+  brain?: {
+    recall: (query: string, limit?: number) => { label: string; kind: string; weight: number; why: string }[];
+    remember: (text: string, tags?: string[]) => void;
+    stats: () => { nodes: number; edges: number; events: number };
+  };
   mail?: {
     status: () => MailStatus;
     messages: (folder: 'inbox' | 'sent', limit?: number) => MailMessage[];
@@ -424,6 +429,46 @@ const TOOLS: RegisteredTool[] = [
     async (args, rt) => {
       rt.ui.toast({ title: String(args.title), message: args.message ? String(args.message) : undefined, kind: (args.kind as ToastPayload['kind']) ?? 'info' });
       return { ok: true, output: 'Toast shown.' };
+    },
+  ),
+  define(
+    'brain.recall',
+    'Recall from memory',
+    'Search the local memory graph (apps used, actions taken, people, sites, tools, past questions) and return the closest memories with why they matched.',
+    'agent',
+    'low',
+    obj({ query: str('What to recall, in natural language.'), limit: num('Max results (default 6).') }, ['query']),
+    async (args, rt) => {
+      if (!rt.brain) return { ok: false, output: 'Brain is unavailable.' };
+      const hits = rt.brain.recall(String(args.query), Math.min(Number(args.limit ?? 6) || 6, 20));
+      if (!hits.length) return { ok: true, output: 'Nothing in memory matches that yet.' };
+      return { ok: true, output: hits.map((hit) => `- ${hit.label} (${hit.kind}, ${hit.weight}x) — ${hit.why}`).join('\n') };
+    },
+  ),
+  define(
+    'brain.remember',
+    'Remember a fact',
+    'Store a durable fact or preference in the local memory graph so it can be recalled in later conversations.',
+    'agent',
+    'low',
+    obj({ text: str('The fact or preference to store.'), tags: { type: 'array', items: { type: 'string' }, description: 'Optional tags.' } }, ['text']),
+    async (args, rt) => {
+      if (!rt.brain) return { ok: false, output: 'Brain is unavailable.' };
+      rt.brain.remember(String(args.text), Array.isArray(args.tags) ? (args.tags as string[]) : []);
+      return { ok: true, output: 'Stored in long-term memory.' };
+    },
+  ),
+  define(
+    'brain.stats',
+    'Memory stats',
+    'Report how many memory nodes, relations and recorded events the brain holds.',
+    'agent',
+    'low',
+    obj({}),
+    async (_args, rt) => {
+      if (!rt.brain) return { ok: false, output: 'Brain is unavailable.' };
+      const stats = rt.brain.stats();
+      return { ok: true, output: `${stats.nodes} memories · ${stats.edges} relations · ${stats.events} events recorded` };
     },
   ),
   define(

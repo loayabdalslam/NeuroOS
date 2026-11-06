@@ -1,5 +1,5 @@
 import { Component, useEffect, useState, type ReactNode } from 'react';
-import type { SurfaceKind } from '@shared/types';
+import type { BrainCaptureInput, SurfaceKind } from '@shared/types';
 import { languageByCode } from '@shared/i18n';
 import { useAppStore } from './state/store';
 import { useChatStore } from './state/chat';
@@ -19,6 +19,7 @@ import { Spaces } from './surfaces/Spaces';
 import { NotebookSurface } from './surfaces/Notebook';
 import { BrowserSurface } from './surfaces/Browser';
 import { SitesSurface } from './surfaces/Sites';
+import { BrainSurface } from './surfaces/Brain';
 import { TerminalSurface } from './surfaces/Terminal';
 import { MailSurface } from './surfaces/Mail';
 import { AutomationSurface } from './surfaces/Automation';
@@ -64,6 +65,90 @@ export function App(): JSX.Element {
     root.style.setProperty('--n-radius-xl', `${Math.round(settings.theme.radius * 1.7)}px`);
     root.style.setProperty('--n-anchor-w', `${settings.anchor.width}px`);
   }, [settings, systemDark]);
+
+  /* ---- brain: capture every interaction ---- */
+  useEffect(() => {
+    if (!ready) return;
+    let queue: BrainCaptureInput[] = [];
+    let timer: number | undefined;
+    const flush = (): void => {
+      if (!queue.length) return;
+      const items = queue;
+      queue = [];
+      void invoke('brain.capture', { items }).catch(() => {});
+    };
+    const schedule = (): void => {
+      if (timer) return;
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        flush();
+      }, 1200);
+    };
+    const push = (item: BrainCaptureInput): void => {
+      queue.push(item);
+      if (queue.length >= 14) {
+        if (timer) window.clearTimeout(timer);
+        timer = undefined;
+        flush();
+        return;
+      }
+      schedule();
+    };
+    const labelFor = (element: Element | null): string => {
+      const target = element?.closest('button, a, [role="button"], [role="tab"], input, select, textarea') as HTMLElement | null;
+      if (!target) return '';
+      return (target.getAttribute('aria-label') || target.getAttribute('data-tip') || target.getAttribute('placeholder') || target.textContent || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .slice(0, 80);
+    };
+    const onClick = (event: MouseEvent): void => {
+      const target = event.target as Element | null;
+      if (!target || target.closest('.brain')) return;
+      const label = labelFor(target);
+      if (!label) return;
+      const state = useAppStore.getState();
+      const page = state.pages.find((item) => item.id === state.activePageId);
+      push({
+        kind: 'click',
+        label,
+        surface: page?.surface,
+        app: page?.surface,
+        detail: `clicked ${target.tagName.toLowerCase()}`,
+      });
+    };
+    const onSubmit = (event: Event): void => {
+      const form = event.target as HTMLFormElement;
+      const state = useAppStore.getState();
+      const page = state.pages.find((item) => item.id === state.activePageId);
+      const input = form.querySelector('input') as HTMLInputElement | null;
+      push({
+        kind: 'search',
+        label: `Submitted ${form.className.includes('address') ? 'address bar' : 'form'}`,
+        detail: input?.value?.slice(0, 140),
+        surface: page?.surface,
+        app: page?.surface,
+      });
+    };
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('submit', onSubmit, true);
+    const unsubscribe = useAppStore.subscribe((state, previous) => {
+      if (state.activePageId === previous.activePageId) return;
+      const page = state.pages.find((item) => item.id === state.activePageId);
+      if (!page) return;
+      const from = previous.pages.find((item) => item.id === previous.activePageId)?.surface ?? 'unknown';
+      push({ kind: 'navigate', label: `${page.title} page`, surface: page.surface, app: page.surface, detail: `from ${from}` });
+    });
+    const onBeforeUnload = (): void => flush();
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('submit', onSubmit, true);
+      unsubscribe();
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      flush();
+    };
+  }, [ready]);
 
   /* ---- system theme following ---- */
   useEffect(() => {
@@ -205,6 +290,8 @@ function SurfaceHost({ page }: { page: ReturnType<typeof useAppStore.getState>['
       return <BrowserSurface params={page.params} />;
     case 'sites':
       return <SitesSurface />;
+    case 'brain':
+      return <BrainSurface />;
     case 'terminal':
       return <TerminalSurface />;
     case 'mail':

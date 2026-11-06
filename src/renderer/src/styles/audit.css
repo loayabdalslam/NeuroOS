@@ -140,3 +140,6 @@
 .dock:not(.is-collapsed) .dock__label { font-size: 10.5px; }
 .dock:not(.is-collapsed) { padding-bottom: 10px; }
 
+
+.dock:not(.is-collapsed) { width: 212px !important; }
+

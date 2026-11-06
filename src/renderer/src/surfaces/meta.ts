@@ -18,6 +18,7 @@ export const SURFACES: Record<SurfaceKind, SurfaceMeta> = {
   mail: { icon: 'inbox', labelKey: 'nav.mail', accent: '#f472b6' },
   automation: { icon: 'workflow', labelKey: 'nav.automation', accent: '#fb7185' },
   composer: { icon: 'boxes', labelKey: 'nav.composer', accent: '#a78bfa' },
+  brain: { icon: 'brain', labelKey: 'nav.brain', accent: '#ec4899' },
   marketplace: { icon: 'package', labelKey: 'nav.marketplace', accent: '#fb7185' },
   settings: { icon: 'settings', labelKey: 'nav.settings', accent: '#94a3b8' },
 };
@@ -34,6 +35,7 @@ export const SURFACE_ORDER: SurfaceKind[] = [
   'mail',
   'automation',
   'composer',
+  'brain',
   'marketplace',
   'settings',
 ];
