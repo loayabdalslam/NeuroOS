@@ -13,6 +13,14 @@ export interface ProviderPreset {
   local?: boolean;
   description: string;
   badge?: string;
+  /** ACP launch recipe (kind === 'acp'). */
+  acp?: { command: string; args: string[] };
+  /** How to obtain the agent: npx/uvx command or a binary archive URL. */
+  install?: string;
+  installKind?: string;
+  official?: boolean;
+  source?: string;
+  note?: string;
 }
 
 const m = (id: string, label?: string, extra: Partial<ModelInfo> = {}): ModelInfo => ({
@@ -239,7 +247,11 @@ export function presetToProvider(preset: ProviderPreset, apiKey = ''): ProviderC
     defaultModel: preset.models[0]?.id ?? '',
     createdAt: new Date().toISOString(),
     color: preset.color,
+    ...(preset.acp ? { acp: preset.acp } : {}),
   };
 }
 
-export const providerPreset = (id: string): ProviderPreset | undefined => PROVIDER_PRESETS.find((p) => p.id === id);
+import { ACP_PRESETS } from './acpPresets';
+
+export const providerPreset = (id: string): ProviderPreset | undefined =>
+  PROVIDER_PRESETS.find((p) => p.id === id) ?? ACP_PRESETS.find((p) => p.id === id);

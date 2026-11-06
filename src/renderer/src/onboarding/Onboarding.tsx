@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ProviderConfig } from '@shared/types';
 import { LANGUAGES } from '@shared/i18n';
 import { PROVIDER_PRESETS, presetToProvider, type ProviderPreset } from '@shared/providers';
+import { ACP_CURATED } from '@shared/acpPresets';
 import { THEME_PRESETS } from '@shared/themes';
 import { useAppStore } from '../state/store';
 import { useT } from '../lib/i18n';
@@ -77,7 +78,13 @@ export function Onboarding(): JSX.Element {
   const draftProvider = useMemo<ProviderConfig | null>(() => {
     if (!preset) return null;
     const provider = presetToProvider(preset, apiKey);
-    if (baseUrl.trim()) provider.baseUrl = baseUrl.trim();
+    if (preset.kind === 'acp') {
+      const parts = baseUrl.trim().split(/\s+/).filter(Boolean);
+      provider.acp = { command: parts[0] ?? preset.acp?.command ?? '', args: parts.slice(1) };
+      provider.baseUrl = '';
+    } else if (baseUrl.trim()) {
+      provider.baseUrl = baseUrl.trim();
+    }
     return provider;
   }, [preset, apiKey, baseUrl]);
 
@@ -404,7 +411,7 @@ export function Onboarding(): JSX.Element {
           {step === 'intelligence' ? (
             <div className="onboard__providers">
               <div className="onboard__providerGrid n-scroll">
-                {PROVIDER_PRESETS.filter((item) => item.id !== 'custom').map((item) => (
+                {[...PROVIDER_PRESETS.filter((item) => item.id !== 'custom'), ...ACP_CURATED].map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -412,7 +419,11 @@ export function Onboarding(): JSX.Element {
                     data-active={preset?.id === item.id}
                     onClick={() => {
                       setPreset(item);
-                      setBaseUrl(item.baseUrl);
+                      setBaseUrl(
+                        item.kind === 'acp'
+                          ? [item.acp?.command ?? '', ...(item.acp?.args ?? [])].filter(Boolean).join(' ')
+                          : item.baseUrl,
+                      );
                       setApiKey(item.kind === 'acp' ? '' : '');
                       setTestResult(null);
                     }}
@@ -444,6 +455,11 @@ export function Onboarding(): JSX.Element {
                           placeholder="npx -y @google/gemini-cli --experimental-acp"
                         />
                       </label>
+                      {preset.install ? (
+                        <p className="tiny faint mono" style={{ lineHeight: 1.6 }}>
+                          install: {preset.install}
+                        </p>
+                      ) : null}
                       <p className="tiny faint" style={{ lineHeight: 1.6 }}>
                         Neuro spawns the process and speaks ACP v1 over stdio — initialize, session/new, session/prompt, fs and
                         terminal bridging, permission mediation.

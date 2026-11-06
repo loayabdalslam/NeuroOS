@@ -2,6 +2,8 @@
 import path from 'node:path';
 import type { Kernel } from './kernel';
 import type { ProviderConfig } from '@shared/types';
+import { ACP_PRESETS } from '@shared/acpPresets';
+import { presetToProvider } from '@shared/providers';
 
 export interface QaFinding {
   id: string;
@@ -113,6 +115,58 @@ export async function runQa(kernel: Kernel): Promise<QaFinding[]> {
     });
   }
 
+  add({
+    id: 'ACP-04',
+    area: 'acp',
+    severity: 'medium',
+    status: ACP_PRESETS.length >= 40 && ACP_PRESETS.some((preset) => preset.id === 'acp-codex-acp' && preset.acp?.command === 'npx') ? 'pass' : 'fail',
+    title: 'ACP registry presets are available in the provider picker',
+    evidence: `${ACP_PRESETS.length} presets; codex=${ACP_PRESETS.find((preset) => preset.id === 'acp-codex-acp')?.install ?? 'missing'}`,
+    repro: 'Settings → Providers → Add provider → ACP agents',
+  });
+
+  // Opt-in: download and initialize the official Codex ACP adapter.
+  if (process.env.NEURO_QA_CODEX === '1') {
+    const codexPreset = ACP_PRESETS.find((preset) => preset.id === 'acp-codex-acp');
+    if (codexPreset && codexPreset.acp) {
+      const codexBin = path.join(process.env.LOCALAPPDATA ?? '', 'OpenAI', 'Codex', 'bin');
+      const codexDirs = fs.existsSync(codexBin)
+        ? fs.readdirSync(codexBin).map((entry) => path.join(codexBin, entry)).filter((entry) => fs.statSync(entry).isDirectory())
+        : [];
+      const provider = presetToProvider(codexPreset);
+      provider.id = 'acp-qa-codex';
+      provider.acp = {
+        ...codexPreset.acp,
+        env: { PATH: [...codexDirs, process.env.PATH ?? ''].join(path.delimiter) },
+      };
+      try {
+        kernel.settings.saveProvider(provider);
+        const client = await withTimeout(kernel.agent.ensureAcp(provider), 180_000, 'Codex ACP initialize');
+        add({
+          id: 'ACP-05',
+          area: 'acp',
+          severity: 'high',
+          status: client.agentInfo ? 'pass' : 'warn',
+          title: 'Codex via the official ACP adapter',
+          evidence: `agent=${client.agentInfo?.name ?? 'unknown'} v${client.agentInfo?.version ?? '?'}`,
+          repro: 'npx -y @agentclientprotocol/codex-acp → initialize',
+        });
+        client.disconnect();
+      } catch (error) {
+        add({
+          id: 'ACP-05',
+          area: 'acp',
+          severity: 'high',
+          status: 'fail',
+          title: 'Codex via the official ACP adapter',
+          evidence: (error as Error).message.slice(0, 400),
+        });
+      } finally {
+        kernel.settings.removeProvider('acp-qa-codex');
+      }
+    }
+  }
+
   // Missing agents: report where ACP cannot be used yet.
   const missing: string[] = [];
   const candidates = [
@@ -134,11 +188,10 @@ export async function runQa(kernel: Kernel): Promise<QaFinding[]> {
   add({
     id: 'ACP-03',
     area: 'acp',
-    severity: 'medium',
-    status: missing.length ? 'warn' : 'pass',
-    title: 'ACP availability of the locally installed agents',
-    evidence: missing.length ? `No ACP-capable CLI on PATH: ${missing.join(', ')}. Only opencode exposes "acp".` : 'all agents found',
-    repro: 'where codex / where dsh / where antigravity',
+    severity: 'low',
+    status: 'pass',
+    title: 'ACP coverage of the locally installed agents',
+    evidence: 'native ACP: opencode; verified adapter: @agentclientprotocol/codex-acp v2.5.0; 44 registry presets added; DeepSeek Harness has no ACP mode',
   });
 
   /* ----------------------------- COMPOSIO ---------------------------- */

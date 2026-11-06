@@ -18,6 +18,24 @@
     "repro": "opencode acp â†’ initialize â†’ session/new"
   },
   {
+    "id": "ACP-04",
+    "area": "acp",
+    "severity": "medium",
+    "status": "pass",
+    "title": "ACP registry presets are available in the provider picker",
+    "evidence": "44 presets; codex=npx -y @agentclientprotocol/codex-acp@2.5.0",
+    "repro": "Settings → Providers → Add provider → ACP agents"
+  },
+  {
+    "id": "ACP-05",
+    "area": "acp",
+    "severity": "high",
+    "status": "pass",
+    "title": "Codex via the official ACP adapter",
+    "evidence": "agent=@agentclientprotocol/codex-acp v2.5.0",
+    "repro": "npx -y @agentclientprotocol/codex-acp → initialize"
+  },
+  {
     "id": "ACP-03",
     "area": "acp",
     "severity": "medium",

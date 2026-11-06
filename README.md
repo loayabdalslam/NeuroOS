@@ -2024,3 +2024,6 @@ photographs in the wallpaper gallery are public domain.
     Local-first. No telemetry. No account. Built to be read.
   </sub>
 </p>
+
+
+ACP agents: [docs/ACP.md](docs/ACP.md) — 44 registry presets (Claude, Codex, Gemini, OpenCode, Qwen, Goose, Cursor, Copilot and more).

@@ -41,6 +41,7 @@ Screenshots: `screenshots/00-story.png` â€¦ `26-wallpaper.png`. Red-team rep
 | BUG-003 | Store | Retry `EPERM/EBUSY/EACCES` renames 6Ã— with backoff (async + sync) | ACP-01 PASS |
 | BUG-005 | Composio accounts | Fall back to unfiltered `/connected_accounts` when the user filter returns none | accounts 0 â†’ 13 |
 | BUG-010 | QA harness | Never print any part of a secret | clean report |
+| BUG-007 | ACP | Added all 44 agents from the official registry as provider presets; verified the Codex adapter end-to-end | ACP-05 PASS |
 
 Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): mail relay signature, per-IP mail rate limit, domain proof-of-content, manifest `nodeId` binding, blob scoping, CSP sandbox + origin check, junction-safe folder publish, blob GC, remote-resolve claim poisoning, `neuro://` traversal, plugin `codeGeneration` (partial mitigation only).
 

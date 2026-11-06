@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AgentConfig, InstalledTheme, PermissionPolicy, PluginProviderEntry, ProviderConfig, Settings, ToolDescriptor } from '@shared/types';
 import { LANGUAGES } from '@shared/i18n';
+import { ACP_PRESETS, ACP_CURATED } from '@shared/acpPresets';
 import { PROVIDER_PRESETS, presetToProvider } from '@shared/providers';
 import { PHOTO_WALLPAPERS, THEME_PRESETS, WALLPAPERS, wallpaperUrl } from '@shared/themes';
 import { useAppStore } from '../state/store';
@@ -989,6 +990,7 @@ function ProviderModal({
   const [probing, setProbing] = useState(false);
   const [probe, setProbe] = useState<{ ok: boolean; message: string } | null>(null);
   const [step, setStep] = useState<'pick' | 'configure'>(provider ? 'configure' : 'pick');
+  const [showAllAcp, setShowAllAcp] = useState(false);
 
   useEffect(() => {
     setDraft(provider);
@@ -1078,6 +1080,43 @@ function ProviderModal({
               </div>
             </button>
           ))}
+          <div className="settings__providerSection">
+            <span className="tiny faint uppercase">{'ACP agents · ' + ACP_PRESETS.length}</span>
+            <span className="tiny faint">official registry · stdio</span>
+          </div>
+          {ACP_PRESETS.filter((preset) => showAllAcp || ACP_CURATED.some((item) => item.id === preset.id)).map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className="providerPick"
+              onClick={() => {
+                setDraft(presetToProvider(preset));
+                setModelsText(preset.models.map((model) => model.id).join(', '));
+                setStep('configure');
+              }}
+            >
+              <span className="providerPick__logo">
+                <BrandIcon brand={preset.brand} size={22} />
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div className="row" style={{ gap: 6 }}>
+                  <span className="small strong">{preset.name}</span>
+                  <span className="n-badge n-badge--accent">ACP</span>
+                </div>
+                <div className="tiny faint">{preset.description}</div>
+                {preset.install ? <div className="tiny faint mono truncate">{preset.install}</div> : null}
+              </div>
+            </button>
+          ))}
+          <button type="button" className="providerPick" onClick={() => setShowAllAcp((value) => !value)}>
+            <span className="providerPick__logo">
+              <Icon name="plus" size={18} />
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div className="small strong">{showAllAcp ? 'Show curated ACP agents' : 'Browse all ' + ACP_PRESETS.length + ' ACP agents'}</div>
+              <div className="tiny faint">Curated selection from the Agent Client Protocol registry</div>
+            </div>
+          </button>
           {pluginProviders.map((entry) => (
             <button
               key={entry.id}
