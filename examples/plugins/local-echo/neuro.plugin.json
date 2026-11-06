@@ -1,0 +1,19 @@
+{
+  "id": "local-echo",
+  "name": "Local Echo Provider",
+  "version": "1.0.0",
+  "description": "A dependency-free streaming adapter. Add it in Settings → Providers → Add provider to chat without any API key.",
+  "author": "Neuro OS",
+  "main": "main.js",
+  "permissions": [],
+  "contributes": {
+    "adapters": [
+      {
+        "id": "echo",
+        "name": "Echo (local)",
+        "description": "Streams your message back token by token. Useful for testing the provider/streaming pipeline offline.",
+        "models": ["echo-1"]
+      }
+    ]
+  }
+}

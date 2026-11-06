@@ -170,13 +170,15 @@ export class MarketplaceService {
 
   /** Rebuild plugin-contributed tools from installed, enabled plugins. */
   async activatePlugins(): Promise<void> {
-    const descriptors: ToolDescriptor[] = [];
-    const handlers: Record<string, (args: Record<string, unknown>) => Promise<{ ok: boolean; output: string }>> = {};
-
+    const active = new Set<string>();
     for (const record of this.installed) {
       if (record.kind !== 'plugin' || !record.enabled) continue;
-      const item = this.catalog.find((c) => c.id === record.id);
+      const item = this.catalog.find((entry) => entry.id === record.id);
       if (!item?.tools?.length) continue;
+      const sourceId = `marketplace:${record.id}`;
+      active.add(sourceId);
+      const descriptors: ToolDescriptor[] = [];
+      const handlers: Record<string, (args: Record<string, unknown>) => Promise<{ ok: boolean; output: string }>> = {};
       for (const tool of item.tools) {
         const fullName = `${record.id}.${tool.name}`;
         descriptors.push({
@@ -198,8 +200,11 @@ export class MarketplaceService {
           return runCommand(value, JSON.stringify(args), fullName);
         };
       }
+      this.registry.setSource(sourceId, descriptors, handlers);
     }
-    this.registry.registerExternal(descriptors, handlers, 'plugin');
+    for (const source of this.registry.sourceIds()) {
+      if (source.startsWith('marketplace:') && !active.has(source)) this.registry.removeSource(source);
+    }
   }
 
   async listSkills(): Promise<{ id: string; name: string; description: string }[]> {

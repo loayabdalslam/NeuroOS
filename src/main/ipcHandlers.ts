@@ -10,7 +10,7 @@ import { presetToProvider } from '@shared/providers';
 import type { ProviderConfig } from '@shared/types';
 
 export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | null): HandlerMap {
-  const { settings, workspace, system, content, tools, marketplace, agent } = kernel;
+  const { settings, workspace, system, content, tools, marketplace, agent, mail, plugins, automation, compositions } = kernel;
 
   const changed = (): void => {
     kernel.emit('settings:changed', settings.public());
@@ -226,7 +226,10 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
     'fs.workspace': ({ root }) => workspace.info(root),
     'fs.reveal': ({ path: target }) => system.showItemInFolder(target),
     'fs.watch': ({ root }) => {
-      workspace.watch(root, (payload) => kernel.emit('fs:changed', payload));
+      workspace.watch(root, (payload) => {
+        kernel.emit('fs:changed', payload);
+        automation.notifyFs(payload);
+      });
       return { ok: true };
     },
 
@@ -363,6 +366,127 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
       kernel.emit('settings:changed', settings.public());
       return settings.public();
     },
+
+    /* ---------------------------- decentralized mail --------------------------- */
+    'mail.status': () => mail.status(),
+    'mail.identityCreate': ({ name }) => mail.createIdentity(name),
+    'mail.messages': (params) => mail.messages(params?.folder ?? 'inbox', params?.limit ?? 200),
+    'mail.send': async ({ to, subject, body, encrypt, replyTo }) => {
+      const message = await mail.send({ to, subject, body, encrypt, replyTo });
+      return { ok: true, id: message.id, message: `Queued to ${message.to.address} (${message.delivery})` };
+    },
+    'mail.read': ({ id }) => ({ ok: mail.markRead(id) }),
+    'mail.delete': ({ id }) => ({ ok: mail.deleteMessage(id) }),
+    'mail.peers': () => mail.peers(),
+    'mail.peerAdd': ({ host, port }) => mail.addPeer(host, Number(port)),
+    'mail.peerRemove': ({ nodeId }) => mail.removePeer(nodeId),
+    'mail.discovery': ({ enabled }) => mail.setDiscovery(enabled),
+    'mail.sync': async () => {
+      await mail.sync();
+      return { ok: true };
+    },
+
+    /* --------------------------------- plugins -------------------------------- */
+    'plugins.list': () => plugins.list(),
+    'plugins.themes': () => plugins.themes(),
+    'plugins.providers': () => plugins.providers(),
+    'plugins.installFolder': async () => {
+      const result = await openDialog({ properties: ['openDirectory'], title: 'Install plugin from folder' });
+      if (result.canceled || !result.filePaths[0]) return { installed: null, message: 'cancelled' };
+      try {
+        const installed = await plugins.installFromPath(result.filePaths[0]);
+        kernel.emit('plugins:changed', plugins.list());
+        kernel.emit('tools:changed', tools.list());
+        return { installed, message: `Installed ${installed.name} ${installed.version}` };
+      } catch (error) {
+        return { installed: null, message: (error as Error).message };
+      }
+    },
+    'plugins.installPath': async ({ path: pluginPath }) => {
+      try {
+        const installed = await plugins.installFromPath(pluginPath);
+        kernel.emit('plugins:changed', plugins.list());
+        kernel.emit('tools:changed', tools.list());
+        return { installed, message: `Installed ${installed.name} ${installed.version}` };
+      } catch (error) {
+        return { installed: null, message: (error as Error).message };
+      }
+    },
+    'plugins.installArchive': async () => {
+      const result = await openDialog({
+        properties: ['openFile'],
+        title: 'Install plugin archive',
+        filters: [{ name: 'Neuro plugin', extensions: ['zip', 'neuro'] }],
+      });
+      if (result.canceled || !result.filePaths[0]) return { installed: null, message: 'cancelled' };
+      try {
+        const installed = await plugins.installFromArchive(result.filePaths[0]);
+        kernel.emit('plugins:changed', plugins.list());
+        kernel.emit('tools:changed', tools.list());
+        return { installed, message: `Installed ${installed.name} ${installed.version}` };
+      } catch (error) {
+        return { installed: null, message: (error as Error).message };
+      }
+    },
+    'plugins.installUrl': async ({ url }) => {
+      try {
+        const installed = await plugins.installFromUrl(url);
+        kernel.emit('plugins:changed', plugins.list());
+        kernel.emit('tools:changed', tools.list());
+        return { installed, message: `Installed ${installed.name} ${installed.version}` };
+      } catch (error) {
+        return { installed: null, message: (error as Error).message };
+      }
+    },
+    'plugins.uninstall': async ({ id }) => {
+      const next = await plugins.uninstall(id);
+      kernel.emit('plugins:changed', next);
+      kernel.emit('tools:changed', tools.list());
+      return next;
+    },
+    'plugins.toggle': async ({ id, enabled }) => {
+      const next = await plugins.toggle(id, enabled);
+      kernel.emit('plugins:changed', next);
+      kernel.emit('tools:changed', tools.list());
+      return next;
+    },
+    'plugins.reload': async ({ id }) => {
+      const next = await plugins.reload(id);
+      kernel.emit('plugins:changed', next);
+      kernel.emit('tools:changed', tools.list());
+      return next;
+    },
+    'plugins.openFolder': ({ id }) => {
+      const record = plugins.list().find((item) => item.id === id);
+      if (record) system.showItemInFolder(record.path);
+    },
+    'plugins.logs': ({ id }) => plugins.logs(id),
+    'plugins.runCommand': ({ pluginId, commandId }) => plugins.runCommand(pluginId, commandId),
+
+    /* -------------------------------- automation ------------------------------ */
+    'automation.nodeTypes': () => automation.nodeTypes(),
+    'automation.list': () => automation.list(),
+    'automation.get': ({ id }) => automation.get(id),
+    'automation.save': (workflow) => automation.save(workflow),
+    'automation.remove': ({ id }) => automation.remove(id),
+    'automation.run': ({ id, input }) => automation.run(id, 'manual', input ?? ''),
+    'automation.cancel': ({ runId }) => {
+      automation.cancel(runId);
+      return { ok: true };
+    },
+    'automation.runs': (params) => automation.runs(params?.workflowId),
+
+    /* ------------------------------ composition ------------------------------- */
+    'composition.list': () => compositions.list(),
+    'composition.save': (composition) => compositions.save(composition),
+    'composition.remove': ({ id }) => compositions.remove(id),
+    'composition.run': ({ id, input }) => compositions.run(id, input),
+    'composition.runs': (params) => compositions.runs(params?.compositionId),
+    'composition.cancel': ({ runId }) => {
+      compositions.cancel(runId);
+      return { ok: true };
+    },
+
     'onboarding.state': () => ({ complete: settings.public().onboardingComplete }),
   } as HandlerMap;
 }

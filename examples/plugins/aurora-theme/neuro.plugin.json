@@ -1,0 +1,35 @@
+{
+  "id": "aurora-theme",
+  "name": "Aurora Theme",
+  "version": "1.0.0",
+  "description": "A theme-only plugin: contributes one dark and one light preset to the appearance gallery.",
+  "author": "Neuro OS",
+  "permissions": [],
+  "contributes": {
+    "themes": [
+      {
+        "id": "aurora-dark",
+        "name": "Aurora Dark",
+        "description": "Violet glass on deep space.",
+        "design": "neuro",
+        "mode": "dark",
+        "accent": "violet",
+        "radius": 18,
+        "wallpaper": "midnight",
+        "colors": { "bg": "#0b0b14", "surface": "#1b1b2a", "accent": "#a78bfa", "text": "#f4f4ff" }
+      },
+      {
+        "id": "aurora-light",
+        "name": "Aurora Light",
+        "description": "Soft lilac paper.",
+        "design": "neuro",
+        "mode": "light",
+        "surface": "white",
+        "accent": "violet",
+        "radius": 18,
+        "wallpaper": "aurora",
+        "colors": { "bg": "#ffffff", "surface": "#f6f4ff", "accent": "#8b5cf6", "text": "#1c1b22" }
+      }
+    ]
+  }
+}

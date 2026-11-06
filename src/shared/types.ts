@@ -21,6 +21,9 @@ export type SurfaceKind =
   | 'notebook'
   | 'browser'
   | 'terminal'
+  | 'mail'
+  | 'automation'
+  | 'composer'
   | 'marketplace'
   | 'settings';
 
@@ -539,4 +542,329 @@ export interface KernelStatus {
   providers: number;
   skills: number;
   plugins: number;
+}
+
+/* ------------------------------------------------------------------ */
+/* Decentralized mail                                                  */
+/* ------------------------------------------------------------------ */
+
+export interface MailIdentity {
+  address: string;
+  nodeId: string;
+  name: string;
+  publicKey: string;
+  createdAt: ISODate;
+}
+
+export type MailDelivery = 'queued' | 'delivered' | 'relayed' | 'failed' | 'received';
+export type MailFolder = 'inbox' | 'sent';
+
+export interface MailPeer {
+  nodeId: string;
+  address: string;
+  name: string;
+  host: string;
+  port: number;
+  publicKey?: string;
+  encPublicKey?: string;
+  lastSeen: ISODate;
+  source: 'lan' | 'manual' | 'gossip';
+  online: boolean;
+}
+
+export interface MailContact {
+  address: string;
+  name: string;
+  nodeId: string;
+}
+
+export interface MailMessage {
+  id: ID;
+  threadId: ID;
+  from: MailContact;
+  to: MailContact;
+  subject: string;
+  body: string;
+  createdAt: ISODate;
+  direction: 'in' | 'out';
+  read: boolean;
+  encrypted: boolean;
+  signed: boolean;
+  verified: boolean;
+  delivery: MailDelivery;
+  hops: number;
+  error?: string;
+  replyTo?: ID;
+}
+
+export interface MailStatus {
+  identity: MailIdentity | null;
+  peers: MailPeer[];
+  port: number;
+  listening: boolean;
+  discovery: boolean;
+  pending: number;
+  unread: number;
+}
+
+/* ------------------------------------------------------------------ */
+/* Plugins                                                             */
+/* ------------------------------------------------------------------ */
+
+export type PluginPermission = 'fs' | 'shell' | 'net' | 'ui' | 'mail' | 'automation' | 'agents';
+
+export interface PluginToolContribution {
+  name: string;
+  title?: string;
+  description: string;
+  category?: ToolCategory;
+  danger?: ToolDanger;
+  parameters: Record<string, unknown>;
+  handler: string;
+}
+
+export interface PluginThemeContribution {
+  id: string;
+  name: string;
+  description?: string;
+  design: ThemeDesign;
+  mode: 'dark' | 'light';
+  surface?: ThemeSurface;
+  accent?: string;
+  radius?: number;
+  wallpaper?: string;
+  colors?: { bg: string; surface: string; accent: string; text: string };
+}
+
+export interface PluginProviderContribution {
+  id: string;
+  name: string;
+  description?: string;
+  baseUrl?: string;
+  models?: string[];
+  kind?: ProviderKind;
+}
+
+export interface PluginCommand {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface PluginAdapterContribution {
+  id: string;
+  name: string;
+  description?: string;
+  models: string[];
+}
+
+export interface PluginManifest {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author?: string;
+  homepage?: string;
+  main?: string;
+  permissions?: PluginPermission[];
+  contributes?: {
+    tools?: PluginToolContribution[];
+    themes?: PluginThemeContribution[];
+    providers?: PluginProviderContribution[];
+    adapters?: PluginAdapterContribution[];
+    commands?: PluginCommand[];
+  };
+}
+
+export interface InstalledTheme {
+  id: string;
+  name: string;
+  description?: string;
+  pluginId: string;
+  design: ThemeDesign;
+  mode: 'dark' | 'light';
+  surface?: ThemeSurface;
+  accent?: string;
+  radius?: number;
+  wallpaper?: string;
+  colors?: { bg: string; surface: string; accent: string; text: string };
+}
+
+export interface PluginRecord {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author?: string;
+  path: string;
+  enabled: boolean;
+  installedAt: ISODate;
+  permissionList: PluginPermission[];
+  contributions: { tools: number; themes: number; providers: number; commands: number; adapters: number };
+  status: 'loaded' | 'error' | 'disabled';
+  error?: string;
+}
+
+export interface PluginProviderEntry {
+  id: string;
+  pluginId: string;
+  pluginName: string;
+  name: string;
+  description?: string;
+  baseUrl?: string;
+  models: string[];
+  kind: 'preset' | 'adapter';
+}
+
+/* ------------------------------------------------------------------ */
+/* Automation (workflow engine)                                        */
+/* ------------------------------------------------------------------ */
+
+export type WorkflowNodeType =
+  | 'trigger.manual'
+  | 'trigger.schedule'
+  | 'trigger.mail'
+  | 'trigger.fs'
+  | 'agent.run'
+  | 'tool.call'
+  | 'http.request'
+  | 'transform.code'
+  | 'condition.if'
+  | 'delay.wait'
+  | 'mail.send'
+  | 'notify.toast'
+  | 'composition.run';
+
+export type PortName = 'main' | 'true' | 'false';
+
+export interface WorkflowNode {
+  id: ID;
+  type: WorkflowNodeType;
+  name: string;
+  x: number;
+  y: number;
+  config: Record<string, unknown>;
+}
+
+export interface WorkflowEdge {
+  id: ID;
+  from: ID;
+  fromPort: PortName;
+  to: ID;
+}
+
+export interface Workflow {
+  id: ID;
+  name: string;
+  description: string;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  enabled: boolean;
+  createdAt: ISODate;
+  updatedAt: ISODate;
+}
+
+export type RunStatus = 'queued' | 'running' | 'ok' | 'error' | 'cancelled';
+
+export interface RunStep {
+  nodeId: ID;
+  name: string;
+  type: WorkflowNodeType;
+  status: RunStatus;
+  startedAt: ISODate;
+  durationMs?: number;
+  output?: string;
+  error?: string;
+}
+
+export interface WorkflowRun {
+  id: ID;
+  workflowId: ID;
+  workflowName: string;
+  status: RunStatus;
+  startedAt: ISODate;
+  endedAt?: ISODate;
+  trigger: string;
+  steps: RunStep[];
+  error?: string;
+}
+
+export interface NodeField {
+  key: string;
+  label: string;
+  kind: 'text' | 'textarea' | 'number' | 'select' | 'code' | 'checkbox';
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  hint?: string;
+  default?: string | number | boolean;
+}
+
+export interface NodeTypeSpec {
+  type: WorkflowNodeType;
+  label: string;
+  category: 'trigger' | 'agent' | 'action' | 'logic';
+  icon: string;
+  description: string;
+  fields: NodeField[];
+  outputs: PortName[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Agent composition                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface CompositionStep {
+  id: ID;
+  name: string;
+  agentId: string;
+  prompt: string;
+  usePrevious: boolean;
+}
+
+export interface Composition {
+  id: ID;
+  name: string;
+  description: string;
+  steps: CompositionStep[];
+  createdAt: ISODate;
+  updatedAt: ISODate;
+}
+
+export interface CompositionRun {
+  id: ID;
+  compositionId: ID;
+  compositionName: string;
+  status: RunStatus;
+  startedAt: ISODate;
+  endedAt?: ISODate;
+  steps: { stepId: ID; name: string; status: RunStatus; output: string; error?: string }[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Window manager (renderer-side OS simulation)                        */
+/* ------------------------------------------------------------------ */
+
+export interface WindowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface OsWindow {
+  id: ID;
+  appId: string;
+  title: string;
+  icon: string;
+  accent: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  minimized: boolean;
+  maximized: boolean;
+  restore?: WindowBounds;
+  resizable: boolean;
+  createdAt: ISODate;
 }

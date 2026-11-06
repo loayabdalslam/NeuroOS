@@ -56,10 +56,13 @@
     "files": [
       "out/**/*",
       "resources/**/*",
+      "examples/**/*",
+      "docs/**/*",
       "package.json"
     ],
     "asarUnpack": [
       "resources/**/*",
+      "examples/**/*",
       "node_modules/@homebridge/node-pty-prebuilt-multiarch/**/*"
     ],
     "win": {

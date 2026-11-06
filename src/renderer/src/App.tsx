@@ -19,8 +19,14 @@ import { Spaces } from './surfaces/Spaces';
 import { NotebookSurface } from './surfaces/Notebook';
 import { BrowserSurface } from './surfaces/Browser';
 import { TerminalSurface } from './surfaces/Terminal';
+import { MailSurface } from './surfaces/Mail';
+import { AutomationSurface } from './surfaces/Automation';
+import { ComposerSurface } from './surfaces/Composer';
 import { Marketplace } from './surfaces/Marketplace';
 import { SettingsSurface } from './surfaces/Settings';
+import { StartMenu } from './components/StartMenu';
+import { LockScreen } from './components/LockScreen';
+import { useWindowStore } from './state/windows';
 
 export function App(): JSX.Element {
   const ready = useAppStore((s) => s.ready);
@@ -77,6 +83,13 @@ export function App(): JSX.Element {
       on('window:state', (state) => useAppStore.getState().setWindowState(state)),
       on('toast', (toast) => useAppStore.getState().pushToast(toast)),
       on('ui:navigate', ({ surface, params }) => useAppStore.getState().navigate(surface as SurfaceKind, params)),
+      on('os:open', ({ appId }) => {
+        const state = useAppStore.getState();
+        const desktopPage = state.pages.find((page) => page.surface === 'desktop');
+        if (desktopPage) state.setActivePage(desktopPage.id);
+        else state.navigate('desktop');
+        useWindowStore.getState().open(appId);
+      }),
       on('terminal:list', () => {}),
     ];
     return () => disposers.forEach((dispose) => dispose());
@@ -168,6 +181,8 @@ function Shell(): JSX.Element {
         {anchorOpen ? <AnchorRail /> : null}
       </div>
       <Taskbar />
+      <StartMenu />
+      <LockScreen />
       <CommandPalette />
       <ToastHost />
     </div>
@@ -189,8 +204,14 @@ function SurfaceHost({ page }: { page: ReturnType<typeof useAppStore.getState>['
       return <BrowserSurface params={page.params} />;
     case 'terminal':
       return <TerminalSurface />;
+    case 'mail':
+      return <MailSurface />;
+    case 'automation':
+      return <AutomationSurface />;
+    case 'composer':
+      return <ComposerSurface />;
     case 'marketplace':
-      return <Marketplace />;
+      return <Marketplace params={page.params} />;
     case 'settings':
       return <SettingsSurface />;
     default:

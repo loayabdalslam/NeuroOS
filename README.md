@@ -27,23 +27,31 @@ Neuro OS is not a chat window with a sidebar. It is a small operating environmen
 
 | Surface | What it does |
 | --- | --- |
-| **Desktop** | Live widgets: system monitor, conversations, workspace snapshot, agents, tool bus, marketplace picks, launcher. |
+| **Desktop** | A simulated computer: wallpaper, draggable desktop icons, real windows you can move, resize, snap, minimize and maximize, a start menu, a lock screen and a right-click desktop menu. |
 | **Chat** | Multi-provider streaming chat with a real agent loop: tool calls, approvals, reasoning, usage, exports. |
 | **Workspace** | File explorer, content search, CodeMirror editor with save, git status, language breakdown. |
 | **Spaces** | Long-lived contexts that bind a folder, notes, notebooks and conversations together. |
 | **Notebook** | Live kernel: JavaScript/TypeScript in a sandboxed VM, Python and shell as processes. |
 | **Browser** | A real Chromium surface (`webview`) with tabs, history, its own partition, and agent control. |
 | **Terminal** | A **real ConPTY** PowerShell session rendered with xterm.js, plus a pipe fallback. |
-| **Marketplace** | Skills, plugins (that add real tools), agents and themes — install, toggle, uninstall. |
+| **Mail** | Serverless, peer-to-peer, end-to-end encrypted mail with LAN discovery, relay and live delivery. |
+| **Automation** | n8n-style workflow canvas: schedule/mail/file triggers, agents, tools, HTTP, code, conditions, mail. |
+| **Composer** | Chain agents into pipelines where each step sees the original input and the previous output. |
+| **Marketplace** | Skills, plugins (that add real tools), agents and themes — plus a plugin installer for folders, zips and URLs. |
 | **Settings** | Themes, languages, providers, agents, per-tool permissions, taskbar, Anchor, workspace, data. |
 
 Cross-cutting:
 
+- **Real desktop simulation** — windows with drag/resize/snap, z-ordering, a start menu, a lockscreen, taskbar window buttons and a desktop context menu. Apps run inside windows *and* as full-page tabs.
 - **Theme gallery** — Neuro OS, Windows 11, Ubuntu (Yaru) and iOS design languages, each in dark and light, plus a pure **White** theme. Presets also move the taskbar and change wallpapers, typography, radii and elevation.
 - **14 languages with hand-drawn vector flags** and full RTL layout for Arabic.
 - **Anchor** — pin conversations, notes, files, spaces, notebooks, links or terminals to a persistent rail.
 - **Command palette** (`Ctrl/⌘ K`) — navigation, actions, conversations, all keyboard-first.
-- **Customizable taskbar** — bottom/top/left/right, size, labels, clock, metrics, language, pinned apps.
+- **Customizable taskbar** — bottom/top/left/right, size, labels, clock, metrics, language, pinned apps, running windows.
+- **Plugin platform** — install from folder, `.zip` or URL; contribute tools, themes, provider presets, streaming adapters and commands. See [docs/PLUGINS.md](docs/PLUGINS.md).
+- **Decentralized mail** — no server, no account: Ed25519 identities, X25519 + AES-256-GCM payloads, direct peer delivery, LAN discovery and store-and-forward relay. See [docs/MAIL.md](docs/MAIL.md).
+- **Automation** — a typed workflow engine with triggers, agents, tools, HTTP, code, branching, delays and mail. See [docs/AUTOMATION.md](docs/AUTOMATION.md).
+- **Agent composition** — multi-agent pipelines (Research → Draft → Review) that can be run standalone or from a workflow.
 
 ## Screenshots
 
@@ -66,6 +74,18 @@ Cross-cutting:
 | iOS | White |
 | --- | --- |
 | ![iOS](screenshots/15-theme-ios.png) | ![White](screenshots/16-theme-white.png) |
+
+| Mail (no server) | Automation canvas |
+| --- | --- |
+| ![Mail](screenshots/17-mail.png) | ![Automation](screenshots/18-automation.png) |
+
+| Agent composition | Plugin extensions |
+| --- | --- |
+| ![Composer](screenshots/19-composer.png) | ![Extensions](screenshots/09b-extensions.png) |
+
+| Start menu | Anchor rail |
+| --- | --- |
+| ![Start menu](screenshots/20-start-menu.png) | ![Anchor](screenshots/11-anchor.png) |
 
 ## Quick start
 
@@ -164,18 +184,20 @@ src/
   main/                  # Electron main process (the kernel)
     core/                # store, ipc router, logging, utils
     services/            # settings, workspace, terminal, content, tools, marketplace,
-                         # agent, providers/*, net, system
+                         # agent, providers/*, mail, plugins, automation, composition,
+                         # net, system
     selftest/            # deterministic sandbox provider for the QA harness
   preload/               # contextBridge, typed event plumbing
   renderer/              # React application
-    src/components/      # design system + shell chrome
-    src/surfaces/        # the nine surfaces
+    src/components/      # design system, shell chrome, window manager, start menu
+    src/surfaces/        # the twelve surfaces
     src/onboarding/      # cinematic first run
-    src/styles/          # tokens (DSH palette), base, shell, surfaces
-    src/state/           # zustand stores
-  shared/                # types, IPC contract, i18n, themes, provider presets, catalog types
+    src/styles/          # tokens (DSH palette), base, shell, surfaces, OS chrome
+    src/state/           # zustand stores (app, chat, windows)
+  shared/                # types, IPC contract, i18n, themes, provider presets, app registry
 resources/               # catalog, fonts, brand icons
-docs/                    # architecture + protocols
+examples/                # reference plugins (tools, themes, streaming adapter)
+docs/                    # architecture, plugins, mail, automation, extending
 scripts/                 # icon generation, maintenance scripts
 ```
 
@@ -187,8 +209,12 @@ scripts/                 # icon generation, maintenance scripts
 - filesystem write → read → search → delete round-trip
 - notebook kernel execution
 - `shell.exec` through the real tool registry
+- **two mail nodes exchange an encrypted, signed message** (no server)
+- **a plugin installs from a folder, contributes a callable tool, then uninstalls**
+- **a workflow runs trigger → transform → notify with per-node results**
+- **an agent composition runs end to end**
 - real webview navigation (`example.com`, Wikipedia)
-- screenshots of every surface, every theme, the Anchor and the command palette
+- screenshots of every surface, every theme, the Anchor, the command palette and the start menu
 
 Screenshots land in `screenshots/`.
 
@@ -211,6 +237,13 @@ Screenshots land in `screenshots/`.
   app without icon embedding, or enable symlink privileges and run `dist:win` normally.
 - ACP is verified against the protocol spec and handled defensively; it is not tested against every
   agent implementation.
+- Plugins execute in the main process. The `vm` context and permission gating remove ambient
+  capabilities, but they are not a security boundary against deliberately malicious native code —
+  install plugins you trust.
+- Mail has no global directory: peers are found on the LAN or added manually. There is no
+  multi-device key sync or attachment support yet.
+- The automation scheduler is a 20-second tick inside the app; runs missed while the app is closed
+  are not replayed.
 
 ## License
 

@@ -74,11 +74,16 @@ singleton and no service locator; dependencies are passed explicitly.
 | `AgentService` | Sessions, streaming turns, tool loop, approvals, ACP | `sessions/*.json` |
 | `ApprovalRegistry` | In-flight approval promises keyed by call id | in-memory |
 | `SystemService` | OS info, screenshots, windows, volume, clipboard | none |
+| `MailService` | P2P identities, envelopes, HTTP delivery, UDP discovery, relay | `state/mail.json` + vault |
+| `PluginService` | Manifest validation, install sources, vm host, contributions | `plugins/` |
+| `AutomationService` | Workflow graph, execution, triggers, run history | `state/automation.json` |
+| `CompositionService` | Agent pipelines and their runs | `state/compositions.json` |
 
 Startup order matters and is explicit in `kernel.ts`:
 
 ```
-settings.init() → terminal → tools(registry) → marketplace(init with tools) → agent.init() → ensureProfileDirs()
+settings.init() → terminal → tools(registry) → marketplace → agent → mail → compositions
+→ automation → plugins → ensureProfileDirs()
 ```
 
 The kernel exposes `status()` — the same data the Settings/Desktop surfaces render — so health is
@@ -237,14 +242,85 @@ for Ubuntu, pill controls for iOS) are scoped in `shell.css` under `[data-design
 - `lang` and `dir` are set on `<html>`; RTL is achieved with logical layout, not mirrored CSS.
 - Flags are hand-drawn SVG components (Windows does not render emoji flags).
 
-## 10. Performance notes
+## 10. Desktop shell & window manager
+
+The shell has two navigation modes that share one page model:
+
+1. **Full-page surfaces** — the titlebar tabs (`PageInstance` in settings). Dock clicks open a tab.
+2. **Desktop windows** — the Desktop page renders a simulated OS: icons, windows, start menu.
+
+`useWindowStore` (renderer-only) owns `windows`, `focusedId`, `zTop`, `startOpen`, `locked`. Each
+`OsWindow` records app id, bounds, z-order, minimized/maximized and a restore rectangle.
+`WindowFrame` implements pointer-based drag and 8-way resize, edge snapping, double-click maximize,
+focus-on-click and the chrome buttons. `AppContent` maps an `appId` to the same surface component
+used by the full-page route, so every app works in both modes with no duplicated code.
+
+The taskbar reads the window store (running apps, focus, minimize) and the Start menu opens windows
+by id. `os:open` events let the agent open apps (`desktop.open` tool, automations, plugins).
+Window layout is deliberately ephemeral: it is UI state, not durable OS state, so it never crosses
+IPC.
+
+## 11. Decentralized mail
+
+There is no mail server. Each `MailService` is a node:
+
+- **Identity**: Ed25519 signing key + X25519 encryption key, generated locally; address is
+  `slug(name)@<sha256(publicKey)[0..16]>.neuro`.
+- **Envelope**: stable-serialised JSON, signed over everything except the signature; payload is
+  JSON `{subject, body}` encrypted with X25519 ECDH (ephemeral per message) → HKDF-SHA256 →
+  AES-256-GCM.
+- **Transport**: an HTTP server with `/mail/hello`, `/mail/deliver`, `/mail/peers`; peers POST
+  envelopes directly.
+- **Discovery**: UDP beacons on `47811` (broadcast + multicast) plus manual `host:port` peers and
+  gossip-learned senders.
+- **Reliability**: deliveries are queued and retried every 12 s; intermediate nodes forward with
+  `ttl - 1` and a hop list to prevent loops.
+- **Events**: `mail:event` streams new messages/peer/status changes to the renderer; the same hook
+  feeds the automation `trigger.mail`.
+
+Full protocol notes: [MAIL.md](MAIL.md).
+
+## 12. Plugin host
+
+`PluginService` is a package manager and a runtime:
+
+1. **Install** from folder, `.zip` (PowerShell `Expand-Archive`/`unzip`) or URL; the manifest is
+   validated before anything is copied.
+2. **Load** by reading `manifest.main` and executing it inside a `vm` context with only `module`,
+   `exports`, a permissioned `neuro` object and safe globals. No `require`, `process` or ambient
+   `fetch`.
+3. **Register** contributions: tools go into `ToolRegistry.setSource('plugin:<id>', …)`, themes and
+   provider presets into the service, streaming adapters into an in-memory map consumed by
+   `AgentService` through the `pluginAdapter` hook.
+4. **Unload** removes the tool source and the contributions atomically; reload re-runs the entry.
+
+Every plugin records status, errors, contribution counts and an in-memory log ring. Docs:
+[PLUGINS.md](PLUGINS.md).
+
+## 13. Automation & composition
+
+Automation is a graph interpreter over an `Item = { text, json }`:
+
+- start nodes are the triggers; each executor returns `{ item, port }`;
+- edges from that port are enqueued; `condition.if` selects `true`/`false`;
+- runs are persisted with per-node status/duration/output and streamed as `automation:event`.
+
+Node executors are plain functions in `AutomationService`, so adding a node type is a local change
+(plus its `NodeTypeSpec` for the inspector UI). `agent.run` and `composition.run` call
+`AgentService.runOnce`, which runs the real model/tool loop headlessly and only executes tools with
+`auto` policy.
+
+Compositions are sequential agent pipelines with `{{input}}` and `{{previous}}` templating, run
+either interactively (`composition.run` + events) or inline (`runInline`) from a workflow step.
+
+## 14. Performance notes
 
 - Terminal output is forwarded as raw chunks; xterm.js handles rendering off the React tree.
 - Stats poll at 2.5 s; the UI reads them from the store.
 - Writes are coalesced and atomic; session saves are debounced by the turn boundary.
 - Message lists are not virtualized yet — fine for typical sessions, a known growth item.
 
-## 11. Scaling roadmap
+## 15. Scaling roadmap
 
 1. **Multi-agent rooms** — several agents sharing a tool bus with explicit hand-off events.
 2. **Remote workspaces** — `WorkspaceService` behind an SSH/FS provider interface.

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { LANGUAGES } from '@shared/i18n';
 import { themePreset } from '@shared/themes';
+import { OS_APPS } from '@shared/apps';
 import { useAppStore } from '../state/store';
+import { useWindowStore } from '../state/windows';
 import { useT } from '../lib/i18n';
-import { invoke } from '../lib/ipc';
+import { invoke, on } from '../lib/ipc';
 import { clockTime } from '../lib/format';
 import { Icon } from './Icon';
 import { BrandMark } from './BrandMark';
@@ -17,17 +19,44 @@ export function Taskbar(): JSX.Element {
   const stats = useAppStore((s) => s.stats);
   const pages = useAppStore((s) => s.pages);
   const activePageId = useAppStore((s) => s.activePageId);
-  const setActivePage = useAppStore((s) => s.setActivePage);
   const navigate = useAppStore((s) => s.navigate);
-  const setCommandOpen = useAppStore((s) => s.setCommandOpen);
   const setAnchorOpen = useAppStore((s) => s.setAnchorOpen);
+  const windows = useWindowStore((s) => s.windows);
+  const focusedWindow = useWindowStore((s) => s.focusedId);
+  const openWindow = useWindowStore((s) => s.open);
+  const toggleWindow = useWindowStore((s) => s.toggleMinimize);
+  const setStartOpen = useWindowStore((s) => s.setStartOpen);
+  const setLocked = useWindowStore((s) => s.setLocked);
   const [now, setNow] = useState(new Date());
   const [menu, setMenu] = useState<null | 'tray' | 'language' | 'stats'>(null);
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 10_000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const load = (): void => {
+      void invoke('mail.status', undefined)
+        .then((status) => setUnread(status.unread))
+        .catch(() => setUnread(0));
+    };
+    load();
+    const dispose = on('mail:event', (event) => {
+      if (event.status) setUnread(event.status.unread);
+      else load();
+    });
+    return () => dispose();
+  }, []);
+
+  const openApp = (appId: string): void => {
+    const state = useAppStore.getState();
+    const desktopPage = state.pages.find((page) => page.surface === 'desktop');
+    if (desktopPage) state.setActivePage(desktopPage.id);
+    else state.navigate('desktop');
+    openWindow(appId);
+  };
 
   if (!settings) return <div className="taskbar" />;
 
@@ -35,7 +64,7 @@ export function Taskbar(): JSX.Element {
   const locale = settings.locale;
   const language = LANGUAGES.find((l) => l.code === locale) ?? LANGUAGES[0];
   const pinned = taskbar.pinned.filter((id) => SURFACE_ORDER.includes(id as never));
-  const running = pages.filter((page) => !pinned.includes(page.surface));
+  const running = windows;
 
   const setLocale = (code: string): void => {
     void useAppStore.getState().patchSettings({ locale: code });
@@ -74,6 +103,11 @@ export function Taskbar(): JSX.Element {
     { label: t('chat.newChat'), icon: 'message', onClick: () => navigate('chat', {}, { forceNew: true }) },
     { label: t('terminal.newTab'), icon: 'terminal', onClick: () => navigate('terminal') },
     { separator: true, label: '', onClick: () => {} },
+    { label: 'Start menu', icon: 'grid', onClick: () => setStartOpen(true) },
+    { label: 'Automation', icon: 'workflow', onClick: () => openApp('automation') },
+    { label: 'Mail', icon: 'inbox', onClick: () => openApp('mail') },
+    { label: 'Lock screen', icon: 'lock', onClick: () => setLocked(true) },
+    { separator: true, label: '', onClick: () => {} },
     { label: t('app.openDataFolder'), icon: 'folder-open', onClick: () => void invoke('app.openDataFolder', undefined) },
     { label: t('menu.quit'), icon: 'power', danger: true, onClick: () => void invoke('app.quit', undefined) },
   ];
@@ -84,21 +118,27 @@ export function Taskbar(): JSX.Element {
   return (
     <footer className={`taskbar taskbar--${taskbar.position}`} data-size={taskbar.size}>
       <div className="taskbar__left">
-        <button type="button" className="taskbar__start" onClick={() => setCommandOpen(true)} aria-label="Start">
+        <button type="button" className="taskbar__start" onClick={() => setStartOpen(true)} aria-label="Start">
           <BrandMark size={17} animated />
         </button>
         <div className="taskbar__divider" />
         {pinned.map((surface) => {
           const meta = SURFACES[surface as keyof typeof SURFACES];
-          const active = pages.find((page) => page.id === activePageId)?.surface === surface;
+          const app = OS_APPS.find((item) => item.surface === surface);
+          const window = app ? windows.find((win) => win.appId === app.id) : undefined;
+          const active = Boolean(window && window.id === focusedWindow);
           return (
             <button
               key={surface}
               type="button"
               className="taskbar__app"
               data-active={active}
+              data-running={Boolean(window)}
               data-tip={t(meta.labelKey)}
-              onClick={() => navigate(surface as never)}
+              onClick={() => {
+                if (app) openApp(app.id);
+                else navigate(surface as never);
+              }}
             >
               <Icon name={meta.icon} size={16} style={{ color: active ? meta.accent : undefined }} />
               {taskbar.showLabels ? <span className="taskbar__app-label truncate">{t(meta.labelKey)}</span> : null}
@@ -106,22 +146,21 @@ export function Taskbar(): JSX.Element {
           );
         })}
         {running.length ? <div className="taskbar__divider" /> : null}
-        {running.slice(0, 5).map((page) => {
-          const meta = SURFACES[page.surface];
-          return (
-            <button
-              key={page.id}
-              type="button"
-              className="taskbar__app taskbar__app--running"
-              data-active={page.id === activePageId}
-              data-tip={page.title}
-              onClick={() => setActivePage(page.id)}
-            >
-              <Icon name={meta.icon} size={15} />
-              <span className="taskbar__app-label truncate">{page.title}</span>
-            </button>
-          );
-        })}
+        {running.slice(0, 6).map((win) => (
+          <button
+            key={win.id}
+            type="button"
+            className="taskbar__app taskbar__app--running"
+            data-active={win.id === focusedWindow && !win.minimized}
+            data-minimized={win.minimized}
+            data-tip={win.title}
+            onClick={() => toggleWindow(win.id)}
+          >
+            <Icon name={win.icon} size={15} />
+            <span className="taskbar__app-label truncate">{win.title}</span>
+            <span className="taskbar__windowDot" />
+          </button>
+        ))}
       </div>
 
       <div className="taskbar__spacer" />
@@ -166,6 +205,11 @@ export function Taskbar(): JSX.Element {
             ) : null}
           </div>
         ) : null}
+
+        <button type="button" className="taskbar__tray" onClick={() => openApp('mail')} data-tip="Mail">
+          <Icon name="inbox" size={14} />
+          {unread ? <span className="taskbar__badge">{unread > 9 ? '9+' : unread}</span> : null}
+        </button>
 
         <button type="button" className="taskbar__tray" onClick={() => setAnchorOpen(true)} data-tip={t('anchor.title')}>
           <Icon name="pin" size={14} />

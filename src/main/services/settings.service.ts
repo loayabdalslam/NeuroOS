@@ -232,6 +232,11 @@ export class SettingsService {
     return this.store.get();
   }
 
+  /** Shared OS-keychain vault used by other services for their secrets. */
+  get secretVault(): SecretVault {
+    return this.vault;
+  }
+
   saveAgent(agent: AgentConfig): Settings {
     const agents = [...this.store.get().agents];
     const idx = agents.findIndex((a) => a.id === agent.id);

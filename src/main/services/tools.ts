@@ -1,5 +1,15 @@
 import { spawn } from 'node:child_process';
-import type { AnchorPin, ToolDef, ToolDescriptor, ToolInvocation, ToastPayload } from '@shared/types';
+import type {
+  AnchorPin,
+  MailMessage,
+  MailStatus,
+  PluginRecord,
+  ToolDef,
+  ToolDescriptor,
+  ToolInvocation,
+  ToastPayload,
+  Workflow,
+} from '@shared/types';
 import type { ContentService } from './content.service';
 import type { SettingsService } from './settings.service';
 import type { SystemService } from './system.service';
@@ -24,7 +34,18 @@ export interface ToolRuntime {
     navigate: (surface: string, params?: Record<string, string>) => void;
     toast: (toast: ToastPayload) => void;
     pin: (pin: Omit<AnchorPin, 'id' | 'order'>) => void;
+    openApp: (appId: string) => void;
   };
+  mail?: {
+    status: () => MailStatus;
+    messages: (folder: 'inbox' | 'sent', limit?: number) => MailMessage[];
+    send: (input: { to: string; subject: string; body: string }) => Promise<MailMessage>;
+  };
+  automation?: {
+    list: () => Workflow[];
+    run: (id: string, input?: string) => Promise<{ runId: string }>;
+  };
+  plugins?: { list: () => PluginRecord[] };
   sessionId?: string;
 }
 
@@ -406,6 +427,19 @@ const TOOLS: RegisteredTool[] = [
     },
   ),
   define(
+    'desktop.open',
+    'Open app window',
+    'Open a desktop application window (chat, workspace, terminal, browser, notebook, mail, automation, composer, spaces, marketplace, settings, overview).',
+    'ui',
+    'low',
+    obj({ app: str('Application id, e.g. chat or mail.') }, ['app']),
+    async (args, rt) => {
+      const appId = String(args.app);
+      rt.ui.openApp(appId);
+      return { ok: true, output: `Opened ${appId} in a window.` };
+    },
+  ),
+  define(
     'ui.pin',
     'Pin to Anchor',
     'Pin an entity (chat, note, file, space, notebook, link, terminal, widget) to the Anchor rail so it stays one click away.',
@@ -647,6 +681,111 @@ const TOOLS: RegisteredTool[] = [
       return { ok: true, output: truncate(content, 24_000) };
     },
   ),
+  define(
+    'mail.status',
+    'Mail status',
+    'Report this node\'s decentralized mail identity, address and known peers.',
+    'network',
+    'low',
+    obj({}),
+    async (_args, rt) => {
+      if (!rt.mail) return { ok: false, output: 'Mail service is unavailable.' };
+      const status = rt.mail.status();
+      return {
+        ok: true,
+        output: [
+          status.identity ? `Address: ${status.identity.address}` : 'No mail identity yet — open the Mail app to create one.',
+          `Peers: ${status.peers.length} (${status.peers.filter((peer) => peer.online).length} online)`,
+          `Unread: ${status.unread} · queued: ${status.pending}`,
+        ].join('\n'),
+        data: status,
+      };
+    },
+  ),
+  define(
+    'mail.inbox',
+    'Read mail',
+    'List recent messages in the local mailbox (no server involved).',
+    'network',
+    'low',
+    obj({ folder: str('inbox or sent (default inbox)'), limit: num('Max messages (default 10).') }),
+    async (args, rt) => {
+      if (!rt.mail) return { ok: false, output: 'Mail service is unavailable.' };
+      const messages = rt.mail.messages((args.folder as 'inbox' | 'sent') ?? 'inbox', Number(args.limit ?? 10));
+      return {
+        ok: true,
+        output:
+          messages
+            .map((message) => `${message.read ? ' ' : '●'} ${message.subject} — ${message.from.name} <${message.from.address}> (${message.delivery})`)
+            .join('\n') || 'Mailbox is empty.',
+        data: messages,
+      };
+    },
+  ),
+  define(
+    'mail.send',
+    'Send mail',
+    'Send a signed, end-to-end encrypted message to a known peer over the peer-to-peer mesh.',
+    'network',
+    'medium',
+    obj({ to: str('Recipient address or peer name.'), subject: str('Subject.'), body: str('Plain-text body.') }, ['to', 'subject', 'body']),
+    async (args, rt) => {
+      if (!rt.mail) return { ok: false, output: 'Mail service is unavailable.' };
+      const message = await rt.mail.send({ to: String(args.to), subject: String(args.subject), body: String(args.body) });
+      return { ok: true, output: `Sent ${message.id} → ${message.to.address} (${message.delivery})`, data: message };
+    },
+  ),
+  define(
+    'automation.list',
+    'List automations',
+    'List saved workflows (triggers → agents/tools → actions) and their enabled state.',
+    'agent',
+    'low',
+    obj({}),
+    async (_args, rt) => {
+      if (!rt.automation) return { ok: false, output: 'Automation engine is unavailable.' };
+      const workflows = rt.automation.list();
+      return {
+        ok: true,
+        output: workflows.map((workflow) => `${workflow.enabled ? 'on ' : 'off'} ${workflow.name} (${workflow.id}) — ${workflow.description}`).join('\n') || 'No workflows yet.',
+        data: workflows,
+      };
+    },
+  ),
+  define(
+    'automation.run',
+    'Run automation',
+    'Run a workflow by id or name with an optional input payload. Returns the run id so progress can be inspected.',
+    'agent',
+    'medium',
+    obj({ workflow: str('Workflow id or name.'), input: str('Optional input text/JSON.') }, ['workflow']),
+    async (args, rt) => {
+      if (!rt.automation) return { ok: false, output: 'Automation engine is unavailable.' };
+      const workflows = rt.automation.list();
+      const wanted = String(args.workflow);
+      const workflow = workflows.find((item) => item.id === wanted || item.name.toLowerCase() === wanted.toLowerCase());
+      if (!workflow) return { ok: false, output: `Workflow not found: ${wanted}` };
+      const result = await rt.automation.run(workflow.id, String(args.input ?? ''));
+      return { ok: true, output: `Started "${workflow.name}" (run ${result.runId})`, data: result };
+    },
+  ),
+  define(
+    'plugins.list',
+    'List plugins',
+    'List installed third-party plugins, their versions and load status.',
+    'marketplace',
+    'low',
+    obj({}),
+    async (_args, rt) => {
+      if (!rt.plugins) return { ok: false, output: 'Plugin host is unavailable.' };
+      const plugins = rt.plugins.list();
+      return {
+        ok: true,
+        output: plugins.map((plugin) => `${plugin.name} v${plugin.version} — ${plugin.status}${plugin.error ? ` (${plugin.error})` : ''}`).join('\n') || 'No plugins installed.',
+        data: plugins,
+      };
+    },
+  ),
 ];
 
 /* ------------------------------------------------------------------ */
@@ -655,16 +794,12 @@ const TOOLS: RegisteredTool[] = [
 
 export class ToolRegistry {
   private tools = new Map(TOOLS.map((tool) => [tool.def.name, tool]));
-  private extras: ToolDescriptor[] = [];
-  private external = new Map<string, (args: Record<string, unknown>) => Promise<ToolResult>>();
+  private sources = new Map<string, { descriptors: ToolDescriptor[]; handlers: Map<string, (args: Record<string, unknown>) => Promise<ToolResult>> }>();
 
   constructor(private readonly runtime: () => ToolRuntime) {}
 
   list(): ToolDescriptor[] {
-    return [
-      ...TOOLS.map((t) => ({ ...t.def, source: 'builtin' as const })),
-      ...this.extras,
-    ];
+    return [...TOOLS.map((t) => ({ ...t.def, source: 'builtin' as const })), ...[...this.sources.values()].flatMap((source) => source.descriptors)];
   }
 
   definitions(names?: string[] | 'all'): ToolDef[] {
@@ -674,7 +809,9 @@ export class ToolRegistry {
   }
 
   has(name: string): boolean {
-    return this.tools.has(name) || this.external.has(name);
+    if (this.tools.has(name)) return true;
+    for (const source of this.sources.values()) if (source.descriptors.some((descriptor) => descriptor.name === name)) return true;
+    return false;
   }
 
   policyFor(name: string): 'ask' | 'auto' | 'deny' {
@@ -683,23 +820,45 @@ export class ToolRegistry {
     return configured as 'ask' | 'auto' | 'deny';
   }
 
-  /** Register tools contributed by plugins or MCP servers. */
-  registerExternal(
+  /**
+   * Replace every tool contributed by one source (marketplace plugin, installed
+   * plugin, future MCP server). Removing the source removes its tools atomically.
+   */
+  setSource(
+    sourceId: string,
     descriptors: ToolDescriptor[],
     handlers: Record<string, (args: Record<string, unknown>) => Promise<ToolResult>>,
-    replaceSource?: string,
   ): void {
-    if (replaceSource) {
-      this.extras = this.extras.filter((t) => t.sourceId !== replaceSource);
-      for (const [name, handler] of [...this.external.entries()]) if (name.startsWith(`${replaceSource}:`)) this.external.delete(name);
+    if (!descriptors.length) {
+      this.sources.delete(sourceId);
+      return;
     }
-    for (const descriptor of descriptors) {
-      this.extras = this.extras.filter((t) => t.name !== descriptor.name);
-      this.extras.push(descriptor);
-      const handler = handlers[descriptor.name];
-      if (handler) this.external.set(descriptor.name, handler);
+    const originals = this.sources.get(sourceId)?.descriptors.map((descriptor) => descriptor.name) ?? [];
+    this.sourceOrder = this.sourceOrder.filter((id) => id !== sourceId);
+    this.sourceOrder.push(sourceId);
+    this.sources.set(sourceId, {
+      descriptors: descriptors.map((descriptor) => ({ ...descriptor, sourceId })),
+      handlers: new Map(Object.entries(handlers)),
+    });
+    // Drop names that another source used to own (defensive against id collisions).
+    for (const name of originals) {
+      if (descriptors.some((descriptor) => descriptor.name === name)) continue;
+      for (const [id, source] of this.sources) {
+        if (id !== sourceId) source.descriptors = source.descriptors.filter((descriptor) => descriptor.name !== name);
+      }
     }
   }
+
+  removeSource(sourceId: string): void {
+    this.sources.delete(sourceId);
+    this.sourceOrder = this.sourceOrder.filter((id) => id !== sourceId);
+  }
+
+  sourceIds(): string[] {
+    return [...this.sourceOrder];
+  }
+
+  private sourceOrder: string[] = [];
 
   async invoke(name: string, args: Record<string, unknown>, overrideRuntime?: Partial<ToolRuntime>): Promise<ToolInvocation> {
     const startedAt = nowIso();
@@ -707,11 +866,15 @@ export class ToolRegistry {
     const invocation: ToolInvocation = { id: newId('call'), name, args, status: 'running', startedAt };
     try {
       const rt: ToolRuntime = { ...this.runtime(), ...(overrideRuntime ?? {}) };
-      const external = this.external.get(name);
-      let result: ToolResult;
-      if (external) {
-        result = await external(args);
-      } else {
+      let result: ToolResult | null = null;
+      for (const source of this.sources.values()) {
+        const handler = source.handlers.get(name);
+        if (handler) {
+          result = await handler(args);
+          break;
+        }
+      }
+      if (!result) {
         const tool = this.tools.get(name);
         if (!tool) throw new Error(`Unknown tool: ${name}`);
         result = await tool.handler(args, rt);

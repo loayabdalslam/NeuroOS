@@ -52,7 +52,7 @@ export class ApprovalRegistry {
   }
 }
 
-interface AgentDeps {
+export interface AgentDeps {
   settings: SettingsService;
   toolRegistry: ToolRegistry;
   marketplace: MarketplaceService;
@@ -61,6 +61,7 @@ interface AgentDeps {
   emit: (event: AgentEvent) => void;
   approvals: ApprovalRegistry;
   cwd: () => string;
+  pluginAdapter?: (providerId: string) => import('./providers/adapters').ProviderAdapter | null;
 }
 
 interface ActiveTurn {
@@ -155,6 +156,68 @@ export class AgentService {
 
   private callIndex = new Map<string, ToolInvocation>();
 
+  /* --------------------------- headless runs --------------------------- */
+
+  /**
+   * Run one prompt through the agent loop without a chat session. Used by
+   * automations and agent compositions. Tools run only when policy is `auto`;
+   * anything requiring approval is skipped so background work never hangs.
+   */
+  async runOnce(input: {
+    prompt: string;
+    agentId?: string;
+    providerId?: string;
+    system?: string;
+    maxSteps?: number;
+  }): Promise<{ text: string; tools: string[]; steps: number }> {
+    const settings = this.deps.settings.public();
+    const agent = settings.agents.find((item) => item.id === (input.agentId ?? settings.activeAgentId)) ?? settings.agents[0];
+    const provider =
+      settings.providers.find((item) => item.id === (input.providerId ?? agent?.providerId) && item.enabled) ??
+      settings.providers.find((item) => item.enabled);
+    if (!provider) throw new Error('No provider configured for automation');
+    const adapter = this.deps.pluginAdapter?.(provider.id) ?? createAdapter(provider);
+    const toolDefs = this.deps.toolRegistry.definitions(agent?.tools);
+    const system = input.system ?? agent?.systemPrompt ?? 'You are Neuro, the resident agent of Neuro OS.';
+    const messages: LlmMessage[] = [{ role: 'user', content: input.prompt }];
+    const usedTools: string[] = [];
+    const maxSteps = Math.max(1, Math.min(12, input.maxSteps ?? 6));
+    let text = '';
+
+    for (let step = 0; step < maxSteps; step += 1) {
+      const calls: LlmToolCall[] = [];
+      let stepText = '';
+      for await (const event of adapter.stream(
+        {
+          model: provider.defaultModel,
+          system: `${system}\n\nYou are running headlessly inside an automation. Be concise: return only the result the workflow needs.`,
+          messages,
+          tools: toolDefs,
+          temperature: agent?.temperature ?? 0.2,
+          maxTokens: 4096,
+        },
+        new AbortController().signal,
+      )) {
+        if (event.type === 'text') stepText += event.delta;
+        else if (event.type === 'tool_call') calls.push(event.call);
+      }
+      text += stepText;
+      if (!calls.length) return { text: text.trim(), tools: usedTools, steps: step + 1 };
+      messages.push({ role: 'assistant', content: stepText, toolCalls: calls });
+      for (const call of calls) {
+        const policy = this.deps.toolRegistry.policyFor(call.name);
+        if (policy !== 'auto') {
+          messages.push({ role: 'tool', toolCallId: call.id, toolName: call.name, content: 'Skipped: tool requires manual approval.' });
+          continue;
+        }
+        const result = await this.deps.toolRegistry.invoke(call.name, call.args ?? {});
+        usedTools.push(call.name);
+        messages.push({ role: 'tool', toolCallId: call.id, toolName: call.name, content: result.output ?? '' });
+      }
+    }
+    return { text: text.trim(), tools: usedTools, steps: maxSteps };
+  }
+
   /* ----------------------------- send ----------------------------- */
 
   async send(sessionId: string, text: string, attachments?: ChatMessage['attachments']): Promise<{ ok: boolean; messageId: string }> {
@@ -239,7 +302,7 @@ export class AgentService {
       return;
     }
 
-    const adapter = createAdapter(provider);
+    const adapter = this.deps.pluginAdapter?.(provider.id) ?? createAdapter(provider);
     const toolDefs = this.deps.toolRegistry.definitions(agent?.tools);
     const system = await this.buildSystemPrompt(session, agent, provider);
     const maxSteps = Math.max(1, Math.min(60, agent?.maxSteps ?? 24));

@@ -6,6 +6,7 @@ import { createKernel, type Kernel } from './kernel';
 import { buildHandlers } from './ipcHandlers';
 import { Paths, ensureProfileDirs } from './core/store';
 import { startMockProvider } from './selftest/mockProvider';
+import { MailService } from './services/mail.service';
 
 const isDev = !app.isPackaged;
 const isSelftest = process.argv.includes('--selftest');
@@ -99,6 +100,11 @@ function createWindow(onLoaded?: () => void): BrowserWindow {
     log.error('window', 'renderer crashed', details);
   });
 
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) log.warn('renderer', `${message} (${sourceId}:${line})`);
+    else log.debug('renderer', message);
+  });
+
   if (onLoaded) win.webContents.once('did-finish-load', onLoaded);
 
   loadRenderer(win);
@@ -120,6 +126,11 @@ async function startStatsLoop(): Promise<void> {
 
 async function runSelfTest(win: BrowserWindow): Promise<void> {
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
+  const watchdog = setTimeout(() => {
+    log.error('selftest', 'watchdog timeout — exiting');
+    app.exit(2);
+  }, 180_000);
+  watchdog.unref();
   const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
   const screenshot = async (name: string): Promise<void> => {
     await wait(700);
@@ -260,6 +271,107 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   const shellTool = await kernel.tools.invoke('shell.exec', { command: 'echo neuro-tool-bus' });
   log.info('selftest', `tool shell.exec: ${shellTool.status} ${(shellTool.output ?? '').slice(0, 60).replace(/\n/g, ' ')}`);
 
+  /* ---------------------- decentralized mail (two nodes) ---------------------- */
+  const inboxBefore = kernel.mail.status().unread;
+  let peerNode: MailService | null = null;
+  try {
+    await kernel.mail.resetIdentity();
+    const peerMailFile = path.join(Paths.cache, 'selftest-peer-mail.json');
+    try {
+      fs.rmSync(peerMailFile, { force: true });
+    } catch {
+      /* ignore */
+    }
+    const peerVault = (() => {
+      const map = new Map<string, string>();
+      return { get: (key: string) => map.get(key) ?? '', set: (key: string, value: string) => map.set(key, value) };
+    })();
+    peerNode = new MailService({
+      dataFile: peerMailFile,
+      vault: peerVault,
+      discovery: false,
+      secretPrefix: 'peer',
+    });
+    await peerNode.start();
+    log.info('selftest', `mail identity: main=${kernel.mail.status().identity ? 'exists' : 'none'} peer=${peerNode.status().identity ? 'exists' : 'none'}`);
+    if (!kernel.mail.status().identity) await kernel.mail.createIdentity('Youssef');
+    if (!peerNode.status().identity) await peerNode.createIdentity('Ada');
+    const myMail = kernel.mail.status();
+    const peerMail = peerNode.status();
+    await kernel.mail.addPeer('127.0.0.1', peerMail.port);
+    await peerNode.addPeer('127.0.0.1', myMail.port);
+    await peerNode.send({
+      to: myMail.identity!.address,
+      subject: 'Welcome to the mesh',
+      body: 'This message travelled directly between two nodes — no server in between.',
+    });
+    await wait(1400);
+    const inbox = kernel.mail.messages('inbox', 5);
+    const received = inbox.find((message) => message.subject === 'Welcome to the mesh');
+    log.info(
+      'selftest',
+      `mail p2p: peers=${kernel.mail.status().peers.length} inbox=${inbox.length} unread=${inboxBefore}→${kernel.mail.status().unread} encrypted=${received?.encrypted} verified=${received?.verified}`,
+    );
+  } catch (error) {
+    log.error('selftest', `mail test failed: ${(error as Error).message}`);
+  }
+
+  /* ---------------------------- plugin lifecycle ----------------------------- */
+  const examplesRoot = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'examples')
+    : path.join(app.getAppPath(), 'examples');
+  const helloPlugin = path.join(examplesRoot, 'plugins', 'hello-neuro');
+  if (fs.existsSync(helloPlugin)) {
+    const installed = await kernel.plugins.installFromPath(helloPlugin);
+    const pluginTool = await kernel.tools.invoke('hello-neuro.greet', { name: 'Youssef' });
+    const pluginThemes = kernel.plugins.themes().length;
+    await kernel.plugins.uninstall(installed.id);
+    log.info(
+      'selftest',
+      `plugin: installed=${installed.name}@${installed.version} tool=${pluginTool.status} "${(pluginTool.output ?? '').slice(0, 40)}" themes=${pluginThemes} uninstalled=${kernel.plugins.list().length === 0}`,
+    );
+  } else {
+    log.warn('selftest', `plugin example not found at ${helloPlugin}`);
+  }
+
+  /* ------------------------------- automation -------------------------------- */
+  const nowStamp = new Date().toISOString();
+  const workflow = {
+    id: 'flow_selftest',
+    name: 'Selftest pipeline',
+    description: 'trigger → transform → notify',
+    nodes: [
+      { id: 'n1', type: 'trigger.manual' as const, name: 'Start', x: 60, y: 80, config: {} },
+      { id: 'n2', type: 'transform.code' as const, name: 'Uppercase', x: 330, y: 80, config: { code: 'return input.toUpperCase();' } },
+      { id: 'n3', type: 'notify.toast' as const, name: 'Notify', x: 600, y: 80, config: { title: 'Selftest', message: '{{input}}' } },
+    ],
+    edges: [
+      { id: 'e1', from: 'n1', fromPort: 'main' as const, to: 'n2' },
+      { id: 'e2', from: 'n2', fromPort: 'main' as const, to: 'n3' },
+    ],
+    enabled: true,
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  };
+  await kernel.automation.save(workflow);
+  const automationRun = await kernel.automation.run(workflow.id, 'manual', 'hello automation');
+  await wait(900);
+  const finishedRun = kernel.automation.runs(workflow.id).find((run) => run.id === automationRun.runId);
+  log.info('selftest', `automation: status=${finishedRun?.status} steps=${finishedRun?.steps.length} last="${(finishedRun?.steps.at(-1)?.output ?? '').slice(0, 32)}"`);
+
+  /* ------------------------- agent composition ------------------------------- */
+  const composition = {
+    id: 'comp_selftest',
+    name: 'Selftest composition',
+    description: '',
+    steps: [{ id: 's1', name: 'Respond', agentId: 'neuro', prompt: 'Repeat this input verbatim, then add the word DONE: {{input}}', usePrevious: false }],
+    createdAt: nowStamp,
+    updatedAt: nowStamp,
+  };
+  kernel.compositions.save(composition);
+  const composed = await kernel.compositions.runInline(composition.id, 'neuro composition test');
+  log.info('selftest', `composition: chars=${composed.length} "${composed.slice(0, 46).replace(/\n/g, ' ')}"`);
+
   const surfaces: [string, string, Record<string, string>?][] = [
     ['02-desktop', 'desktop'],
     ['03-chat', 'chat'],
@@ -269,12 +381,24 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     ['07-browser', 'browser'],
     ['08-terminal', 'terminal'],
     ['09-marketplace', 'marketplace'],
+    ['09b-extensions', 'marketplace', { tab: 'plugins' }],
     ['10-settings', 'settings'],
+    ['17-mail', 'mail'],
+    ['18-automation', 'automation'],
+    ['19-composer', 'composer'],
   ];
 
   for (const [name, surface, params] of surfaces) {
     router?.emit('ui:navigate', { surface, params: params ?? {} });
-    await wait(surface === 'browser' ? 1800 : 900);
+    if (surface === 'desktop') {
+      await wait(400);
+      router?.emit('os:open', { appId: 'chat' });
+      await wait(300);
+      router?.emit('os:open', { appId: 'terminal' });
+      await wait(300);
+      router?.emit('os:open', { appId: 'mail' });
+    }
+    await wait(surface === 'browser' ? 1800 : 1000);
     await screenshot(name);
   }
 
@@ -329,8 +453,17 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   await screenshot('12-command-palette');
   await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
 
+  // Start menu.
+  await wait(300);
+  await win.webContents.executeJavaScript(`document.querySelector('.taskbar__start')?.click()`).catch(() => {});
+  await wait(700);
+  await screenshot('20-start-menu');
+  await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`).catch(() => {});
+
   log.info('selftest', 'complete');
+  clearTimeout(watchdog);
   await mock.close();
+  await peerNode?.dispose();
   await kernel.dispose();
   app.exit(0);
 }

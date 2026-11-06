@@ -1,0 +1,45 @@
+{
+  "id": "hello-neuro",
+  "name": "Hello Neuro",
+  "version": "1.0.0",
+  "description": "Reference plugin: contributes two tools and a command to show the plugin API surface.",
+  "author": "Neuro OS",
+  "main": "main.js",
+  "permissions": ["fs", "ui"],
+  "contributes": {
+    "tools": [
+      {
+        "name": "project_stats",
+        "title": "Project stats",
+        "description": "Count files and total bytes in a directory, grouped by extension.",
+        "category": "filesystem",
+        "danger": "low",
+        "handler": "projectStats",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string", "description": "Directory to scan. Defaults to the workspace root." }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "greet",
+        "title": "Greet",
+        "description": "Return a friendly greeting (example of a trivial tool).",
+        "category": "agent",
+        "danger": "low",
+        "handler": "greet",
+        "parameters": {
+          "type": "object",
+          "properties": { "name": { "type": "string", "description": "Who to greet." } },
+          "required": ["name"],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "commands": [
+      { "id": "say_hello", "title": "Say hello", "description": "Logs a greeting from the plugin host." }
+    ]
+  }
+}

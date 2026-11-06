@@ -195,7 +195,60 @@ For surface-local keys use `useHotkey('ctrl+s', save, [save])` from `lib/hooks.t
 
 ---
 
-## 10. Before you ship a change
+## 10. Build a plugin
+
+Plugins are the supported way to ship extensions without touching core code. A minimal tool plugin:
+
+```jsonc
+// neuro.plugin.json
+{
+  "id": "my-tools",
+  "name": "My Tools",
+  "version": "1.0.0",
+  "description": "Adds one tool.",
+  "main": "main.js",
+  "permissions": [],
+  "contributes": {
+    "tools": [{
+      "name": "ping",
+      "description": "Return pong.",
+      "category": "agent",
+      "danger": "low",
+      "handler": "ping",
+      "parameters": { "type": "object", "properties": {}, "additionalProperties": false }
+    }]
+  }
+}
+```
+
+```js
+module.exports = {
+  tools: {
+    async ping() {
+      return { ok: true, output: 'pong' };
+    },
+  },
+};
+```
+
+Install it from **Marketplace → Extensions → From folder**. The tool is then namespaced as
+`my-tools.ping`, appears in Settings → Tools with its own policy, and is advertised to every
+provider. Themes, provider presets, streaming adapters and commands use the same manifest.
+Full reference: [PLUGINS.md](PLUGINS.md).
+
+## 11. Add an automation node type
+
+Four small edits, all local:
+
+1. Add the id to `WorkflowNodeType` in `src/shared/types.ts`.
+2. Add a `NodeTypeSpec` in `AutomationService.nodeTypes()` (label, icon, category, fields, outputs).
+3. Add a `case` in `AutomationService.runNode()` returning `{ item, port }`.
+4. Nothing else — the canvas, inspector, templating and run log pick it up automatically.
+
+The same pattern works for a new trigger: add a spec with `category: 'trigger'` and call
+`automation.run(id, 'my-trigger', payload)` from wherever the event originates.
+
+## 12. Before you ship a change
 
 ```bash
 npx tsc --noEmit -p tsconfig.node.json

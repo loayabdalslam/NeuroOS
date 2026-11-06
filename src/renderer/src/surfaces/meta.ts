@@ -14,6 +14,9 @@ export const SURFACES: Record<SurfaceKind, SurfaceMeta> = {
   notebook: { icon: 'notebook-pen', labelKey: 'nav.notebook', accent: '#f59e0b' },
   browser: { icon: 'globe', labelKey: 'nav.browser', accent: '#14b8a6' },
   terminal: { icon: 'terminal', labelKey: 'nav.terminal', accent: '#e879f9' },
+  mail: { icon: 'inbox', labelKey: 'nav.mail', accent: '#f472b6' },
+  automation: { icon: 'workflow', labelKey: 'nav.automation', accent: '#fb7185' },
+  composer: { icon: 'boxes', labelKey: 'nav.composer', accent: '#a78bfa' },
   marketplace: { icon: 'package', labelKey: 'nav.marketplace', accent: '#fb7185' },
   settings: { icon: 'settings', labelKey: 'nav.settings', accent: '#94a3b8' },
 };
@@ -26,6 +29,9 @@ export const SURFACE_ORDER: SurfaceKind[] = [
   'notebook',
   'browser',
   'terminal',
+  'mail',
+  'automation',
+  'composer',
   'marketplace',
   'settings',
 ];

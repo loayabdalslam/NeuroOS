@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n';
 import { invoke } from '../lib/ipc';
 import { Icon } from '../components/Icon';
 import { Button, EmptyState, IconButton, Modal, Spinner, Switch } from '../components/ui';
+import { PluginManager } from './PluginManager';
 
 const KINDS = [
   { id: 'all', label: 'All' },
@@ -16,7 +17,7 @@ const KINDS = [
 
 const KIND_ICON: Record<string, string> = { skill: 'sparkles', plugin: 'puzzle', agent: 'bot', theme: 'palette' };
 
-export function Marketplace(): JSX.Element {
+export function Marketplace({ params }: { params?: Record<string, string> }): JSX.Element {
   const t = useT();
   const navigate = useAppStore((s) => s.navigate);
   const pushToast = useAppStore((s) => s.pushToast);
@@ -24,7 +25,7 @@ export function Marketplace(): JSX.Element {
   const [installed, setInstalled] = useState<InstalledItem[]>([]);
   const [kind, setKind] = useState('all');
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<'catalog' | 'installed'>('catalog');
+  const [tab, setTab] = useState<'catalog' | 'installed' | 'plugins'>(params?.tab === 'plugins' ? 'plugins' : 'catalog');
   const [detail, setDetail] = useState<CatalogItem | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,11 +120,14 @@ export function Marketplace(): JSX.Element {
             <button type="button" data-active={tab === 'installed'} onClick={() => setTab('installed')}>
               {t('marketplace.installedTab')} {installed.length ? `· ${installed.length}` : ''}
             </button>
+            <button type="button" data-active={tab === 'plugins'} onClick={() => setTab('plugins')}>
+              Extensions
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="mkt__filters">
+      <div className="mkt__filters" data-hidden={tab === 'plugins'}>
         {KINDS.map((item) => (
           <button key={item.id} type="button" className="n-chip" data-active={kind === item.id} onClick={() => setKind(item.id)}>
             {item.id !== 'all' ? <Icon name={KIND_ICON[item.id]} size={11} /> : null}
@@ -134,6 +138,11 @@ export function Marketplace(): JSX.Element {
         <span className="tiny faint mono">{filtered.length} items</span>
       </div>
 
+      {tab === 'plugins' ? (
+        <div className="mkt__scroll n-scroll">
+          <PluginManager />
+        </div>
+      ) : (
       <div className="mkt__scroll n-scroll">
         {tab === 'catalog' && !query && kind === 'all' && featured.length ? (
           <div className="mkt__featured">
@@ -221,6 +230,7 @@ export function Marketplace(): JSX.Element {
           </div>
         )}
       </div>
+      )}
 
       <Modal
         open={detail !== null}

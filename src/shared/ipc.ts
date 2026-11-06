@@ -9,18 +9,27 @@ import type {
   CatalogItem,
   ChatSession,
   ChatSessionFull,
+  Composition,
+  CompositionRun,
   ConnectionProbe,
   FileStat,
   FsEntry,
   ID,
   InstalledItem,
+  InstalledTheme,
   KernelStatus,
   LaunchedApp,
+  MailMessage,
+  MailPeer,
+  MailStatus,
   ModelInfo,
+  NodeTypeSpec,
   Notebook,
   NotebookCell,
   Note,
   PageInstance,
+  PluginRecord,
+  PluginProviderEntry,
   ProviderConfig,
   SearchHit,
   Settings,
@@ -31,6 +40,8 @@ import type {
   ToolDescriptor,
   ToolInvocation,
   WindowInfo,
+  Workflow,
+  WorkflowRun,
   WorkspaceInfo,
 } from './types';
 
@@ -178,6 +189,55 @@ export interface IpcMap {
     result: Settings;
   };
   'onboarding.state': { params: void; result: { complete: boolean } };
+
+  /* decentralized mail */
+  'mail.status': { params: void; result: MailStatus };
+  'mail.identityCreate': { params: { name: string }; result: MailStatus };
+  'mail.messages': { params: { folder?: 'inbox' | 'sent'; limit?: number } | void; result: MailMessage[] };
+  'mail.send': {
+    params: { to: string; subject: string; body: string; encrypt?: boolean; replyTo?: ID };
+    result: { ok: boolean; id: ID; message: string };
+  };
+  'mail.read': { params: { id: ID }; result: { ok: boolean } };
+  'mail.delete': { params: { id: ID }; result: { ok: boolean } };
+  'mail.peers': { params: void; result: MailPeer[] };
+  'mail.peerAdd': { params: { host: string; port: number }; result: MailPeer[] };
+  'mail.peerRemove': { params: { nodeId: string }; result: MailPeer[] };
+  'mail.discovery': { params: { enabled: boolean }; result: MailStatus };
+  'mail.sync': { params: void; result: { ok: boolean } };
+
+  /* plugins */
+  'plugins.list': { params: void; result: PluginRecord[] };
+  'plugins.themes': { params: void; result: InstalledTheme[] };
+  'plugins.providers': { params: void; result: PluginProviderEntry[] };
+  'plugins.installFolder': { params: void; result: { installed: PluginRecord | null; message: string } };
+  'plugins.installArchive': { params: void; result: { installed: PluginRecord | null; message: string } };
+  'plugins.installUrl': { params: { url: string }; result: { installed: PluginRecord | null; message: string } };
+  'plugins.installPath': { params: { path: string }; result: { installed: PluginRecord | null; message: string } };
+  'plugins.uninstall': { params: { id: string }; result: PluginRecord[] };
+  'plugins.toggle': { params: { id: string; enabled: boolean }; result: PluginRecord[] };
+  'plugins.reload': { params: { id: string }; result: PluginRecord[] };
+  'plugins.openFolder': { params: { id: string }; result: void };
+  'plugins.logs': { params: { id: string }; result: string[] };
+  'plugins.runCommand': { params: { pluginId: string; commandId: string }; result: { ok: boolean; output: string } };
+
+  /* automation */
+  'automation.nodeTypes': { params: void; result: NodeTypeSpec[] };
+  'automation.list': { params: void; result: Workflow[] };
+  'automation.get': { params: { id: ID }; result: Workflow };
+  'automation.save': { params: Workflow; result: Workflow[] };
+  'automation.remove': { params: { id: ID }; result: Workflow[] };
+  'automation.run': { params: { id: ID; input?: string }; result: { runId: ID } };
+  'automation.cancel': { params: { runId: ID }; result: { ok: boolean } };
+  'automation.runs': { params: { workflowId?: ID } | void; result: WorkflowRun[] };
+
+  /* agent composition */
+  'composition.list': { params: void; result: Composition[] };
+  'composition.save': { params: Composition; result: Composition[] };
+  'composition.remove': { params: { id: ID }; result: Composition[] };
+  'composition.run': { params: { id: ID; input: string }; result: { runId: ID } };
+  'composition.runs': { params: { compositionId?: ID } | void; result: CompositionRun[] };
+  'composition.cancel': { params: { runId: ID }; result: { ok: boolean } };
 }
 
 export type IpcChannel = keyof IpcMap;
@@ -199,6 +259,29 @@ export interface EventMap {
   'acp:event': { providerId: ID; sessionId?: string; event: AgentEvent };
   'tools:changed': ToolDescriptor[];
   'ui:navigate': { surface: string; params: Record<string, string> };
+  'os:open': { appId: string; params?: Record<string, string> };
+  'mail:event': {
+    kind: 'message' | 'peer' | 'status' | 'delivery';
+    message?: MailMessage;
+    peer?: MailPeer;
+    status?: MailStatus;
+  };
+  'plugins:changed': PluginRecord[];
+  'automation:event': {
+    runId: ID;
+    workflowId: ID;
+    status: 'queued' | 'running' | 'ok' | 'error' | 'cancelled';
+    nodeId?: ID;
+    nodeStatus?: 'queued' | 'running' | 'ok' | 'error' | 'cancelled';
+    message?: string;
+  };
+  'composition:event': {
+    runId: ID;
+    compositionId: ID;
+    status: 'queued' | 'running' | 'ok' | 'error' | 'cancelled';
+    stepId?: ID;
+    output?: string;
+  };
 }
 
 export type EventChannel = keyof EventMap;
@@ -295,6 +378,44 @@ export const IPC_CHANNELS = [
   'app.openDataFolder',
   'onboarding.complete',
   'onboarding.state',
+  'mail.status',
+  'mail.identityCreate',
+  'mail.messages',
+  'mail.send',
+  'mail.read',
+  'mail.delete',
+  'mail.peers',
+  'mail.peerAdd',
+  'mail.peerRemove',
+  'mail.discovery',
+  'mail.sync',
+  'plugins.list',
+  'plugins.themes',
+  'plugins.providers',
+  'plugins.installFolder',
+  'plugins.installArchive',
+  'plugins.installUrl',
+  'plugins.installPath',
+  'plugins.uninstall',
+  'plugins.toggle',
+  'plugins.reload',
+  'plugins.openFolder',
+  'plugins.logs',
+  'plugins.runCommand',
+  'automation.nodeTypes',
+  'automation.list',
+  'automation.get',
+  'automation.save',
+  'automation.remove',
+  'automation.run',
+  'automation.cancel',
+  'automation.runs',
+  'composition.list',
+  'composition.save',
+  'composition.remove',
+  'composition.run',
+  'composition.runs',
+  'composition.cancel',
 ] as const satisfies readonly IpcChannel[];
 
 export const EVENT_CHANNELS = [
@@ -312,6 +433,11 @@ export const EVENT_CHANNELS = [
   'acp:event',
   'tools:changed',
   'ui:navigate',
+  'os:open',
+  'mail:event',
+  'plugins:changed',
+  'automation:event',
+  'composition:event',
 ] as const satisfies readonly EventChannel[];
 
 export interface RendererBridge {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AgentConfig, PermissionPolicy, ProviderConfig, Settings, ToolDescriptor } from '@shared/types';
+import type { AgentConfig, InstalledTheme, PermissionPolicy, PluginProviderEntry, ProviderConfig, Settings, ToolDescriptor } from '@shared/types';
 import { LANGUAGES } from '@shared/i18n';
 import { PROVIDER_PRESETS, presetToProvider } from '@shared/providers';
 import { THEME_PRESETS, WALLPAPERS } from '@shared/themes';
@@ -47,6 +47,13 @@ export function SettingsSurface(): JSX.Element {
   const [providerModal, setProviderModal] = useState<ProviderConfig | null>(null);
   const [agentModal, setAgentModal] = useState<AgentConfig | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
+  const [pluginThemes, setPluginThemes] = useState<InstalledTheme[]>([]);
+  const [pluginProviders, setPluginProviders] = useState<PluginProviderEntry[]>([]);
+
+  useEffect(() => {
+    void invoke('plugins.themes', undefined).then(setPluginThemes).catch(() => {});
+    void invoke('plugins.providers', undefined).then(setPluginProviders).catch(() => {});
+  }, []);
 
   if (!settings) return <div />;
 
@@ -150,6 +157,58 @@ export function SettingsSurface(): JSX.Element {
                 })}
               </div>
             </Section>
+
+            {pluginThemes.length ? (
+              <Section title="Installed themes" description="Contributed by plugins in Marketplace → Extensions.">
+                <div className="themeGrid themeGrid--plugins">
+                  {pluginThemes.map((theme) => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      className="themeCard"
+                      onClick={() =>
+                        update({
+                          theme: {
+                            design: theme.design,
+                            mode: theme.mode,
+                            surface: theme.surface ?? 'standard',
+                            accent: (theme.accent ?? 'neuro') as Settings['theme']['accent'],
+                            radius: theme.radius ?? 14,
+                            wallpaper: theme.wallpaper ?? settings.theme.wallpaper,
+                          },
+                        })
+                      }
+                    >
+                      <div
+                        className="themeCard__preview"
+                        style={{ background: theme.colors?.bg ?? 'var(--n-bg)', borderRadius: theme.radius ?? 12 }}
+                      >
+                        <div className="themeCard__bar" style={{ background: theme.colors?.surface ?? 'var(--n-layer-1)' }}>
+                          <span style={{ background: theme.colors?.accent ?? 'var(--n-accent)' }} />
+                          <span style={{ background: theme.colors?.text ?? 'var(--n-text)', opacity: 0.35 }} />
+                        </div>
+                        <div className="themeCard__body">
+                          <div className="themeCard__side" style={{ background: theme.colors?.surface ?? 'var(--n-layer-1)' }}>
+                            <span style={{ background: theme.colors?.accent ?? 'var(--n-accent)' }} />
+                            <span style={{ background: theme.colors?.text ?? 'var(--n-text)', opacity: 0.25 }} />
+                          </div>
+                          <div className="themeCard__pane">
+                            <span className="themeCard__title" style={{ background: theme.colors?.text ?? 'var(--n-text)', opacity: 0.7 }} />
+                            <span className="themeCard__line" style={{ background: theme.colors?.text ?? 'var(--n-text)', opacity: 0.2 }} />
+                            <span className="themeCard__pill" style={{ background: theme.colors?.accent ?? 'var(--n-accent)' }} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="themeCard__meta">
+                        <span className="small strong truncate">{theme.name}</span>
+                        <span className="tiny faint">plugin</span>
+                      </div>
+                      <div className="themeCard__desc tiny faint">{theme.description ?? `From ${theme.pluginId}`}</div>
+                    </button>
+                  ))}
+                </div>
+              </Section>
+            ) : null}
 
             <Section title="Design & mode" description="Mix any design with dark, light or system appearance.">
               <div className="settings__fieldRow">
@@ -505,7 +564,7 @@ export function SettingsSurface(): JSX.Element {
             </Section>
             <Section title="Pinned apps" description="Click to pin or unpin from the taskbar.">
               <div className="settings__pinGrid">
-                {(['desktop', 'chat', 'workspace', 'space', 'notebook', 'browser', 'terminal', 'marketplace', 'settings'] as const).map((surface) => {
+                {(['desktop', 'chat', 'workspace', 'space', 'notebook', 'browser', 'terminal', 'mail', 'automation', 'composer', 'marketplace', 'settings'] as const).map((surface) => {
                   const pinned = settings.taskbar.pinned.includes(surface);
                   return (
                     <button
@@ -740,7 +799,7 @@ export function SettingsSurface(): JSX.Element {
         ) : null}
       </div>
 
-      <ProviderModal provider={providerModal} onClose={() => setProviderModal(null)} />
+      <ProviderModal provider={providerModal} onClose={() => setProviderModal(null)} pluginProviders={pluginProviders} />
       <AgentModal agent={agentModal} onClose={() => setAgentModal(null)} tools={tools} />
       <Modal
         open={resetOpen}
@@ -867,7 +926,15 @@ function ToolsSection({ tools, settings, onChange }: { tools: ToolDescriptor[]; 
   );
 }
 
-function ProviderModal({ provider, onClose }: { provider: ProviderConfig | null; onClose: () => void }): JSX.Element | null {
+function ProviderModal({
+  provider,
+  onClose,
+  pluginProviders,
+}: {
+  provider: ProviderConfig | null;
+  onClose: () => void;
+  pluginProviders: PluginProviderEntry[];
+}): JSX.Element | null {
   const pushToast = useAppStore((s) => s.pushToast);
   const [draft, setDraft] = useState<ProviderConfig | null>(provider);
   const [modelsText, setModelsText] = useState('');
@@ -958,6 +1025,38 @@ function ProviderModal({ provider, onClose }: { provider: ProviderConfig | null;
               <div style={{ minWidth: 0 }}>
                 <div className="small strong">{preset.name}</div>
                 <div className="tiny faint">{preset.description}</div>
+              </div>
+            </button>
+          ))}
+          {pluginProviders.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              className="providerPick"
+              onClick={() => {
+                const models = (entry.models.length ? entry.models : ['default']).map((id) => ({ id, label: id, supportsTools: true }));
+                setDraft({
+                  id: entry.id,
+                  name: `${entry.pluginName} · ${entry.name}`,
+                  kind: entry.kind === 'adapter' ? 'custom' : 'openai',
+                  baseUrl: entry.kind === 'adapter' ? `plugin://${entry.id}` : (entry.baseUrl ?? ''),
+                  apiKey: '',
+                  enabled: true,
+                  models,
+                  defaultModel: models[0].id,
+                  color: '#a78bfa',
+                  createdAt: new Date().toISOString(),
+                });
+                setModelsText(models.map((model) => model.id).join(', '));
+                setStep('configure');
+              }}
+            >
+              <span className="providerCard__dot" style={{ background: '#a78bfa' }} />
+              <div style={{ minWidth: 0 }}>
+                <div className="small strong">{entry.name}</div>
+                <div className="tiny faint">
+                  plugin · {entry.pluginName} {entry.kind === 'adapter' ? '(streaming adapter)' : ''}
+                </div>
               </div>
             </button>
           ))}
