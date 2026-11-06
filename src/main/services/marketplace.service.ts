@@ -21,16 +21,16 @@ import type { ToolRegistry } from './tools';
 export class MarketplaceService {
   private catalog: CatalogItem[] = [];
   private installed: InstalledItem[] = [];
-  private registry: ToolRegistry | null = null;
+  private registry: ToolRegistry;
   private settings: SettingsService;
 
-  constructor(settings: SettingsService) {
+  constructor(settings: SettingsService, registry: ToolRegistry) {
     this.settings = settings;
+    this.registry = registry;
     this.installed = settings.public().marketplace.installed;
   }
 
-  async init(registry: ToolRegistry): Promise<void> {
-    this.registry = registry;
+  async init(): Promise<void> {
     this.catalog = await this.loadCatalog();
     await this.activatePlugins();
     log.info('marketplace', `catalog ${this.catalog.length} · installed ${this.installed.length}`);
@@ -170,7 +170,6 @@ export class MarketplaceService {
 
   /** Rebuild plugin-contributed tools from installed, enabled plugins. */
   async activatePlugins(): Promise<void> {
-    if (!this.registry) return;
     const descriptors: ToolDescriptor[] = [];
     const handlers: Record<string, (args: Record<string, unknown>) => Promise<{ ok: boolean; output: string }>> = {};
 

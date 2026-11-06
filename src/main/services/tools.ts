@@ -1,6 +1,4 @@
 import { spawn } from 'node:child_process';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import type { AnchorPin, ToolDef, ToolDescriptor, ToolInvocation, ToastPayload } from '@shared/types';
 import type { ContentService } from './content.service';
 import type { SettingsService } from './settings.service';
@@ -739,4 +737,3 @@ export function toolSummary(defs: ToolDescriptor[]): Record<string, number> {
   }, {});
 }
 
-export { fs as toolFs, path as toolPath };

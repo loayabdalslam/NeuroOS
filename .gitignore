@@ -6,7 +6,6 @@ node_modules/
 out/
 dist/
 release/
-screenshots/
 
 # logs & caches
 *.log

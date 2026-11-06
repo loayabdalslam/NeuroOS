@@ -328,7 +328,7 @@ export function Onboarding(): JSX.Element {
               <div className="designGrid">
                 {(['neuro', 'windows', 'ubuntu', 'ios'] as const).map((item) => {
                   const preset = THEME_PRESETS.find((entry) => entry.design === item)!;
-                  const [bg, surface, accentColor, text] = preset.colors;
+                  const [bg, surface, accentColor] = preset.colors;
                   return (
                     <button
                       key={item}
@@ -343,9 +343,12 @@ export function Onboarding(): JSX.Element {
                       }}
                     >
                       <span className="designCard__preview" style={{ background: bg }}>
-                        <span className="designCard__surface" style={{ background: surface }} />
-                        <span className="designCard__accent" style={{ background: accentColor }} />
-                        <span className="designCard__text" style={{ background: text, opacity: 0.65 }} />
+                        <span
+                          className="designCard__chip"
+                          style={{ background: surface, boxShadow: `inset 0 0 0 1.5px ${accentColor}` }}
+                        >
+                          <span className="designCard__dot" style={{ background: accentColor }} />
+                        </span>
                       </span>
                       <span className="designCard__name">{preset.design === 'neuro' ? 'Neuro OS' : preset.name}</span>
                     </button>

@@ -4,6 +4,7 @@
   "private": true,
   "description": "Neuro OS — an AI-native desktop operating environment built on the DeepSeek Harness design language.",
   "author": "Neuro OS",
+  "license": "MIT",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -12,6 +13,8 @@
     "selftest": "electron-vite build && electron . --selftest",
     "dist": "electron-vite build && electron-builder",
     "dist:win": "electron-vite build && electron-builder --win nsis portable",
+    "pack": "electron-vite build && electron-builder --dir",
+    "pack:win": "electron-vite build && electron-builder --win --dir --config.win.signAndEditExecutable=false",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
   },
   "dependencies": {
@@ -56,7 +59,8 @@
       "package.json"
     ],
     "asarUnpack": [
-      "resources/**/*"
+      "resources/**/*",
+      "node_modules/@homebridge/node-pty-prebuilt-multiarch/**/*"
     ],
     "win": {
       "target": [

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LANGUAGES } from '@shared/i18n';
+import { themePreset } from '@shared/themes';
 import { useAppStore } from '../state/store';
 import { useT } from '../lib/i18n';
 import { invoke } from '../lib/ipc';
@@ -40,8 +41,33 @@ export function Taskbar(): JSX.Element {
     void useAppStore.getState().patchSettings({ locale: code });
   };
 
+  const applyTheme = (id: string): void => {
+    const preset = themePreset(id);
+    if (!preset) return;
+    void useAppStore.getState().patchSettings({
+      theme: {
+        design: preset.design,
+        mode: preset.mode,
+        surface: preset.surface,
+        accent: preset.accent,
+        radius: preset.radius,
+        density: preset.density,
+        transparency: preset.transparency,
+        glow: preset.glow,
+        wallpaper: preset.wallpaper,
+      },
+      taskbar: { ...taskbar, position: preset.taskbar },
+    });
+  };
+
   const trayItems: MenuItem[] = [
     { label: t('settings.appearance'), icon: 'palette', onClick: () => { useAppStore.getState().setSettingsSection('appearance'); navigate('settings'); } },
+    { label: 'Theme · Neuro OS', icon: 'sparkles', onClick: () => applyTheme('neuro-dark') },
+    { label: 'Theme · Neuro White', icon: 'sun', onClick: () => applyTheme('neuro-white') },
+    { label: 'Theme · Windows 11', icon: 'grid', onClick: () => applyTheme('windows-11') },
+    { label: 'Theme · Ubuntu', icon: 'layers', onClick: () => applyTheme('ubuntu-dark') },
+    { label: 'Theme · iOS', icon: 'monitor', onClick: () => applyTheme('ios-light') },
+    { separator: true, label: '', onClick: () => {} },
     { label: t('settings.taskbar'), icon: 'sliders', onClick: () => { useAppStore.getState().setSettingsSection('taskbar'); navigate('settings'); } },
     { label: t('settings.anchor'), icon: 'pin', onClick: () => { useAppStore.getState().setSettingsSection('anchor'); navigate('settings'); } },
     { separator: true, label: '', onClick: () => {} },

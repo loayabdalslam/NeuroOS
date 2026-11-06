@@ -82,7 +82,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
   });
 
   const tools = new ToolRegistry(runtime);
-  const marketplace = new MarketplaceService(settings);
+  const marketplace = new MarketplaceService(settings, tools);
 
   const agent = new AgentService({
     settings,
@@ -143,7 +143,7 @@ export function createKernel(emitRaw: <E extends EventChannel>(channel: E, paylo
   void (async () => {
     await ensureProfileDirs();
     await agent.init();
-    await marketplace.init(tools);
+    await marketplace.init();
     const s = settings.public();
     if (s.workspaceRoot) await workspace.ensureDemoWorkspace(s.workspaceRoot).catch(() => {});
     log.info('kernel', `ready · ${tools.list().length} tools · ${s.providers.length} providers`);

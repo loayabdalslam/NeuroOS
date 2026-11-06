@@ -456,36 +456,27 @@
 }
 .designCard__preview {
   position: relative;
-  display: block;
-  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.25);
 }
-.designCard__surface {
-  position: absolute;
-  left: 5px;
-  top: 7px;
-  width: 15px;
-  height: 28px;
-  border-radius: 3px;
-  opacity: 0.95;
+.designCard__chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 24px;
+  border-radius: 6px;
 }
-.designCard__accent {
-  position: absolute;
-  right: 7px;
-  top: 8px;
-  width: 16px;
-  height: 5px;
-  border-radius: 2px;
-}
-.designCard__text {
-  position: absolute;
-  left: 26px;
-  bottom: 9px;
-  width: 26px;
-  height: 3px;
-  border-radius: 2px;
+.designCard__dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
 }
 .designCard__name {
   font-size: 9.5px;

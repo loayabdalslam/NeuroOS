@@ -149,7 +149,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
 
   // Walk to the appearance step (welcome → language → profile → appearance).
   for (let i = 0; i < 3; i += 1) {
-    await win.webContents
+    const clicked = await win.webContents
       .executeJavaScript(`(() => {
         const nameInput = document.querySelector('.onboard__fields input');
         if (nameInput && !nameInput.value) {
@@ -158,11 +158,14 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
           nameInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
         const btn = document.querySelector('.onboard__footRight .n-btn--primary');
-        if (btn && !btn.disabled) btn.click();
-        return Boolean(btn && !btn.disabled);
+        if (!btn) return 'no-button';
+        if (btn.disabled) return 'disabled';
+        btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        return 'clicked';
       })()`)
-      .catch(() => {});
-    await wait(800);
+      .catch((error) => `js-error: ${String(error)}`);
+    log.info('selftest', `onboarding step click ${i + 1}: ${clicked}`);
+    await wait(900);
   }
   await screenshot('01b-onboarding-appearance');
 
@@ -193,6 +196,24 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   kernel.content.seedSpaces();
   kernel.content.seedNotebooks();
   kernel.content.seedNotes();
+
+  // Seed the Anchor exactly as the real onboarding IPC does.
+  const demoRoot = kernel.settings.public().workspaceRoot;
+  const firstNote = kernel.content.notes()[0];
+  const basePins = kernel.settings.public().anchor.pins;
+  if (!basePins.length) {
+    kernel.settings.patch({
+      anchor: {
+        ...kernel.settings.public().anchor,
+        pins: [
+          { id: 'pin_selftest_ws', kind: 'file', ref: demoRoot, label: path.basename(demoRoot), subtitle: 'workspace root', order: 0 },
+          ...(firstNote
+            ? [{ id: 'pin_selftest_note', kind: 'note' as const, ref: firstNote.id, label: firstNote.title, subtitle: firstNote.body.slice(0, 60), order: 1 }]
+            : []),
+        ],
+      },
+    });
+  }
   try {
     await kernel.marketplace.install('deep-research');
     await kernel.marketplace.install('git-nexus');
