@@ -1,0 +1,298 @@
+﻿import fs from 'node:fs/promises';
+import path from 'node:path';
+import { app, dialog, BrowserWindow } from 'electron';
+import type { HandlerMap } from './core/ipc';
+import { log } from './core/ipc';
+import type { Kernel } from './kernel';
+import { createAdapter } from './services/providers/adapters';
+import { presetToProvider } from '@shared/providers';
+import type { ProviderConfig } from '@shared/types';
+
+export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | null): HandlerMap {
+  const { settings, workspace, system, content, tools, marketplace, agent } = kernel;
+
+  const changed = (): void => {
+    kernel.emit('settings:changed', settings.public());
+  };
+
+  const saveDialog = async (options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue> => {
+    const win = getWindow();
+    return win ? dialog.showSaveDialog(win, options) : dialog.showSaveDialog(options);
+  };
+
+  const openDialog = async (options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue> => {
+    const win = getWindow();
+    return win ? dialog.showOpenDialog(win, options) : dialog.showOpenDialog(options);
+  };
+
+  return {
+    'system.info': () => system.info(),
+    'system.stats': () => system.stats(),
+    'system.kernel': () => kernel.status(),
+    'system.openExternal': ({ url }) => system.openExternal(url),
+    'system.showItemInFolder': ({ path: target }) => system.showItemInFolder(target),
+    'system.pickDirectory': async (params) => {
+      const win = getWindow();
+      const result = win
+        ? await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], title: params?.title ?? 'Select a folder' })
+        : await dialog.showOpenDialog({ properties: ['openDirectory'], title: params?.title ?? 'Select a folder' });
+      return { path: result.canceled ? null : result.filePaths[0] ?? null };
+    },
+    'system.pickFiles': async (params) => {
+      const options = { properties: (params?.multiple ? ['openFile', 'multiSelections'] : ['openFile']) as ('openFile' | 'multiSelections')[] };
+      const result = await openDialog(options);
+      return { paths: result.canceled ? [] : result.filePaths };
+    },
+    'system.clipboardRead': () => ({ text: system.clipboardRead() }),
+    'system.clipboardWrite': ({ text }) => system.clipboardWrite(text),
+    'system.screenshot': () => system.screenshot(),
+    'system.launchApp': ({ command, args }) => system.launchApp(command, args ?? []),
+    'system.windows': () => system.windows(),
+    'system.focusWindow': async ({ title }) => ({ ok: await system.focusWindow(title) }),
+    'system.killProcess': async ({ pid }) => ({ ok: await system.killProcess(pid) }),
+    'system.volume': ({ delta }) => system.volume(delta),
+    'system.env': () => system.env(),
+    'system.notify': ({ title, body }) => system.notify(title, body),
+
+    'settings.get': () => settings.public(),
+    'settings.patch': (patch) => {
+      const next = settings.patch(patch);
+      changed();
+      return next;
+    },
+    'settings.reset': () => {
+      const next = settings.reset();
+      changed();
+      return next;
+    },
+    'settings.export': async () => {
+      const result = await saveDialog({
+        title: 'Export Neuro OS settings',
+        defaultPath: path.join(app.getPath('documents'), 'neuro-settings.json'),
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (result.canceled || !result.filePath) return { path: null };
+      await settings.exportTo(result.filePath);
+      return { path: result.filePath };
+    },
+    'settings.import': async () => {
+      const result = await openDialog({
+        title: 'Import Neuro OS settings',
+        properties: ['openFile'],
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (result.canceled || !result.filePaths[0]) return null;
+      const next = await settings.importFrom(result.filePaths[0]);
+      changed();
+      return next;
+    },
+
+    'providers.list': () => settings.public().providers,
+    'providers.save': (provider) => {
+      const next = settings.saveProvider(provider);
+      changed();
+      return next.providers;
+    },
+    'providers.remove': ({ id }) => {
+      const next = settings.removeProvider(id);
+      changed();
+      return next.providers;
+    },
+    'providers.probe': async ({ id }) => {
+      const provider = settings.getProvider(id);
+      if (!provider) throw new Error('Provider not found');
+      const probe = await createAdapter(provider).probe();
+      settings.saveProvider({ ...provider, lastCheck: { ok: probe.ok, at: new Date().toISOString(), message: probe.message } });
+      changed();
+      return probe;
+    },
+    'providers.probeDraft': async (provider: ProviderConfig) => createAdapter(provider).probe(),
+    'providers.discoverModels': async ({ kind, baseUrl, apiKey }) => {
+      const draft = presetToProvider(
+        { id: `draft-${Date.now()}`, name: 'Draft', kind: kind as ProviderConfig['kind'], baseUrl, models: [], color: '#4176e6', keyHint: '', docs: '', description: '' },
+        apiKey,
+      );
+      return createAdapter(draft).listModels();
+    },
+
+    'agents.list': () => settings.public().agents,
+    'agents.save': (agentConfig) => {
+      const next = settings.saveAgent(agentConfig);
+      changed();
+      return next.agents;
+    },
+    'agents.remove': ({ id }) => {
+      const next = settings.removeAgent(id);
+      changed();
+      return next.agents;
+    },
+
+    'chat.sessions': () => agent.listSessions(),
+    'chat.session': ({ id }) => agent.getSession(id),
+    'chat.create': (params) => agent.createSession(params),
+    'chat.send': ({ sessionId, text, attachments }) => agent.send(sessionId, text, attachments as never),
+    'chat.cancel': ({ sessionId }) => ({ ok: agent.cancel(sessionId) }),
+    'chat.regenerate': ({ sessionId }) => agent.regenerate(sessionId).then(() => ({ ok: true })),
+    'chat.patch': ({ id, ...patch }) => agent.patchSession(id, patch),
+    'chat.delete': async ({ id }) => {
+      await agent.deleteSession(id);
+      return { ok: true };
+    },
+    'chat.approve': ({ callId, approve, always }) => {
+      agent.approve(callId, approve, always);
+      return { ok: true };
+    },
+    'chat.export': async ({ sessionId, format }) => {
+      const session = await agent.getSession(sessionId);
+      const result = await saveDialog({
+        title: 'Export conversation',
+        defaultPath: path.join(app.getPath('documents'), `${session.title.replace(/[^\w\s-]/g, '').slice(0, 40) || 'conversation'}.${format}`),
+        filters: format === 'md' ? [{ name: 'Markdown', extensions: ['md'] }] : [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (result.canceled || !result.filePath) return { path: null };
+      const body =
+        format === 'json'
+          ? JSON.stringify(session, null, 2)
+          : [
+              `# ${session.title}`,
+              '',
+              `- Model: ${session.model}`,
+              `- Created: ${session.createdAt}`,
+              `- Messages: ${session.messages.length}`,
+              '',
+              ...session.messages.map((m) => `## ${m.role}\n\n${m.content}\n`),
+            ].join('\n');
+      await fs.writeFile(result.filePath, body, 'utf8');
+      return { path: result.filePath };
+    },
+
+    'tools.list': () => tools.list(),
+    'tools.run': async ({ name, args }) => tools.invoke(name, args),
+    'tools.policies': () => settings.public().toolPolicies,
+
+    'fs.list': ({ path: target, showHidden }) => workspace.list(target, showHidden),
+    'fs.read': ({ path: target }) => workspace.read(target),
+    'fs.write': async ({ path: target, content: body }) => ({ ok: true, stat: await workspace.write(target, body) }),
+    'fs.mkdir': async ({ path: target }) => {
+      await workspace.mkdir(target);
+      return { ok: true };
+    },
+    'fs.rename': async ({ from, to }) => {
+      await workspace.rename(from, to);
+      return { ok: true };
+    },
+    'fs.delete': async ({ paths }) => ({ ok: true, deleted: await workspace.remove(paths) }),
+    'fs.stat': ({ path: target }) => workspace.stat(target),
+    'fs.search': ({ root, query, maxResults }) => workspace.search(root, query, maxResults),
+    'fs.workspace': ({ root }) => workspace.info(root),
+    'fs.reveal': ({ path: target }) => system.showItemInFolder(target),
+    'fs.watch': ({ root }) => {
+      workspace.watch(root, (payload) => kernel.emit('fs:changed', payload));
+      return { ok: true };
+    },
+
+    'spaces.list': () => content.spaces(),
+    'spaces.save': (space) => content.saveSpace(space),
+    'spaces.remove': ({ id }) => content.removeSpace(id),
+    'spaces.create': (input) => content.createSpace(input),
+    'notebooks.list': () => content.notebooks(),
+    'notebooks.get': ({ id }) => {
+      const notebook = content.notebook(id);
+      if (!notebook) throw new Error('Notebook not found');
+      return notebook;
+    },
+    'notebooks.save': (notebook) => content.saveNotebook(notebook),
+    'notebooks.remove': ({ id }) => content.removeNotebook(id),
+    'notebooks.runCell': ({ notebookId, cellId }) => content.runCell(notebookId, cellId),
+    'notes.list': () => content.notes(),
+    'notes.save': (note) => content.saveNote(note),
+    'notes.remove': ({ id }) => content.removeNote(id),
+
+    'marketplace.catalog': (params) => marketplace.list(params?.query, params?.kind),
+    'marketplace.installed': () => marketplace.installedList(),
+    'marketplace.install': async ({ id }) => {
+      const next = await marketplace.install(id);
+      kernel.emit('marketplace:changed', next);
+      kernel.emit('tools:changed', tools.list());
+      return next;
+    },
+    'marketplace.uninstall': async ({ id }) => {
+      const next = await marketplace.uninstall(id);
+      kernel.emit('marketplace:changed', next);
+      return next;
+    },
+    'marketplace.toggle': async ({ id, enabled }) => {
+      const next = await marketplace.toggle(id, enabled);
+      kernel.emit('marketplace:changed', next);
+      return next;
+    },
+
+    'acp.connect': async ({ providerId }) => {
+      const provider = settings.getProvider(providerId);
+      if (!provider) throw new Error('Provider not found');
+      try {
+        const client = await agent.ensureAcp(provider);
+        return { ok: true, agentInfo: client.agentInfo };
+      } catch (error) {
+        return { ok: false, message: (error as Error).message };
+      }
+    },
+    'acp.disconnect': ({ providerId }) => {
+      agent.disconnectAcp(providerId);
+      return { ok: true };
+    },
+    'acp.prompt': async ({ providerId, text }) => {
+      const provider = settings.getProvider(providerId);
+      if (!provider) throw new Error('Provider not found');
+      const client = await agent.ensureAcp(provider);
+      if (!client.currentSession) await client.newSession(settings.public().workspaceRoot);
+      const stop = await client.prompt(text);
+      return { ok: true, message: stop };
+    },
+    'acp.cancel': ({ providerId }) => {
+      const client = kernel.acpClient(providerId);
+      client?.cancel();
+      return { ok: true };
+    },
+
+    'window.minimize': () => {
+      getWindow()?.minimize();
+    },
+    'window.maximize': () => {
+      const win = getWindow();
+      if (!win) return { maximized: false };
+      if (win.isMaximized()) win.unmaximize();
+      else win.maximize();
+      return { maximized: win.isMaximized() };
+    },
+    'window.close': () => getWindow()?.close(),
+    'window.devtools': () => getWindow()?.webContents.openDevTools({ mode: 'detach' }),
+    'app.quit': () => app.quit(),
+    'app.openDataFolder': () => {
+      void system.openExternal(settings.public().workspaceRoot || process.cwd());
+    },
+
+    'onboarding.complete': async (input) => {
+      const next = settings.completeOnboarding(input);
+      await workspace.ensureDemoWorkspace(next.workspaceRoot || undefined);
+      content.seedSpaces();
+      content.seedNotebooks();
+      content.seedNotes();
+      if (!next.marketplace.installed.length) {
+        try {
+          await marketplace.install('deep-research');
+          await marketplace.install('git-nexus');
+          await marketplace.install('code-review');
+        } catch (error) {
+          log.warn('marketplace', 'seed install failed', error);
+        }
+      }
+      kernel.emit('settings:changed', settings.public());
+      return settings.public();
+    },
+    'onboarding.state': () => ({ complete: settings.public().onboardingComplete }),
+  } as HandlerMap;
+}
+
+
+
