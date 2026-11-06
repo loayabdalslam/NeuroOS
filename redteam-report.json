@@ -1,0 +1,218 @@
+[
+  {
+    "id": "M-01",
+    "area": "mail",
+    "severity": "low",
+    "title": "Identity address format",
+    "pass": true,
+    "evidence": "victim@d4790ddb8fa0c6aa.neuro",
+    "risk": "Broken derivation would prevent peers from addressing this node."
+  },
+  {
+    "id": "M-02",
+    "area": "mail",
+    "severity": "medium",
+    "title": "Hello endpoint never exposes private keys",
+    "pass": true,
+    "evidence": "hello keys: nodeId,address,name,publicKey,encPublicKey,port",
+    "risk": "Private key leakage would compromise the identity."
+  },
+  {
+    "id": "M-03",
+    "area": "mail",
+    "severity": "high",
+    "title": "Valid signed envelope is accepted",
+    "pass": true,
+    "evidence": "status 200",
+    "risk": "Delivery is core functionality."
+  },
+  {
+    "id": "M-04",
+    "area": "mail",
+    "severity": "critical",
+    "title": "Tampered ciphertext is rejected",
+    "pass": true,
+    "evidence": "status 400",
+    "risk": "A forged message could impersonate the sender."
+  },
+  {
+    "id": "M-05",
+    "area": "mail",
+    "severity": "critical",
+    "title": "Sender nodeId spoofing is rejected",
+    "pass": true,
+    "evidence": "status 400",
+    "risk": "Spoofed identity would bypass signature binding."
+  },
+  {
+    "id": "M-06",
+    "area": "mail",
+    "severity": "medium",
+    "title": "Replay of the same envelope is ignored",
+    "pass": true,
+    "evidence": "inbox 1  ->  1",
+    "risk": "Replay would duplicate messages."
+  },
+  {
+    "id": "M-08",
+    "area": "mail",
+    "severity": "high",
+    "title": "Relayed message is delivered to the final recipient",
+    "pass": true,
+    "evidence": "relay response 202, target inbox 1",
+    "risk": "Store-and-forward is broken: the relay changes signed fields (ttl/hops) and re-signs with its own key."
+  },
+  {
+    "id": "M-09",
+    "area": "mail",
+    "severity": "medium",
+    "title": "Inbound delivery is rate limited",
+    "pass": true,
+    "evidence": "40 rapid deliveries  ->  status codes 200,429",
+    "risk": "No per-IP limits: a LAN attacker can flood the inbox and fill the store."
+  },
+  {
+    "id": "M-10",
+    "area": "mail",
+    "severity": "medium",
+    "title": "Oversized envelopes are rejected without killing the node",
+    "pass": true,
+    "evidence": "status -1, node alive 200",
+    "risk": "Body cap exists (4 MB) but the connection is destroyed without a clean 413."
+  },
+  {
+    "id": "W-01",
+    "area": "web",
+    "severity": "high",
+    "title": "Published site is served through the gateway",
+    "pass": true,
+    "evidence": "status 200",
+    "risk": "Core hosting path."
+  },
+  {
+    "id": "W-02",
+    "area": "web",
+    "severity": "high",
+    "title": "Served HTML is sandboxed against the gateway origin",
+    "pass": true,
+    "evidence": "CSP: sandbox allow-scripts allow-forms allow-popups allow-modals; default-src 'self' data: blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';",
+    "risk": "A malicious site can call /web/announce and read other sites because every .neuro site shares the gateway origin."
+  },
+  {
+    "id": "W-03",
+    "area": "web",
+    "severity": "high",
+    "title": "Blobs are scoped to their manifest (no unauthenticated enumeration)",
+    "pass": true,
+    "evidence": "status 404",
+    "risk": "Any blob in the store can be fetched by hash, leaking content across sites."
+  },
+  {
+    "id": "W-04",
+    "area": "web",
+    "severity": "high",
+    "title": "Manifest nodeId must match the signing key",
+    "pass": true,
+    "evidence": "announce status 409",
+    "risk": "nodeId is unchecked; an attacker can impersonate another node id in manifests."
+  },
+  {
+    "id": "W-05",
+    "area": "web",
+    "severity": "critical",
+    "title": "Domain claims require possession of the content",
+    "pass": true,
+    "evidence": "empty announce status 409, sites=1",
+    "risk": "Anyone can claim any .neuro domain with fake hashes and no data, blocking the real owner."
+  },
+  {
+    "id": "W-06",
+    "area": "web",
+    "severity": "medium",
+    "title": "Announce only stores blobs referenced by the manifest",
+    "pass": true,
+    "evidence": "announce 409, junk blob 404",
+    "risk": "Junk blobs can fill the 256 MB store without a site referencing them."
+  },
+  {
+    "id": "W-07",
+    "area": "web",
+    "severity": "high",
+    "title": "Cross-origin announce is blocked",
+    "pass": true,
+    "evidence": "status 403",
+    "risk": "Any web page can POST to the local gateway and inject manifests (same-as-local API)."
+  },
+  {
+    "id": "W-08",
+    "area": "web",
+    "severity": "high",
+    "title": "Gateway blocks encoded path traversal",
+    "pass": true,
+    "evidence": "status 200, body: <!doctype html><html><body><h1 id=\"redteam\">hello</h1></body></html>",
+    "risk": "Encoded traversal could expose gateway APIs or other files."
+  },
+  {
+    "id": "W-09",
+    "area": "web",
+    "severity": "critical",
+    "title": "Folder publishing does not follow symlinks/junctions",
+    "pass": true,
+    "evidence": "no leak file in manifest",
+    "risk": "A junction inside a site folder can publish arbitrary local files (secrets, SSH keys)."
+  },
+  {
+    "id": "W-10",
+    "area": "web",
+    "severity": "medium",
+    "title": "Unpublish garbage-collects its blobs",
+    "pass": true,
+    "evidence": "blob after unpublish 404",
+    "risk": "Content is never deleted; storage grows forever."
+  },
+  {
+    "id": "W-11",
+    "area": "web",
+    "severity": "medium",
+    "title": "Remote resolve does not claim domains locally",
+    "pass": true,
+    "evidence": "local sites: symlink",
+    "risk": "Resolving a hostile .neuro site silently stores and claims it on the victim node."
+  },
+  {
+    "id": "W-12",
+    "area": "web",
+    "severity": "medium",
+    "title": "Invalid domains are rejected",
+    "pass": true,
+    "evidence": "ok=false",
+    "risk": "Domain validation bypass."
+  },
+  {
+    "id": "W-13",
+    "area": "web",
+    "severity": "high",
+    "title": "A claimed domain cannot be taken by another key",
+    "pass": true,
+    "evidence": "ok=false",
+    "risk": "Domain hijacking."
+  },
+  {
+    "id": "P-01",
+    "area": "protocol",
+    "severity": "critical",
+    "title": "neuro:// asset protocol cannot escape the resources folder",
+    "pass": true,
+    "evidence": "resolved C:\\Work\\Research\\AGI\\Neuro Os\\package.json (exists=true)",
+    "risk": "Encoded path traversal in the custom protocol can read application files."
+  },
+  {
+    "id": "X-01",
+    "area": "plugins",
+    "severity": "critical",
+    "title": "Plugin vm cannot reach the host process",
+    "pass": false,
+    "evidence": "pid:57064",
+    "risk": "A malicious plugin can escape the vm context and run arbitrary code in the main process."
+  }
+]

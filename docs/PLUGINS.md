@@ -297,3 +297,8 @@ templates (`entry.value`) which is the older, no-code mechanism.
 4. Changes not applied → press **Reload** on the plugin card.
 5. Agent cannot call the tool → check the tool policy and the agent's allowlist
    in **Settings → Agents**.
+
+## Security model (read this)
+
+Plugins run inside a Node `vm` context, which is **not** a security boundary. A plugin can reach the host process (confirmed by the red-team suite, X-01). Treat every plugin as trusted code: review the source before installing, never auto-install from untrusted catalogs, and keep the marketplace disabled on shared machines. Process-level isolation (`utilityProcess` or `isolated-vm`) is the planned fix.
+

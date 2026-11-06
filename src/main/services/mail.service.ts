@@ -144,6 +144,8 @@ export class MailService {
   private port = 0;
   private listening = false;
   private seen = new Set<string>();
+  private relayed = new Set<string>();
+  private hits = new Map<string, { count: number; reset: number }>();
   private onEvent: MailServiceOptions['onEvent'];
   private disposed = false;
   private explicitDiscovery: boolean | undefined;
@@ -599,6 +601,16 @@ export class MailService {
       });
       request.on('end', () => {
         void (async () => {
+          const ip = request.socket.remoteAddress ?? 'unknown';
+          const now = Date.now();
+          const bucket = this.hits.get(ip) ?? { count: 0, reset: now + 60_000 };
+          if (now > bucket.reset) {
+            bucket.count = 0;
+            bucket.reset = now + 60_000;
+          }
+          bucket.count += 1;
+          this.hits.set(ip, bucket);
+          if (bucket.count > 40) return send(429, { error: 'rate limited' });
           let envelope: Envelope;
           try {
             envelope = JSON.parse(body) as Envelope;
@@ -680,13 +692,21 @@ export class MailService {
   }
 
   private async relay(envelope: Envelope, myNodeId: string): Promise<number> {
-    const forwarded: Envelope = { ...envelope, ttl: envelope.ttl - 1, hops: [...envelope.hops, myNodeId], sig: '' };
-    forwarded.sig = this.signEnvelope(forwarded);
+    void myNodeId;
+    // The envelope is signed end-to-end. Mutating ttl/hops or re-signing it with
+    // this node's key invalidates the sender's signature, so forward it verbatim
+    // and dedupe relays by id instead (loop protection without breaking auth).
+    if (this.relayed.has(envelope.id)) return 0;
+    this.relayed.add(envelope.id);
+    if (this.relayed.size > 5000) {
+      const oldest = this.relayed.values().next().value;
+      if (oldest) this.relayed.delete(oldest);
+    }
     let count = 0;
-    for (const peer of this.peers()) {
-      if (peer.nodeId === envelope.from.nodeId || peer.nodeId === envelope.to.nodeId) continue;
+    for (const peer of this.peers().slice(0, 16)) {
+      if (peer.nodeId === envelope.from.nodeId) continue;
       if (!peer.port) continue;
-      const ok = await this.deliver(forwarded, peer);
+      const ok = await this.deliver(envelope, peer);
       if (ok) count += 1;
     }
     return count;

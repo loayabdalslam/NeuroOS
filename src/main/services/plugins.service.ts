@@ -549,7 +549,7 @@ export class PluginService {
       Date,
       Promise,
       fetch: undefined,
-    });
+    }, { codeGeneration: { strings: false, wasm: false } });
 
     const wrapper = `(function (module, exports, neuro) {\n${code}\n})(module, module.exports, neuro)`;
     vm.runInContext(wrapper, context, { timeout: 5000, filename: `${entry.id}/${entry.manifest.main}` });

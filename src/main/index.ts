@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
 import { app, BrowserWindow, Menu, nativeTheme, protocol, shell } from 'electron';
 import { IpcRouter, log } from './core/ipc';
@@ -669,11 +669,24 @@ function bootstrap(): void {
 
   app.whenReady().then(async () => {
     await ensureProfileDirs();
+    if (process.argv.includes('--redteam')) {
+      const { runRedTeam, renderReport } = await import('./redteam');
+      log.info('redteam', 'starting red-team suite');
+      const results = await runRedTeam();
+      const report = renderReport(results);
+      fs.writeFileSync(path.join(process.cwd(), 'redteam-report.md'), report, 'utf8');
+      fs.writeFileSync(path.join(process.cwd(), 'redteam-report.json'), JSON.stringify(results, null, 2), 'utf8');
+      log.info('redteam', `${results.filter((item) => !item.pass).length}/${results.length} checks failed`);
+      app.exit(0);
+      return;
+    }
     // Permissions are granted per-origin; the in-app browser is the only consumer.
     protocol.handle('neuro', async (request) => {
       const parsed = new URL(request.url);
       const rel = decodeURIComponent(parsed.hostname + parsed.pathname).replace(/^\/+/, '');
-      const file = path.join(app.getAppPath(), 'resources', rel);
+      const resourceRoot = path.join(app.getAppPath(), 'resources');
+      const file = path.resolve(resourceRoot, rel);
+      if (!file.startsWith(resourceRoot + path.sep)) return new Response('not found', { status: 404 });
       const data = await fs.promises.readFile(file);
       const type = file.endsWith('.png')
         ? 'image/png'
