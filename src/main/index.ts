@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+﻿import fs from 'node:fs';
 import path from 'node:path';
 import { app, BrowserWindow, Menu, nativeTheme, protocol, shell } from 'electron';
 import { IpcRouter, log } from './core/ipc';
@@ -129,7 +129,7 @@ async function startStatsLoop(): Promise<void> {
 async function runSelfTest(win: BrowserWindow): Promise<void> {
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
   const watchdog = setTimeout(() => {
-    log.error('selftest', 'watchdog timeout Ã¢â‚¬â€ exiting');
+    log.error('selftest', 'watchdog timeout ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â exiting');
     app.exit(2);
   }, 180_000);
   watchdog.unref();
@@ -164,9 +164,23 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   for (const existing of kernel.agent.listSessions()) await kernel.agent.deleteSession(existing.id);
   router?.emit('settings:changed', kernel.settings.public());
   await wait(1400);
+  await win.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent('neuro:story'))`).catch(() => {});
+  await wait(13500);
+  await screenshot('00-story');
+  const storyQuote = await win.webContents
+    .executeJavaScript(
+      `JSON.stringify({ chars: document.querySelector('.story__quote')?.textContent?.trim().length ?? 0, scroll: document.querySelector('.story__quote')?.scrollHeight ?? 0, client: document.querySelector('.story__quote')?.clientHeight ?? 0, persona: document.querySelector('.story__name')?.textContent?.trim() ?? '' })`,
+    )
+    .catch((error) => String(error));
+  log.info('selftest', `story quote ${storyQuote}`);
+  const storySkip = await win.webContents
+    .executeJavaScript(`(() => { const button = document.querySelector('.story__skipCorner'); if (!button) return 'missing'; button.click(); return 'clicked'; })()`)
+    .catch((error) => String(error));
+  log.info('selftest', `story intro: ${storySkip}`);
+  await wait(900);
   await screenshot('01-onboarding');
 
-  // Walk to the appearance step (welcome Ã¢â€ â€™ language Ã¢â€ â€™ profile Ã¢â€ â€™ appearance).
+  // Walk to the appearance step (welcome ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ language ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ profile ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ appearance).
   for (let i = 0; i < 3; i += 1) {
     const clicked = await win.webContents
       .executeJavaScript(`(() => {
@@ -211,10 +225,13 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
       createdAt: new Date().toISOString(),
     },
   });
+  log.info('selftest', 'onboarding completed');
   await kernel.workspace.ensureDemoWorkspace(path.join(Paths.workspaces, 'Neuro Demo'));
+  log.info('selftest', 'workspace ready');
   kernel.content.seedSpaces();
   kernel.content.seedNotebooks();
   kernel.content.seedNotes();
+  log.info('selftest', 'content seeded');
 
   // Seed the Anchor exactly as the real onboarding IPC does.
   const demoRoot = kernel.settings.public().workspaceRoot;
@@ -241,12 +258,14 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   } catch (error) {
     log.warn('selftest', 'seed install failed', error);
   }
+  log.info('selftest', 'marketplace seeded');
   router?.emit('settings:changed', kernel.settings.public());
+  log.info('selftest', 'shell emitted');
   await wait(1600);
 
   // Exercise the real agent loop against the sandbox endpoint: streaming,
   // a tool call, the tool result round-trip and persistence.
-  const session = await kernel.agent.createSession({ title: 'Sandbox Ã‚Â· system check' });
+  const session = await kernel.agent.createSession({ title: 'Sandbox Ãƒâ€šÃ‚Â· system check' });
   await kernel.agent.send(session.id, 'Check this machine and summarise it in one line.');
   await wait(5200);
   const transcript = await kernel.agent.getSession(session.id);
@@ -311,14 +330,14 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     await peerNode.send({
       to: myMail.identity!.address,
       subject: 'Welcome to the mesh',
-      body: 'This message travelled directly between two nodes Ã¢â‚¬â€ no server in between.',
+      body: 'This message travelled directly between two nodes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no server in between.',
     });
     await wait(1400);
     const inbox = kernel.mail.messages('inbox', 5);
     const received = inbox.find((message) => message.subject === 'Welcome to the mesh');
     log.info(
       'selftest',
-      `mail p2p: peers=${kernel.mail.status().peers.length} inbox=${inbox.length} unread=${inboxBefore}Ã¢â€ â€™${kernel.mail.status().unread} encrypted=${received?.encrypted} verified=${received?.verified}`,
+      `mail p2p: peers=${kernel.mail.status().peers.length} inbox=${inbox.length} unread=${inboxBefore}ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢${kernel.mail.status().unread} encrypted=${received?.encrypted} verified=${received?.verified}`,
     );
   } catch (error) {
     log.error('selftest', `mail test failed: ${(error as Error).message}`);
@@ -347,7 +366,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   const workflow = {
     id: 'flow_selftest',
     name: 'Selftest pipeline',
-    description: 'trigger Ã¢â€ â€™ transform Ã¢â€ â€™ notify',
+    description: 'trigger ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ transform ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ notify',
     nodes: [
       { id: 'n1', type: 'trigger.manual' as const, name: 'Start', x: 60, y: 80, config: {} },
       { id: 'n2', type: 'transform.code' as const, name: 'Uppercase', x: 330, y: 80, config: { code: 'return input.toUpperCase();' } },
@@ -511,7 +530,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
         `(() => { const w = document.querySelector('webview'); try { return JSON.stringify({ title: w.getTitle(), url: w.getURL(), loading: w.isLoading() }); } catch (e) { return 'probe error: ' + e.message; } })()`,
       )
       .catch((error) => `probe failed: ${String(error)}`);
-    log.info('selftest', `webview ${url} Ã¢â€ â€™ ${probe}`);
+    log.info('selftest', `webview ${url} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${probe}`);
   }
   router?.emit('ui:navigate', { surface: 'browser', params: {} });
   await wait(600);
@@ -570,6 +589,20 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     .catch((error) => String(error));
   log.info('selftest', `sidebar ${sidebarClick} ${dockProbe}`);
   await screenshot('24-sidebar');
+  const previousTheme = kernel.settings.public().theme;
+  kernel.settings.patch({ theme: { ...previousTheme, wallpaper: 'photo:blue-marble' } });
+  router?.emit('settings:changed', kernel.settings.public());
+  router?.emit('ui:navigate', { surface: 'desktop', params: {} });
+  await wait(900);
+  await win.webContents
+    .executeJavaScript(
+      `(() => { document.querySelector('.startScrim')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); [...document.querySelectorAll('.oswindow__close')].forEach((button) => button.click()); return 'cleared'; })()`,
+    )
+    .catch(() => {});
+  await wait(1400);
+  await screenshot('26-wallpaper');
+  kernel.settings.patch({ theme: { ...previousTheme, wallpaper: previousTheme.wallpaper } });
+  router?.emit('settings:changed', kernel.settings.public());
   await win.webContents.executeJavaScript(`document.querySelector('.dock__collapse')?.click()`).catch(() => {});
   await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`).catch(() => {});
 
@@ -619,10 +652,22 @@ function bootstrap(): void {
     await ensureProfileDirs();
     // Permissions are granted per-origin; the in-app browser is the only consumer.
     protocol.handle('neuro', async (request) => {
-      const rel = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, '');
+      const parsed = new URL(request.url);
+      const rel = decodeURIComponent(parsed.hostname + parsed.pathname).replace(/^\/+/, '');
       const file = path.join(app.getAppPath(), 'resources', rel);
       const data = await fs.promises.readFile(file);
-      return new Response(new Uint8Array(data));
+      const type = file.endsWith('.png')
+        ? 'image/png'
+        : file.endsWith('.jpg') || file.endsWith('.jpeg')
+          ? 'image/jpeg'
+          : file.endsWith('.svg')
+            ? 'image/svg+xml'
+            : file.endsWith('.webp')
+              ? 'image/webp'
+              : file.endsWith('.woff2')
+                ? 'font/woff2'
+                : 'application/octet-stream';
+      return new Response(new Uint8Array(data), { headers: { 'content-type': type, 'cache-control': 'max-age=31536000' } });
     });
 
     router = new IpcRouter(getWindow);
@@ -666,5 +711,10 @@ function bootstrap(): void {
 }
 
 bootstrap();
+
+
+
+
+
 
 

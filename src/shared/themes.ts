@@ -178,3 +178,27 @@ export const WALLPAPERS = [
   { id: 'aurora', label: 'Aurora' },
   { id: 'midnight', label: 'Midnight' },
 ];
+
+export interface PhotoWallpaper {
+  id: string;
+  label: string;
+  credit: string;
+  file: string;
+}
+
+/**
+ * Iconic, public-domain photography bundled with the app (NASA).
+ * Attribution is kept in the UI and in resources/wallpapers/CREDITS.md.
+ */
+export const PHOTO_WALLPAPERS: PhotoWallpaper[] = [
+  { id: 'blue-marble', label: 'Blue Marble', credit: 'NASA · Apollo 17, 1972 · public domain', file: 'blue-marble.png' },
+  { id: 'earthrise', label: 'Earthrise', credit: 'NASA · Apollo 8, 1968 · public domain', file: 'earthrise.jpg' },
+  { id: 'pale-blue-dot', label: 'Pale Blue Dot', credit: 'NASA/JPL · Voyager 1, 1990 · public domain', file: 'pale-blue-dot.jpg' },
+  { id: 'pillars', label: 'Pillars of Creation', credit: 'NASA/ESA · Hubble, 2014 · public domain', file: 'pillars.jpg' },
+  { id: 'milky-way', label: 'Milky Way', credit: 'NASA · public domain', file: 'milky-way.jpg' },
+  { id: 'aurora', label: 'Aurora from orbit', credit: 'NASA · ISS · public domain', file: 'aurora.jpg' },
+];
+
+export const photoWallpaper = (id: string): PhotoWallpaper | undefined => PHOTO_WALLPAPERS.find((item) => item.id === id);
+
+export const wallpaperUrl = (file: string): string => `neuro://wallpapers/${file}`;

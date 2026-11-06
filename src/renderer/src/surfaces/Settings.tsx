@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AgentConfig, InstalledTheme, PermissionPolicy, PluginProviderEntry, ProviderConfig, Settings, ToolDescriptor } from '@shared/types';
 import { LANGUAGES } from '@shared/i18n';
 import { PROVIDER_PRESETS, presetToProvider } from '@shared/providers';
-import { THEME_PRESETS, WALLPAPERS } from '@shared/themes';
+import { PHOTO_WALLPAPERS, THEME_PRESETS, WALLPAPERS, wallpaperUrl } from '@shared/themes';
 import { useAppStore } from '../state/store';
 import { useT } from '../lib/i18n';
 import { invoke, modKey } from '../lib/ipc';
@@ -290,6 +290,31 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                   </button>
                 ))}
               </div>
+            </Section>
+
+            <Section title="Photography" description="Iconic public-domain imagery (NASA), bundled offline. Sets the desktop and shell backdrop.">
+              <div className="photoWallpaperGrid">
+                {PHOTO_WALLPAPERS.map((photo) => (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    className="photoWallpaper"
+                    data-active={settings.theme.wallpaper === `photo:${photo.id}`}
+                    onClick={() => update({ theme: { wallpaper: `photo:${photo.id}` } })}
+                  >
+                    <img src={wallpaperUrl(photo.file)} alt={photo.label} loading="lazy" />
+                    <span className="photoWallpaper__meta">
+                      <strong>{photo.label}</strong>
+                      <em>{photo.credit}</em>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {settings.theme.wallpaper.startsWith('photo:') ? (
+                <button type="button" className="photoWallpaperReset" onClick={() => update({ theme: { wallpaper: 'nebula' } })}>
+                  Back to the design wallpaper
+                </button>
+              ) : null}
             </Section>
 
             <Section title="Interface" description="Density, scale and surface treatment.">
@@ -753,6 +778,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
             </Section>
             <Section title="Data" description="State lives in readable JSON under the profile directory.">
               <div className="row wrap" style={{ gap: 8 }}>
+                <Button variant="outline" icon="play" onClick={() => window.dispatchEvent(new CustomEvent('neuro:story'))}>Replay the intro</Button>
                 <Button variant="outline" icon="folder-open" onClick={() => void invoke('app.openDataFolder', undefined)}>Open data folder</Button>
                 <Button variant="outline" icon="download" onClick={() => void invoke('settings.export', undefined).then((result) => result.path && pushToast({ title: 'Settings exported', message: result.path, kind: 'success' }))}>
                   Export settings

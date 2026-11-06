@@ -44,6 +44,8 @@ Neuro OS is not a chat window with a sidebar. It is a small operating environmen
 Cross-cutting:
 
 - **Custom iconography** â€” a hand-built, colour-coded duotone icon set for every app, tool category and system surface, plus original brand marks (simple-icons, CC0) for model providers, operating systems and integrations.
+- **Cinematic intro** — a code-drawn portrait of Louay Abdel Salam, assembled from animated ASCII glyphs and orbital SVG, streaming the story of 5 November before onboarding.
+- **Wallpaper gallery** — public-domain NASA photography (Blue Marble, Earthrise, Pale Blue Dot, Pillars of Creation, Milky Way, aurora) bundled offline, plus the procedural design wallpapers.
 - **Graph Brain** — a local memory graph records every click, navigation, agent turn, mail, site and tool call, indexes it with Orama for instant recall, and feeds relevant memories into the agent. See [docs/BRAIN.md](docs/BRAIN.md).
 - **Neuro Web (decentralized hosting)** — claim a .neuro domain, drag a folder in, and your machine becomes the host. Peers replicate the signed site, and the browser switches between the central internet and the mesh. See [docs/WEB.md](docs/WEB.md).
 - **Composio integrations** â€” one key connects 100+ real services (Gmail, GitHub, Slack, Notion, Linear, Jira, Sheetsâ€¦). Enabled actions become `composio.<slug>` tools; `composio.search` + `composio.execute` expose the whole catalog. See [docs/COMPOSIO.md](docs/COMPOSIO.md).
@@ -91,6 +93,10 @@ Cross-cutting:
 | Start menu | Anchor rail |
 | --- | --- |
 | ![Start menu](screenshots/20-start-menu.png) | ![Anchor](screenshots/11-anchor.png) |
+
+| Cinematic intro (05.11) | Photo wallpaper (NASA) |
+| --- | --- |
+| ![Story](screenshots/00-story.png) | ![Wallpaper](screenshots/26-wallpaper.png) |
 
 | Neuro Web (publish + counters) | Neuro Web browser mode |
 | --- | --- |
@@ -267,5 +273,7 @@ Screenshots land in `screenshots/`.
 ## License
 
 MIT. Montserrat is licensed under the SIL Open Font License (see `resources/fonts`).
+
+
 
 

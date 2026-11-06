@@ -12,6 +12,8 @@ import { CommandPalette } from './components/CommandPalette';
 import { ToastHost } from './components/ToastHost';
 import { BrandMark } from './components/BrandMark';
 import { Onboarding } from './onboarding/Onboarding';
+import { StoryIntro } from './onboarding/StoryIntro';
+import { photoWallpaper, wallpaperUrl } from '@shared/themes';
 import { Desktop } from './surfaces/Desktop';
 import { Chat } from './surfaces/Chat';
 import { Workspace } from './surfaces/Workspace';
@@ -36,6 +38,14 @@ export function App(): JSX.Element {
   const settings = useAppStore((s) => s.settings);
   const hydrate = useAppStore((s) => s.hydrate);
   const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [storySeen, setStorySeen] = useState(() => localStorage.getItem('neuro.story') === 'done');
+
+  useEffect(() => {
+    const open = (): void => setStoryOpen(true);
+    window.addEventListener('neuro:story', open);
+    return () => window.removeEventListener('neuro:story', open);
+  }, []);
 
   useEffect(() => {
     void hydrate();
@@ -64,6 +74,9 @@ export function App(): JSX.Element {
     root.style.setProperty('--n-radius-lg', `${Math.round(settings.theme.radius * 1.25)}px`);
     root.style.setProperty('--n-radius-xl', `${Math.round(settings.theme.radius * 1.7)}px`);
     root.style.setProperty('--n-anchor-w', `${settings.anchor.width}px`);
+    const photo = settings.theme.wallpaper.startsWith('photo:') ? photoWallpaper(settings.theme.wallpaper.slice(6)) : undefined;
+    if (photo) root.style.setProperty('--n-wallpaper-image', `url("${wallpaperUrl(photo.file)}")`);
+    else root.style.removeProperty('--n-wallpaper-image');
   }, [settings, systemDark]);
 
   /* ---- brain: capture every interaction ---- */
@@ -219,6 +232,21 @@ export function App(): JSX.Element {
 
   if (!ready) return <Boot />;
   if (bootError) return <BootError message={bootError} />;
+
+  if (storyOpen || (settings && !settings.onboardingComplete && !storySeen)) {
+    return (
+      <StoryIntro
+        replay={storyOpen}
+        onDone={() => {
+          localStorage.setItem('neuro.story', 'done');
+          setStorySeen(true);
+          setStoryOpen(false);
+          const pending = (window as unknown as { __storyDone?: () => void }).__storyDone;
+          if (pending) pending();
+        }}
+      />
+    );
+  }
 
   if (settings && !settings.onboardingComplete) {
     return (

@@ -143,3 +143,35 @@
 
 .dock:not(.is-collapsed) { width: 212px !important; }
 
+
+/* photo wallpapers */
+body { background-color: #07080d; background-image: var(--n-wallpaper-image, none); background-size: cover; background-position: center; background-attachment: fixed; }
+.desktop { background-image: linear-gradient(180deg, rgba(5,6,11,.25), rgba(5,6,11,.55)), var(--n-wallpaper-image, none) !important; background-size: cover !important; background-position: center !important; }
+.lockscreen { background-image: linear-gradient(180deg, rgba(5,6,11,.35), rgba(5,6,11,.7)), var(--n-wallpaper-image, none) !important; background-size: cover !important; background-position: center !important; }
+.photoWallpaperGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.photoWallpaper { position: relative; display: flex; flex-direction: column; text-align: left; border-radius: var(--n-radius); overflow: hidden; border: 1px solid var(--n-line); background: var(--n-layer-1); padding: 0; }
+.photoWallpaper img { width: 100%; height: 118px; object-fit: cover; display: block; transition: transform 240ms var(--n-ease); }
+.photoWallpaper:hover img { transform: scale(1.04); }
+.photoWallpaper[data-active='true'] { border-color: var(--n-accent); box-shadow: 0 0 0 1px var(--n-accent); }
+.photoWallpaper__meta { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; }
+.photoWallpaper__meta strong { font-size: 11.5px; color: var(--n-text); }
+.photoWallpaper__meta em { font-size: 9px; color: var(--n-text-4); font-style: normal; }
+.photoWallpaperReset { align-self: flex-start; margin-top: 8px; border: 0; background: transparent; color: var(--n-text-4); font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+.photoWallpaperReset:hover { color: var(--n-accent); }
+
+
+/* ambient wallpaper behind the shell */
+.app__bg {
+  background-image: linear-gradient(180deg, rgba(6, 7, 12, 0.55), rgba(6, 7, 12, 0.8)), var(--n-wallpaper-image, none) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  filter: blur(22px) brightness(0.6) saturate(1.15);
+  transform: scale(1.06);
+}
+
+/* readable desktop hint over photo wallpapers */
+.desktop__hintTitle { text-shadow: 0 2px 24px rgba(0,0,0,.85), 0 1px 4px rgba(0,0,0,.8); }
+.desktop__hintBody { color: rgba(240,242,248,.92); text-shadow: 0 1px 12px rgba(0,0,0,.9); }
+.desktop__hintChip { background: rgba(9,11,18,.72); border-color: rgba(255,255,255,.16); backdrop-filter: blur(12px); }
+.desktopIcon__label { text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.6); }
+

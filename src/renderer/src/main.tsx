@@ -13,6 +13,7 @@ import './styles/os.css';
 import './styles/composio.css';
 import './styles/sites.css';
 import './styles/brain.css';
+import './styles/story.css';
 import './styles/audit.css';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
