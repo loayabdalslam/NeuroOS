@@ -6,6 +6,7 @@ import { createKernel, type Kernel } from './kernel';
 import { buildHandlers } from './ipcHandlers';
 import { Paths, ensureProfileDirs } from './core/store';
 import { startMockProvider } from './selftest/mockProvider';
+import { startMockComposio } from './selftest/mockComposio';
 import { MailService } from './services/mail.service';
 
 const isDev = !app.isPackaged;
@@ -134,6 +135,12 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
   const screenshot = async (name: string): Promise<void> => {
     await wait(700);
+    // Force two composited frames: capturePage can otherwise return the previous
+    // surface's frame when the window is not focused (headless harness).
+    await win.webContents
+      .executeJavaScript('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))')
+      .catch(() => {});
+    await wait(160);
     const image = await win.webContents.capturePage();
     const file = path.join(SHOTS_DIR, `${name}.png`);
     fs.writeFileSync(file, image.toPNG());
@@ -372,6 +379,23 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   const composed = await kernel.compositions.runInline(composition.id, 'neuro composition test');
   log.info('selftest', `composition: chars=${composed.length} "${composed.slice(0, 46).replace(/\n/g, ' ')}"`);
 
+  /* ------------------------------ composio ---------------------------------- */
+  const mockComposio = await startMockComposio();
+  try {
+    kernel.composio.configure({ apiKey: 'comp_selftest', baseUrl: mockComposio.url, userId: 'neuro-selftest' });
+    const synced = await kernel.composio.sync();
+    await kernel.composio.refreshAccounts();
+    await kernel.composio.toggle('GITHUB_CREATE_ISSUE', true);
+    const action = await kernel.tools.invoke('composio.github_create_issue', { owner: 'octo', repo: 'neuro', title: 'Hello from the harness' });
+    const search = await kernel.tools.invoke('composio.search', { query: 'email' });
+    log.info(
+      'selftest',
+      `composio: tools=${synced.tools} toolkits=${synced.toolkits} accounts=${kernel.composio.accounts().length} enabled=${synced.enabled} action=${action.status} "${(action.output ?? '').slice(0, 38).replace(/\n/g, ' ')}" search=${search.status}`,
+    );
+  } catch (error) {
+    log.error('selftest', `composio test failed: ${(error as Error).message}`);
+  }
+
   const surfaces: [string, string, Record<string, string>?][] = [
     ['02-desktop', 'desktop'],
     ['03-chat', 'chat'],
@@ -383,6 +407,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     ['09-marketplace', 'marketplace'],
     ['09b-extensions', 'marketplace', { tab: 'plugins' }],
     ['10-settings', 'settings'],
+    ['21-integrations', 'settings', { section: 'integrations' }],
     ['17-mail', 'mail'],
     ['18-automation', 'automation'],
     ['19-composer', 'composer'],
@@ -398,7 +423,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
       await wait(300);
       router?.emit('os:open', { appId: 'mail' });
     }
-    await wait(surface === 'browser' ? 1800 : 1000);
+    await wait(surface === 'browser' ? 1800 : surface === 'settings' ? 1800 : 1000);
     await screenshot(name);
   }
 
@@ -460,8 +485,28 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   await screenshot('20-start-menu');
   await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`).catch(() => {});
 
+  // Settings / integrations probe.
+  router?.emit('ui:navigate', { surface: 'settings', params: { section: 'integrations' } });
+  await wait(1800);
+  const probe = await win.webContents
+    .executeJavaScript(
+      `JSON.stringify({
+        settings: !!document.querySelector('.settings'),
+        composio: !!document.querySelector('.composio'),
+        market: !!document.querySelector('.mkt'),
+        surfaceError: document.querySelector('.surfaceError')?.textContent?.slice(0, 120) ?? null,
+        active: [...document.querySelectorAll('.pageTab')].map((b) => b.textContent?.trim() + (b.getAttribute('data-active') === 'true' ? '*' : '')).filter(Boolean).join(' | '),
+        main: document.querySelector('.app__main')?.firstElementChild?.className ?? null
+      })`,
+    )
+    .catch((error) => `probe failed: ${String(error)}`);
+  log.info('selftest', `settings probe ${probe}`);
+
   log.info('selftest', 'complete');
   clearTimeout(watchdog);
+  await kernel.composio.toggle('GITHUB_CREATE_ISSUE', false).catch(() => undefined);
+  kernel.composio.configure({ apiKey: '', baseUrl: 'https://backend.composio.dev/api/v3.1' });
+  await mockComposio.close();
   await mock.close();
   await peerNode?.dispose();
   await kernel.dispose();

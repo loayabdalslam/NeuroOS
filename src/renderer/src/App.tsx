@@ -213,7 +213,7 @@ function SurfaceHost({ page }: { page: ReturnType<typeof useAppStore.getState>['
     case 'marketplace':
       return <Marketplace params={page.params} />;
     case 'settings':
-      return <SettingsSurface />;
+      return <SettingsSurface params={page.params} />;
     default:
       return <Desktop />;
   }

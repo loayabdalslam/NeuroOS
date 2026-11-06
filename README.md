@@ -38,10 +38,12 @@ Neuro OS is not a chat window with a sidebar. It is a small operating environmen
 | **Automation** | n8n-style workflow canvas: schedule/mail/file triggers, agents, tools, HTTP, code, conditions, mail. |
 | **Composer** | Chain agents into pipelines where each step sees the original input and the previous output. |
 | **Marketplace** | Skills, plugins (that add real tools), agents and themes — plus a plugin installer for folders, zips and URLs. |
-| **Settings** | Themes, languages, providers, agents, per-tool permissions, taskbar, Anchor, workspace, data. |
+| **Settings** | Themes, languages, providers, agents, per-tool permissions, **Composio integrations**, taskbar, Anchor, workspace, data. |
 
 Cross-cutting:
 
+- **Custom iconography** — a hand-built, colour-coded duotone icon set for every app, tool category and system surface, plus original brand marks (simple-icons, CC0) for model providers, operating systems and integrations.
+- **Composio integrations** — one key connects 100+ real services (Gmail, GitHub, Slack, Notion, Linear, Jira, Sheets…). Enabled actions become `composio.<slug>` tools; `composio.search` + `composio.execute` expose the whole catalog. See [docs/COMPOSIO.md](docs/COMPOSIO.md).
 - **Real desktop simulation** — windows with drag/resize/snap, z-ordering, a start menu, a lockscreen, taskbar window buttons and a desktop context menu. Apps run inside windows *and* as full-page tabs.
 - **Theme gallery** — Neuro OS, Windows 11, Ubuntu (Yaru) and iOS design languages, each in dark and light, plus a pure **White** theme. Presets also move the taskbar and change wallpapers, typography, radii and elevation.
 - **14 languages with hand-drawn vector flags** and full RTL layout for Arabic.
@@ -86,6 +88,10 @@ Cross-cutting:
 | Start menu | Anchor rail |
 | --- | --- |
 | ![Start menu](screenshots/20-start-menu.png) | ![Anchor](screenshots/11-anchor.png) |
+
+| Composio integrations | |
+| --- | --- |
+| ![Integrations](screenshots/21-integrations.png) | Composio turns Gmail, GitHub, Slack, Notion and 100+ other services into agent tools. |
 
 ## Quick start
 
@@ -177,6 +183,8 @@ your decision. Settings → Tools lets you override any tool individually.
 
 Full detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+Docs: [Architecture](docs/ARCHITECTURE.md) · [Plugins](docs/PLUGINS.md) · [Composio](docs/COMPOSIO.md) · [Mail](docs/MAIL.md) · [Automation](docs/AUTOMATION.md) · [Extending](docs/EXTENDING.md).
+
 ## Project layout
 
 ```
@@ -213,6 +221,7 @@ scripts/                 # icon generation, maintenance scripts
 - **a plugin installs from a folder, contributes a callable tool, then uninstalls**
 - **a workflow runs trigger → transform → notify with per-node results**
 - **an agent composition runs end to end**
+- **Composio syncs a catalog and executes an action end to end** against a local stand-in of the REST API
 - real webview navigation (`example.com`, Wikipedia)
 - screenshots of every surface, every theme, the Anchor, the command palette and the start menu
 
@@ -244,6 +253,8 @@ Screenshots land in `screenshots/`.
   multi-device key sync or attachment support yet.
 - The automation scheduler is a 20-second tick inside the app; runs missed while the app is closed
   are not replayed.
+- Composio is a hosted service: integrations need a Composio account, API key and network access.
+  Without a key the rest of the OS works normally.
 
 ## License
 

@@ -1,0 +1,212 @@
+/* Composio integrations panel */
+.composio {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 30px;
+}
+.composio__hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--n-radius-lg);
+  border: 1px solid var(--n-line);
+  background: linear-gradient(120deg, rgba(108, 92, 231, 0.12), transparent 60%), var(--n-layer-1);
+}
+.composio__logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: var(--n-layer-2);
+  border: 1px solid var(--n-line-2);
+  flex: none;
+}
+.composio__title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.composio__setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--n-radius-lg);
+  border: 1px dashed var(--n-line-2);
+  background: var(--n-layer-1);
+}
+.composio__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--n-text-3);
+}
+.composio__steps > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.composio__step {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--n-accent);
+  background: var(--n-accent-soft);
+  border: 1px solid var(--n-accent-line);
+  flex: none;
+}
+.composio__keyRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.composio__keyRow .n-field {
+  flex: 1;
+  max-width: 460px;
+}
+.composio__stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.composio__stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border-radius: var(--n-radius);
+  border: 1px solid var(--n-line);
+  background: var(--n-layer-1);
+  min-width: 104px;
+}
+.composio__accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--n-radius);
+  border: 1px solid var(--n-line);
+  background: var(--n-layer-1);
+}
+.composio__account {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--n-line-2);
+  background: var(--n-bg);
+}
+.composio__tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.composio__search {
+  flex: 1;
+  max-width: 340px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--n-layer-1);
+  border: 1px solid var(--n-line);
+  margin-left: auto;
+}
+.composio__search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  font-size: 11.5px;
+  color: var(--n-text);
+  user-select: text;
+}
+.composio__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 8px;
+}
+.composioToolkit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--n-radius);
+  border: 1px solid var(--n-line);
+  background: var(--n-layer-1);
+}
+.composioToolkit[data-connected='true'] {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: linear-gradient(120deg, var(--n-success-soft), transparent 55%), var(--n-layer-1);
+}
+.composioToolkit__logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--n-layer-2);
+  border: 1px solid var(--n-line);
+  flex: none;
+}
+.composio__tools {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.composioTool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+}
+.composioTool:hover {
+  background: var(--n-layer-1);
+  border-color: var(--n-line);
+}
+.composioTool[data-enabled='true'] {
+  background: var(--n-accent-soft);
+  border-color: var(--n-accent-line);
+}
+.composioTool__logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--n-layer-2);
+  border: 1px solid var(--n-line);
+  flex: none;
+}
+.composioTool__desc {
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.composio__foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--n-radius);
+  border: 1px dashed var(--n-line-2);
+  line-height: 1.6;
+}

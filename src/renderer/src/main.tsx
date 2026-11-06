@@ -10,6 +10,7 @@ import './styles/desktop.css';
 import './styles/settings.css';
 import './styles/onboarding.css';
 import './styles/os.css';
+import './styles/composio.css';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };

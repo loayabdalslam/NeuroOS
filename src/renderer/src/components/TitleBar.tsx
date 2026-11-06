@@ -64,7 +64,7 @@ export function TitleBar(): JSX.Element {
           <span className="n-kbd">K</span>
         </button>
 
-        <IconButton icon="pin" label={t('anchor.title')} active={anchorOpen} onClick={() => setAnchorOpen(!anchorOpen)} />
+        <IconButton icon="anchor" label={t('anchor.title')} active={anchorOpen} onClick={() => setAnchorOpen(!anchorOpen)} />
         <div style={{ position: 'relative' }}>
           <IconButton icon="more" label="Menu" onClick={() => setMenuOpen(true)} />
           {menuOpen ? <Menu items={menuItems} onClose={() => setMenuOpen(false)} align="right" width={208} /> : null}

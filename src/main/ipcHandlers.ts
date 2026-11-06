@@ -110,7 +110,7 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
     'providers.probeDraft': async (provider: ProviderConfig) => createAdapter(provider).probe(),
     'providers.discoverModels': async ({ kind, baseUrl, apiKey }) => {
       const draft = presetToProvider(
-        { id: `draft-${Date.now()}`, name: 'Draft', kind: kind as ProviderConfig['kind'], baseUrl, models: [], color: '#4176e6', keyHint: '', docs: '', description: '' },
+        { id: `draft-${Date.now()}`, name: 'Draft', brand: 'plug', kind: kind as ProviderConfig['kind'], baseUrl, models: [], color: '#4176e6', keyHint: '', docs: '', description: '' },
         apiKey,
       );
       return createAdapter(draft).listModels();
@@ -486,6 +486,20 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
       compositions.cancel(runId);
       return { ok: true };
     },
+
+    'composio.status': () => kernel.composio.status(),
+    'composio.configure': (input) => kernel.composio.configure(input),
+    'composio.sync': async () => {
+      const status = await kernel.composio.sync();
+      await kernel.composio.refreshAccounts().catch(() => undefined);
+      return status;
+    },
+    'composio.tools': (params) => kernel.composio.tools(params ?? undefined),
+    'composio.toolkits': () => kernel.composio.toolkits(),
+    'composio.accounts': () => kernel.composio.refreshAccounts(),
+    'composio.connect': ({ toolkit }) => kernel.composio.connect(toolkit),
+    'composio.toggle': ({ slug, enabled }) => kernel.composio.toggle(slug, enabled),
+    'composio.execute': ({ slug, args }) => kernel.composio.execute(slug, args),
 
     'onboarding.state': () => ({ complete: settings.public().onboardingComplete }),
   } as HandlerMap;

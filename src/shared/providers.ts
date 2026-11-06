@@ -7,6 +7,7 @@ export interface ProviderPreset {
   baseUrl: string;
   models: ModelInfo[];
   color: string;
+  brand: string;
   keyHint: string;
   docs: string;
   local?: boolean;
@@ -24,6 +25,7 @@ const m = (id: string, label?: string, extra: Partial<ModelInfo> = {}): ModelInf
 export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     id: 'deepseek',
+    brand: 'deepseek',
     name: 'DeepSeek',
     kind: 'openai',
     baseUrl: 'https://api.deepseek.com/v1',
@@ -39,6 +41,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'openai',
+    brand: 'openai',
     name: 'OpenAI',
     kind: 'openai',
     baseUrl: 'https://api.openai.com/v1',
@@ -55,6 +58,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'anthropic',
+    brand: 'anthropic',
     name: 'Anthropic',
     kind: 'anthropic',
     baseUrl: 'https://api.anthropic.com/v1',
@@ -70,6 +74,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'google',
+    brand: 'googlegemini',
     name: 'Google Gemini',
     kind: 'gemini',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
@@ -84,6 +89,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'ollama',
+    brand: 'ollama',
     name: 'Ollama',
     kind: 'ollama',
     baseUrl: 'http://127.0.0.1:11434/v1',
@@ -101,6 +107,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'openrouter',
+    brand: 'openrouter',
     name: 'OpenRouter',
     kind: 'openai',
     baseUrl: 'https://openrouter.ai/api/v1',
@@ -117,6 +124,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'xai',
+    brand: 'x',
     name: 'xAI Grok',
     kind: 'openai',
     baseUrl: 'https://api.x.ai/v1',
@@ -128,6 +136,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'groq',
+    brand: 'groq',
     name: 'Groq',
     kind: 'openai',
     baseUrl: 'https://api.groq.com/openai/v1',
@@ -143,6 +152,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'mistral',
+    brand: 'mistralai',
     name: 'Mistral',
     kind: 'openai',
     baseUrl: 'https://api.mistral.ai/v1',
@@ -154,6 +164,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'qwen',
+    brand: 'alibabacloud',
     name: 'Alibaba Qwen',
     kind: 'openai',
     baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
@@ -165,6 +176,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'together',
+    brand: 'together',
     name: 'Together AI',
     kind: 'openai',
     baseUrl: 'https://api.together.xyz/v1',
@@ -176,6 +188,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'lmstudio',
+    brand: 'lmstudio',
     name: 'LM Studio',
     kind: 'openai',
     baseUrl: 'http://127.0.0.1:1234/v1',
@@ -189,6 +202,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'acp',
+    brand: 'bot',
     name: 'ACP Agent',
     kind: 'acp',
     baseUrl: '',
@@ -201,6 +215,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'custom',
+    brand: 'plug',
     name: 'Custom endpoint',
     kind: 'custom',
     baseUrl: '',

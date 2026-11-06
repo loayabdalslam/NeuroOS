@@ -1,4 +1,4 @@
-import { useAppStore } from '../state/store';
+﻿import { useAppStore } from '../state/store';
 import { useT } from '../lib/i18n';
 import { Icon } from './Icon';
 import { SURFACES, SURFACE_ORDER } from '../surfaces/meta';
@@ -39,7 +39,7 @@ export function Dock(): JSX.Element {
               onClick={() => navigate(surface)}
             >
               <span className="dock__icon" style={{ ['--dock-accent' as string]: meta.accent }}>
-                <Icon name={meta.icon} size={18} />
+                <Icon name={meta.icon} size={20} />
               </span>
               <span className="dock__label">{t(meta.labelKey)}</span>
             </button>
@@ -59,7 +59,7 @@ export function Dock(): JSX.Element {
           onClick={() => setAnchorOpen(!anchorOpen)}
         >
           <span className="dock__icon">
-            <Icon name="pin" size={17} />
+            <Icon name="anchor" size={17} />
           </span>
           <span className="dock__label">{t('anchor.title')}</span>
         </button>
@@ -87,3 +87,4 @@ export function Dock(): JSX.Element {
     </nav>
   );
 }
+

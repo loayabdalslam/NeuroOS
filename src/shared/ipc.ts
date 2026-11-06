@@ -11,6 +11,10 @@ import type {
   ChatSessionFull,
   Composition,
   CompositionRun,
+  ComposioAccountInfo,
+  ComposioStatus,
+  ComposioTool,
+  ComposioToolkitInfo,
   ConnectionProbe,
   FileStat,
   FsEntry,
@@ -238,6 +242,17 @@ export interface IpcMap {
   'composition.run': { params: { id: ID; input: string }; result: { runId: ID } };
   'composition.runs': { params: { compositionId?: ID } | void; result: CompositionRun[] };
   'composition.cancel': { params: { runId: ID }; result: { ok: boolean } };
+
+  /* composio integrations */
+  'composio.status': { params: void; result: ComposioStatus };
+  'composio.configure': { params: { apiKey?: string; baseUrl?: string; userId?: string }; result: ComposioStatus };
+  'composio.sync': { params: void; result: ComposioStatus };
+  'composio.tools': { params: { query?: string; toolkit?: string } | void; result: ComposioTool[] };
+  'composio.toolkits': { params: void; result: ComposioToolkitInfo[] };
+  'composio.accounts': { params: void; result: ComposioAccountInfo[] };
+  'composio.connect': { params: { toolkit: string }; result: { redirectUrl: string; accountId: string } };
+  'composio.toggle': { params: { slug: string; enabled: boolean }; result: ComposioStatus };
+  'composio.execute': { params: { slug: string; args: Record<string, unknown> }; result: { ok: boolean; output: string; data?: unknown } };
 }
 
 export type IpcChannel = keyof IpcMap;
@@ -416,6 +431,15 @@ export const IPC_CHANNELS = [
   'composition.run',
   'composition.runs',
   'composition.cancel',
+  'composio.status',
+  'composio.configure',
+  'composio.sync',
+  'composio.tools',
+  'composio.toolkits',
+  'composio.accounts',
+  'composio.connect',
+  'composio.toggle',
+  'composio.execute',
 ] as const satisfies readonly IpcChannel[];
 
 export const EVENT_CHANNELS = [

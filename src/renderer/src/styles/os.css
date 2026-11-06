@@ -1697,3 +1697,14 @@
   .mail { grid-template-columns: 280px 1fr; }
   .startMenu__grid { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* provider + design brand marks */
+.providerPick__logo { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--n-layer-2); border: 1px solid var(--n-line); flex: none; }
+.designCard__name { display: inline-flex; align-items: center; gap: 6px; }
+.themeCard__meta .row { min-width: 0; }
+
+
+/* settings nav identity tiles */
+.settings__navTile { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; border: 1px solid transparent; flex: none; }
+.settings__navList button { display: flex; align-items: center; gap: 9px; }
+

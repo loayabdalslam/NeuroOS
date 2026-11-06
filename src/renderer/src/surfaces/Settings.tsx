@@ -8,23 +8,26 @@ import { useT } from '../lib/i18n';
 import { invoke, modKey } from '../lib/ipc';
 import { relativeTime } from '../lib/format';
 import { Icon } from '../components/Icon';
+import { BrandIcon } from '../components/BrandIcon';
+import { ComposioPanel } from './ComposioPanel';
 import { Flag } from '../components/Flag';
 import { BrandMark } from '../components/BrandMark';
 import { Button, Field, IconButton, Modal, Section, Segmented, Slider, Spinner, Switch, ToggleRow } from '../components/ui';
 
 const SECTIONS = [
-  { id: 'appearance', labelKey: 'settings.appearance', icon: 'palette' },
-  { id: 'language', labelKey: 'settings.language', icon: 'languages' },
-  { id: 'profile', labelKey: 'settings.profile', icon: 'user' },
-  { id: 'providers', labelKey: 'settings.providers', icon: 'plug' },
-  { id: 'agents', labelKey: 'settings.agents', icon: 'brain' },
-  { id: 'tools', labelKey: 'settings.tools', icon: 'wrench' },
-  { id: 'taskbar', labelKey: 'settings.taskbar', icon: 'panel-bottom' },
-  { id: 'anchor', labelKey: 'settings.anchor', icon: 'pin' },
-  { id: 'workspace', labelKey: 'settings.workspace', icon: 'folder' },
-  { id: 'shortcuts', labelKey: 'settings.shortcuts', icon: 'keyboard' },
-  { id: 'advanced', labelKey: 'settings.advanced', icon: 'sliders' },
-  { id: 'about', labelKey: 'settings.about', icon: 'sparkles' },
+  { id: 'appearance', labelKey: 'settings.appearance', icon: 'palette', accent: '#f472b6' },
+  { id: 'language', labelKey: 'settings.language', icon: 'languages', accent: '#14b8a6' },
+  { id: 'profile', labelKey: 'settings.profile', icon: 'user', accent: '#5686fe' },
+  { id: 'providers', labelKey: 'settings.providers', icon: 'plug', accent: '#a78bfa' },
+  { id: 'agents', labelKey: 'settings.agents', icon: 'brain', accent: '#ec4899' },
+  { id: 'tools', labelKey: 'settings.tools', icon: 'wrench', accent: '#3b82f6' },
+  { id: 'integrations', labelKey: 'settings.integrations', icon: 'network', accent: '#6c5ce7' },
+  { id: 'taskbar', labelKey: 'settings.taskbar', icon: 'panel-bottom', accent: '#94a3b8' },
+  { id: 'anchor', labelKey: 'settings.anchor', icon: 'anchor', accent: '#ef4444' },
+  { id: 'workspace', labelKey: 'settings.workspace', icon: 'folder', accent: '#f59e0b' },
+  { id: 'shortcuts', labelKey: 'settings.shortcuts', icon: 'keyboard', accent: '#64748b' },
+  { id: 'advanced', labelKey: 'settings.advanced', icon: 'sliders', accent: '#0ea5e9' },
+  { id: 'about', labelKey: 'settings.about', icon: 'sparkles', accent: '#fbbf24' },
 ];
 
 const ACCENTS = [
@@ -35,7 +38,7 @@ const ACCENTS = [
   { id: 'amber', color: '#f59e0b' },
 ];
 
-export function SettingsSurface(): JSX.Element {
+export function SettingsSurface({ params }: { params?: Record<string, string> }): JSX.Element {
   const t = useT();
   const settings = useAppStore((s) => s.settings);
   const tools = useAppStore((s) => s.tools);
@@ -49,6 +52,10 @@ export function SettingsSurface(): JSX.Element {
   const [resetOpen, setResetOpen] = useState(false);
   const [pluginThemes, setPluginThemes] = useState<InstalledTheme[]>([]);
   const [pluginProviders, setPluginProviders] = useState<PluginProviderEntry[]>([]);
+
+  useEffect(() => {
+    if (params?.section) setSection(params.section as never);
+  }, [params?.section, setSection]);
 
   useEffect(() => {
     void invoke('plugins.themes', undefined).then(setPluginThemes).catch(() => {});
@@ -74,7 +81,12 @@ export function SettingsSurface(): JSX.Element {
         <nav className="settings__navList">
           {SECTIONS.map((item) => (
             <button key={item.id} type="button" data-active={section === item.id} onClick={() => setSection(item.id)}>
-              <Icon name={item.icon} size={15} />
+              <span
+                className="settings__navTile"
+                style={{ background: `${item.accent}1f`, borderColor: `${item.accent}3d` }}
+              >
+                <Icon name={item.icon} size={16} />
+              </span>
               <span>{t(item.labelKey)}</span>
             </button>
           ))}
@@ -143,7 +155,10 @@ export function SettingsSurface(): JSX.Element {
                         </div>
                       </div>
                       <div className="themeCard__meta">
-                        <span className="small strong truncate">{preset.name}</span>
+                        <span className="row" style={{ gap: 6, minWidth: 0 }}>
+                          <BrandIcon brand={preset.design === 'ios' ? 'apple' : preset.design} size={14} />
+                          <span className="small strong truncate">{preset.name}</span>
+                        </span>
                         <span className="tiny faint">{preset.design === 'neuro' ? 'Neuro' : preset.design}</span>
                       </div>
                       <div className="themeCard__desc tiny faint">{preset.description}</div>
@@ -722,6 +737,13 @@ export function SettingsSurface(): JSX.Element {
           </>
         ) : null}
 
+        {section === 'integrations' ? (
+          <>
+            <SettingsHeader title={t('settings.integrations')} description="Connect real third-party tools to the agent through Composio." />
+            <ComposioPanel />
+          </>
+        ) : null}
+
         {section === 'advanced' ? (
           <>
             <SettingsHeader title={t('settings.advanced')} description="Escape hatches and data ownership." />
@@ -1021,7 +1043,9 @@ function ProviderModal({
                 setStep('configure');
               }}
             >
-              <span className="providerCard__dot" style={{ background: preset.color }} />
+              <span className="providerPick__logo">
+                {preset.brand ? <BrandIcon brand={preset.brand} size={22} /> : <span className="providerCard__dot" style={{ background: preset.color }} />}
+              </span>
               <div style={{ minWidth: 0 }}>
                 <div className="small strong">{preset.name}</div>
                 <div className="tiny faint">{preset.description}</div>

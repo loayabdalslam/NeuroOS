@@ -126,7 +126,7 @@ export interface ToolInvocation {
 }
 
 export interface ToolDescriptor extends ToolDef {
-  source: 'builtin' | 'plugin' | 'mcp' | 'skill';
+  source: 'builtin' | 'plugin' | 'mcp' | 'skill' | 'composio';
   sourceId?: string;
 }
 
@@ -867,4 +867,43 @@ export interface OsWindow {
   restore?: WindowBounds;
   resizable: boolean;
   createdAt: ISODate;
+}
+
+export interface ComposioToolkitInfo {
+  slug: string;
+  name: string;
+  description?: string;
+  logo?: string;
+  tools: number;
+  connected: boolean;
+}
+
+export interface ComposioTool {
+  slug: string;
+  name: string;
+  description: string;
+  toolkit: string;
+  toolkitName: string;
+  parameters: Record<string, unknown>;
+  enabled: boolean;
+}
+
+export interface ComposioAccountInfo {
+  id: string;
+  toolkit: string;
+  status: string;
+  alias?: string;
+}
+
+export interface ComposioStatus {
+  configured: boolean;
+  apiKeySet: boolean;
+  userId: string;
+  baseUrl: string;
+  tools: number;
+  toolkits: number;
+  connected: number;
+  enabled: number;
+  lastSync?: ISODate;
+  error?: string;
 }

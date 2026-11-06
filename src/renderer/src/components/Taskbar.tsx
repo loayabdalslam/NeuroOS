@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { LANGUAGES } from '@shared/i18n';
 import { themePreset } from '@shared/themes';
 import { OS_APPS } from '@shared/apps';
@@ -91,14 +91,14 @@ export function Taskbar(): JSX.Element {
 
   const trayItems: MenuItem[] = [
     { label: t('settings.appearance'), icon: 'palette', onClick: () => { useAppStore.getState().setSettingsSection('appearance'); navigate('settings'); } },
-    { label: 'Theme · Neuro OS', icon: 'sparkles', onClick: () => applyTheme('neuro-dark') },
-    { label: 'Theme · Neuro White', icon: 'sun', onClick: () => applyTheme('neuro-white') },
-    { label: 'Theme · Windows 11', icon: 'grid', onClick: () => applyTheme('windows-11') },
-    { label: 'Theme · Ubuntu', icon: 'layers', onClick: () => applyTheme('ubuntu-dark') },
-    { label: 'Theme · iOS', icon: 'monitor', onClick: () => applyTheme('ios-light') },
+    { label: 'Theme Â· Neuro OS', icon: 'sparkles', onClick: () => applyTheme('neuro-dark') },
+    { label: 'Theme Â· Neuro White', icon: 'sun', onClick: () => applyTheme('neuro-white') },
+    { label: 'Theme Â· Windows 11', icon: 'grid', onClick: () => applyTheme('windows-11') },
+    { label: 'Theme Â· Ubuntu', icon: 'layers', onClick: () => applyTheme('ubuntu-dark') },
+    { label: 'Theme Â· iOS', icon: 'monitor', onClick: () => applyTheme('ios-light') },
     { separator: true, label: '', onClick: () => {} },
     { label: t('settings.taskbar'), icon: 'sliders', onClick: () => { useAppStore.getState().setSettingsSection('taskbar'); navigate('settings'); } },
-    { label: t('settings.anchor'), icon: 'pin', onClick: () => { useAppStore.getState().setSettingsSection('anchor'); navigate('settings'); } },
+    { label: t('settings.anchor'), icon: 'anchor', onClick: () => { useAppStore.getState().setSettingsSection('anchor'); navigate('settings'); } },
     { separator: true, label: '', onClick: () => {} },
     { label: t('chat.newChat'), icon: 'message', onClick: () => navigate('chat', {}, { forceNew: true }) },
     { label: t('terminal.newTab'), icon: 'terminal', onClick: () => navigate('terminal') },
@@ -194,7 +194,7 @@ export function Taskbar(): JSX.Element {
             {menu === 'language' ? (
               <Menu
                 items={LANGUAGES.map((item) => ({
-                  label: `${item.nativeName} · ${item.region}`,
+                  label: `${item.nativeName} Â· ${item.region}`,
                   hint: item.code.toUpperCase(),
                   onClick: () => setLocale(item.code),
                 }))}
@@ -212,7 +212,7 @@ export function Taskbar(): JSX.Element {
         </button>
 
         <button type="button" className="taskbar__tray" onClick={() => setAnchorOpen(true)} data-tip={t('anchor.title')}>
-          <Icon name="pin" size={14} />
+          <Icon name="anchor" size={15} />
           {settings.anchor.pins.length ? <span className="taskbar__count">{settings.anchor.pins.length}</span> : null}
         </button>
 
@@ -262,3 +262,4 @@ function Metric({ label, value, pct }: { label: string; value: string; pct?: num
     </div>
   );
 }
+

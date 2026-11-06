@@ -78,6 +78,7 @@ singleton and no service locator; dependencies are passed explicitly.
 | `PluginService` | Manifest validation, install sources, vm host, contributions | `plugins/` |
 | `AutomationService` | Workflow graph, execution, triggers, run history | `state/automation.json` |
 | `CompositionService` | Agent pipelines and their runs | `state/compositions.json` |
+| `ComposioService` | Catalog sync, connected accounts, action execution, tool registration | `state/composio.json` + vault |
 
 Startup order matters and is explicit in `kernel.ts`:
 
@@ -313,14 +314,48 @@ Node executors are plain functions in `AutomationService`, so adding a node type
 Compositions are sequential agent pipelines with `{{input}}` and `{{previous}}` templating, run
 either interactively (`composition.run` + events) or inline (`runInline`) from a workflow step.
 
-## 14. Performance notes
+## 14. Composio & iconography
+
+**Composio** is an optional bridge service:
+
+1. `ComposioService` stores the API key in the shared `SecretVault` and a stable local
+   `user_id` in `state/composio.json`.
+2. `sync()` pages through `GET /tools` (v3.1), normalises each action (slug, name,
+   description, toolkit, input JSON Schema) and persists a trimmed catalog.
+3. `registerTools()` publishes the two meta tools plus one tool per enabled action into
+   `ToolRegistry.setSource('composio', …)`, so policies, approvals, transcripts and
+   automation `tool.call` all treat them like built-ins.
+4. Connect uses `GET /auth_configs?toolkit_slug=…` then `POST /connected_accounts/link`,
+   opening the returned URL in the system browser; accounts are cached per user.
+5. Execution posts `{ user_id, arguments }` to `/tools/execute/{slug}` and returns the
+   response payload as text plus data.
+
+All calls are time-boxed and errors are normalised into readable messages. The QA harness
+runs a local stand-in server implementing the same endpoints, so the integration is tested
+without a real key.
+
+**Iconography** is a single renderer module, not an asset pipeline:
+
+- `SystemIcon.tsx` holds a glyph registry. Feature glyphs are duotone filled shapes with
+  their own palette (`dashboard`, `message`, `terminal`, `mail`, `automation`…); utility
+  glyphs are custom strokes (`chevron-*`, `x`, `check`, `search`…). Names resolve through
+  an alias table so the rest of the codebase keeps using semantic names.
+- `Icon.tsx` is the only entry point and forwards to `SystemIcon`, with `mono` for contexts
+  that need a neutral tint.
+- `BrandIcon.tsx` renders official brand paths from the simple-icons dataset (CC0) plus a
+  few hand-drawn marks, with automatic luminance correction so dark logos stay visible on
+  dark surfaces. It powers provider cards, theme gallery OS badges and Composio toolkits.
+- Coloured icons are identity markers (apps, providers, integrations); neutral strokes are
+  controls. That separation keeps the desktop lively without turning the chrome into noise.
+
+## 15. Performance notes
 
 - Terminal output is forwarded as raw chunks; xterm.js handles rendering off the React tree.
 - Stats poll at 2.5 s; the UI reads them from the store.
 - Writes are coalesced and atomic; session saves are debounced by the turn boundary.
 - Message lists are not virtualized yet — fine for typical sessions, a known growth item.
 
-## 15. Scaling roadmap
+## 16. Scaling roadmap
 
 1. **Multi-agent rooms** — several agents sharing a tool bus with explicit hand-off events.
 2. **Remote workspaces** — `WorkspaceService` behind an SSH/FS provider interface.

@@ -9,6 +9,7 @@ import { invoke } from '../lib/ipc';
 import { BrandMark } from '../components/BrandMark';
 import { Flag } from '../components/Flag';
 import { Icon } from '../components/Icon';
+import { BrandIcon } from '../components/BrandIcon';
 import { Button, Spinner } from '../components/ui';
 
 type Step = 'welcome' | 'language' | 'profile' | 'appearance' | 'intelligence' | 'workspace' | 'ready';
@@ -350,7 +351,10 @@ export function Onboarding(): JSX.Element {
                           <span className="designCard__dot" style={{ background: accentColor }} />
                         </span>
                       </span>
-                      <span className="designCard__name">{preset.design === 'neuro' ? 'Neuro OS' : preset.name}</span>
+                      <span className="designCard__name">
+                        <BrandIcon brand={preset.design === 'ios' ? 'apple' : preset.design} size={13} />
+                        {preset.design === 'neuro' ? 'Neuro OS' : preset.name}
+                      </span>
                     </button>
                   );
                 })}
@@ -436,7 +440,9 @@ export function Onboarding(): JSX.Element {
                       setTestResult(null);
                     }}
                   >
-                    <span className="providerCard__dot" style={{ background: item.color }} />
+                    <span className="providerPick__logo">
+                      {item.brand ? <BrandIcon brand={item.brand} size={22} /> : <span className="providerCard__dot" style={{ background: item.color }} />}
+                    </span>
                     <div className="grow" style={{ minWidth: 0 }}>
                       <div className="row" style={{ gap: 6 }}>
                         <span className="providerCard__name">{item.name}</span>
