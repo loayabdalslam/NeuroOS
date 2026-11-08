@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage, ToolInvocation } from '@shared/types';
 import { useChatStore } from '../state/chat';
 import { useAppStore } from '../state/store';
@@ -80,7 +80,26 @@ export function Chat(): JSX.Element {
   const setAttachments = useChatStore((s) => s.setAttachments);
   const pushToast = useAppStore((s) => s.pushToast);
   const toolModels = (provider?.models ?? []).filter((model) => model.supportsTools !== false);
+
+
   const modelChoices = toolModels.length ? toolModels : (provider?.models ?? []);
+
+  const chooseModel = async (modelId: string, providerId?: string): Promise<void> => {
+    const state = useChatStore.getState();
+    if (!state.activeId) {
+      await create({ providerId: providerId ?? provider?.id, model: modelId });
+      return;
+    }
+    const updated = await invoke('chat.patch', {
+      id: state.activeId,
+      ...(providerId ? { providerId } : {}),
+      model: modelId,
+    });
+    useChatStore.setState({
+      active: state.active ? { ...state.active, ...updated } : null,
+      sessions: state.sessions.map((session) => (session.id === updated.id ? { ...session, ...updated } : session)),
+    });
+  };
 
   const modelItems: MenuItem[] = [];
   for (const item of providers.filter((p) => p.enabled)) {
@@ -116,7 +135,7 @@ export function Chat(): JSX.Element {
   if (!providerItems.length) {
     providerItems.push({ label: 'Connect a providerâ€¦', icon: 'plug', onClick: () => navigate('settings') });
   }
-  const modelLabel = provider?.models.find((model) => model.id === active?.model)?.label ?? active?.model?.split('/').pop() ?? t('chat.model');
+  const modelLabel = provider?.models.find((model) => model.id === active?.model)?.label ?? active?.model?.split('/').pop() ?? provider?.defaultModel?.split('/').pop() ?? t('chat.model');
 
   const agentItems: MenuItem[] = (settings?.agents ?? []).map((item) => ({
     label: item.name,
@@ -228,7 +247,7 @@ export function Chat(): JSX.Element {
               <span className="n-dot n-dot--online" />
               <span>{agent?.name ?? 'Neuro'}</span>
               <span className="faint">Â·</span>
-              <span className="mono tiny">{active?.model || 'no model'}</span>
+              <span className="mono tiny">{active?.model || provider?.defaultModel || 'select model'}</span>
               {provider ? <span className="n-badge" style={{ marginLeft: 4 }}>{provider.name}</span> : null}
             </div>
           </div>
@@ -444,8 +463,7 @@ export function Chat(): JSX.Element {
                 data-active={item.id === provider?.id}
                 onClick={() => {
                   const model = item.models.find((entry) => entry.id === active?.model)?.id ?? item.models.find((entry) => entry.supportsTools !== false)?.id ?? item.models[0]?.id ?? '';
-                  void useChatStore.getState().setActiveMeta({ providerId: item.id, model });
-                  setProviderModal(false);
+                  void chooseModel(model, item.id).then(() => setProviderModal(false));
                 }}
               >
                 <span className="composer__selectDot" style={{ background: item.color ?? 'var(--n-accent)' }} />
@@ -498,8 +516,7 @@ export function Chat(): JSX.Element {
                 className="providerChoice"
                 data-active={model.id === active?.model}
                 onClick={() => {
-                  void useChatStore.getState().setActiveMeta({ model: model.id });
-                  setModelModal(false);
+                  void chooseModel(model.id, provider?.id).then(() => setModelModal(false));
                 }}
               >
                 <Icon name="cpu" size={15} />
@@ -746,6 +763,8 @@ function ToolCallCard({ call, onApprove }: { call: ToolInvocation; onApprove: (i
     </div>
   );
 }
+
+
 
 
 
