@@ -109,3 +109,12 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | --- | --- |
 | Selecting a space looked like nothing happened: under 980 CSS px the master-detail layout stacked the detail panel below the grid, often outside the viewport, so the click only changed hidden state. | The layout keeps the detail panel beside the grid down to 980 px (300 px aside, 220 px cards) and turns it into a slide-over drawer below 760 px. The panel scrolls into view on selection. |
 | A space card had no “open” action; double-click and the detail panel now open the space workspace (patching workspaceRoot when the space has a folder). | `openSpace()` + primary Open button + double-click + tooltip. |
+
+## Composer pickers & images
+
+| Feature | Behaviour |
+| --- | --- |
+| Provider pill | Opens a Providers dialog listing every provider (kind, model count, enabled state) with a Manage providers action. |
+| Model pill | Opens “Models with tool calling”: only models whose supportsTools is not false; shows context window and vision badges. |
+| Image upload | Paperclip reads PNG/JPEG/WebP/GIF up to 8 MB, shows thumbnails/chips (max 4), sends them as multimodal content to OpenAI-compatible providers, and renders them in the user message. |
+| Backend | New system.readDataUrl IPC returns a data URL; LlmMessage carries images; adapters with vision support receive image_url blocks. |

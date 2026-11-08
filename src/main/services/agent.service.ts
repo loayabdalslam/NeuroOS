@@ -565,7 +565,10 @@ function toLlmMessages(messages: ChatMessage[], _system: string): LlmMessage[] {
   const recent = messages.slice(-MAX_CONTEXT_MESSAGES);
   for (const message of recent) {
     if (message.role === 'user') {
-      out.push({ role: 'user', content: message.content });
+      const images = (message.attachments ?? [])
+        .filter((attachment) => attachment.kind === 'image' && attachment.dataUrl)
+        .map((attachment) => ({ mime: attachment.mime ?? 'image/png', dataUrl: attachment.dataUrl! }));
+      out.push({ role: 'user', content: message.content, ...(images.length ? { images } : {}) });
     } else if (message.role === 'assistant') {
       if (!message.content && !message.toolCalls?.length) continue;
       out.push({

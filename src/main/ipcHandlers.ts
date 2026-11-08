@@ -39,6 +39,22 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
         : await dialog.showOpenDialog({ properties: ['openDirectory'], title: params?.title ?? 'Select a folder' });
       return { path: result.canceled ? null : result.filePaths[0] ?? null };
     },
+    'system.readDataUrl': async ({ path: file }) => {
+      const ext = path.extname(file).toLowerCase();
+      const types: Record<string, string> = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+      };
+      const mime = types[ext];
+      if (!mime) throw new Error('Only PNG, JPEG, WebP or GIF images can be attached.');
+      const stat = await fs.stat(file);
+      if (stat.size > 8 * 1024 * 1024) throw new Error('Images are limited to 8 MB.');
+      const data = await fs.readFile(file);
+      return { dataUrl: `data:${mime};base64,${data.toString('base64')}`, mime, name: path.basename(file), size: stat.size };
+    },
     'system.pickFiles': async (params) => {
       const options = { properties: (params?.multiple ? ['openFile', 'multiSelections'] : ['openFile']) as ('openFile' | 'multiSelections')[] };
       const result = await openDialog(options);

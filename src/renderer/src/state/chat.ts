@@ -12,6 +12,7 @@ interface ChatState {
   draft: string;
   error: string | null;
   attachments: ChatMessage['attachments'];
+  setAttachments: (attachments: ChatMessage['attachments']) => void;
   loading: boolean;
   loadSessions: () => Promise<void>;
   open: (id: string) => Promise<void>;
@@ -112,6 +113,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setDraft: (draft) => set({ draft }),
+
+  setAttachments: (attachments) => set({ attachments }),
 
   regenerate: async () => {
     const id = get().activeId;

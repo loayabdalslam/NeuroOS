@@ -9,7 +9,7 @@ import { formatDuration } from '../lib/util';
 import { Icon } from '../components/Icon';
 import { Markdown } from '../components/Markdown';
 import { BrandMark } from '../components/BrandMark';
-import { Button, EmptyState, IconButton, Menu, Spinner, type MenuItem } from '../components/ui';
+import { Button, EmptyState, IconButton, Menu, Modal, Spinner, type MenuItem } from '../components/ui';
 
 const SUGGESTIONS = [
   { icon: 'files', title: 'Map this workspace', prompt: 'Summarise the workspace: what it is, the main entry points, and the riskiest part of the code. Read real files before answering.' },
@@ -41,7 +41,9 @@ export function Chat(): JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [modelMenu, setModelMenu] = useState(false);
-  const [providerMenu, setProviderMenu] = useState(false);
+  const [providerModal, setProviderModal] = useState(false);
+  const [modelModal, setModelModal] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const [agentMenu, setAgentMenu] = useState(false);
   const [messageMenu, setMessageMenu] = useState<string | null>(null);
 
@@ -74,6 +76,10 @@ export function Chat(): JSX.Element {
   }, [sessions, search]);
 
   const enabledTools = agent?.tools === 'all' || !agent ? tools : tools.filter((tool) => agent.tools.includes(tool.name));
+  const attachments = useChatStore((s) => s.attachments) ?? [];
+  const setAttachments = useChatStore((s) => s.setAttachments);
+  const pushToast = useAppStore((s) => s.pushToast);
+  const toolModels = (provider?.models ?? []).filter((model) => model.supportsTools !== false);
 
   const modelItems: MenuItem[] = [];
   for (const item of providers.filter((p) => p.enabled)) {
@@ -120,6 +126,33 @@ export function Chat(): JSX.Element {
       void useChatStore.getState().setActiveMeta({ agentId: item.id });
     },
   }));
+
+  const attachImages = async (): Promise<void> => {
+    setAttaching(true);
+    try {
+      const picked = await invoke('system.pickFiles', { multiple: true });
+      const next = [...attachments];
+      for (const path of picked.paths) {
+        try {
+          const data = await invoke('system.readDataUrl', { path });
+          next.push({
+            id: 'att_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            kind: 'image',
+            label: data.name,
+            path,
+            mime: data.mime,
+            size: data.size,
+            dataUrl: data.dataUrl,
+          });
+        } catch (error) {
+          pushToast({ title: 'Could not attach image', message: (error as Error).message, kind: 'error' });
+        }
+      }
+      setAttachments(next.slice(0, 4));
+    } finally {
+      setAttaching(false);
+    }
+  };
 
   return (
     <div className="chat">
@@ -275,6 +308,19 @@ export function Chat(): JSX.Element {
 
         <div className="chat__composerWrap">
           <div className="composer" data-streaming={streaming}>
+            {attachments.length ? (
+              <div className="composer__attachmentsAbove">
+                {attachments.map((attachment) => (
+                  <span key={attachment.id} className="composer__attachmentChip">
+                    {attachment.dataUrl ? <img src={attachment.dataUrl} alt={attachment.label} /> : <Icon name="file" size={12} />}
+                    <span className="truncate">{attachment.label}</span>
+                    <button type="button" onClick={() => setAttachments(attachments.filter((item) => item.id !== attachment.id))} aria-label="Remove attachment">
+                      <Icon name="x" size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <textarea
               ref={composerRef}
               className="composer__input"
@@ -291,23 +337,33 @@ export function Chat(): JSX.Element {
               spellCheck
             />
             <div className="composer__bottom">
-              <IconButton icon="paperclip" label={t('chat.attach')} onClick={() => void invoke('system.pickFiles', { multiple: true })} />
+              <IconButton icon={attaching ? 'loader' : 'paperclip'} label={t('chat.attach')} onClick={() => void attachImages()} />
+              {attachments.length ? (
+                <div className="composer__attachments">
+                  {attachments.map((attachment) => (
+                    <div key={attachment.id} className="composer__attachment">
+                      {attachment.dataUrl ? <img src={attachment.dataUrl} alt={attachment.label} /> : <Icon name="file" size={14} />}
+                      <button type="button" aria-label="Remove attachment" onClick={() => setAttachments(attachments.filter((item) => item.id !== attachment.id))}>
+                        <Icon name="x" size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <div className="composer__selectors">
                 <div className="composer__selectWrap">
-                  <button type="button" className="composer__select" onClick={() => setProviderMenu(true)}>
+                  <button type="button" className="composer__select" onClick={() => setProviderModal(true)}>
                     <span className="composer__selectDot" style={{ background: provider?.color ?? 'var(--n-text-4)' }} />
                     <span className="truncate">{provider?.name ?? 'Provider'}</span>
                     <Icon name="chevron-down" size={10} />
                   </button>
-                  {providerMenu ? <Menu items={providerItems} onClose={() => setProviderMenu(false)} width={230} /> : null}
                 </div>
                 <div className="composer__selectWrap">
-                  <button type="button" className="composer__select" onClick={() => setModelMenu(true)}>
+                  <button type="button" className="composer__select" onClick={() => setModelModal(true)}>
                     <Icon name="cpu" size={12} />
                     <span className="truncate">{modelLabel}</span>
                     <Icon name="chevron-down" size={10} />
                   </button>
-                  {modelMenu ? <Menu items={modelItems} onClose={() => setModelMenu(false)} width={300} /> : null}
                 </div>
               </div>
               <span className="grow" />
@@ -320,7 +376,7 @@ export function Chat(): JSX.Element {
                   type="button"
                   className="composer__send"
                   onClick={() => void send()}
-                  disabled={!draft.trim() || !active}
+                  disabled={(!draft.trim() && !attachments.length) || !active}
                   aria-label={t('common.send')}
                 >
                   <Icon name="arrow-up" size={16} />
@@ -332,6 +388,95 @@ export function Chat(): JSX.Element {
           </div>
         </div>
       </section>
+
+      <Modal
+        open={providerModal}
+        onClose={() => setProviderModal(false)}
+        title="Providers"
+        description="Choose the provider for this conversation. Keys stay in the OS keychain."
+        width={520}
+        footer={
+          <>
+            <Button onClick={() => setProviderModal(false)}>Close</Button>
+            <Button
+              variant="primary"
+              icon="settings"
+              onClick={() => {
+                setProviderModal(false);
+                navigate('settings');
+              }}
+            >
+              Manage providers
+            </Button>
+          </>
+        }
+      >
+        <div className="providerChooser">
+          {providers.length ? (
+            providers.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="providerChoice"
+                data-active={item.id === provider?.id}
+                onClick={() => {
+                  const model = item.models.find((entry) => entry.id === active?.model)?.id ?? item.models.find((entry) => entry.supportsTools !== false)?.id ?? item.models[0]?.id ?? '';
+                  void useChatStore.getState().setActiveMeta({ providerId: item.id, model });
+                  setProviderModal(false);
+                }}
+              >
+                <span className="composer__selectDot" style={{ background: item.color ?? 'var(--n-accent)' }} />
+                <span className="grow" style={{ minWidth: 0 }}>
+                  <span className="small strong">{item.name}</span>
+                  <span className="tiny faint" style={{ display: 'block' }}>
+                    {item.kind} · {item.models.length} models · {item.enabled ? 'enabled' : 'disabled'}
+                  </span>
+                </span>
+                {item.id === provider?.id ? <Icon name="check" size={13} /> : null}
+              </button>
+            ))
+          ) : (
+            <span className="tiny faint">No providers yet. Open Settings → Providers to add one.</span>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={modelModal}
+        onClose={() => setModelModal(false)}
+        title="Models with tool calling"
+        description={provider ? "Only models that can call the 46 Neuro tools are listed." : undefined}
+        width={520}
+      >
+        <div className="providerChooser">
+          {toolModels.length ? (
+            toolModels.map((model) => (
+              <button
+                key={model.id}
+                type="button"
+                className="providerChoice"
+                data-active={model.id === active?.model}
+                onClick={() => {
+                  void useChatStore.getState().setActiveMeta({ model: model.id });
+                  setModelModal(false);
+                }}
+              >
+                <Icon name="cpu" size={15} />
+                <span className="grow" style={{ minWidth: 0 }}>
+                  <span className="small strong">{model.label}</span>
+                  <span className="tiny faint" style={{ display: 'block' }}>
+                    {model.id}{model.contextWindow ? ' · ' + Math.round(model.contextWindow / 1000) + 'k context' : ''}
+                    {model.supportsVision ? ' · vision' : ''}
+                  </span>
+                </span>
+                {model.id === active?.model ? <Icon name="check" size={13} /> : null}
+              </button>
+            ))
+          ) : (
+            <span className="tiny faint">This provider has no tool-capable models. Add one in Settings → Providers.</span>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -442,11 +587,15 @@ function MessageRow({
 
         {isUser && message.attachments?.length ? (
           <div className="msg__attachments">
-            {message.attachments.map((attachment) => (
-              <span key={attachment.id} className="n-chip">
-                <Icon name="file" size={11} /> {attachment.label}
-              </span>
-            ))}
+            {message.attachments.map((attachment) =>
+              attachment.dataUrl ? (
+                <img key={attachment.id} src={attachment.dataUrl} alt={attachment.label} />
+              ) : (
+                <span key={attachment.id} className="n-chip">
+                  <Icon name="file" size={11} /> {attachment.label}
+                </span>
+              ),
+            )}
           </div>
         ) : null}
 
@@ -556,5 +705,6 @@ function ToolCallCard({ call, onApprove }: { call: ToolInvocation; onApprove: (i
     </div>
   );
 }
+
 
 

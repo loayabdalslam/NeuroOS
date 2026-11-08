@@ -653,3 +653,17 @@
 .composer__send:disabled { opacity: 0.35; cursor: default; }
 .composer__send--stop { background: var(--n-danger, #ef4444); }
 .chat__composerWrap { padding-bottom: 10px; }
+
+.providerChooser { display: flex; flex-direction: column; gap: 6px; }
+.providerChoice { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--n-line); background: var(--n-layer-1); text-align: left; color: var(--n-text-2); }
+.providerChoice:hover { border-color: var(--n-accent-line); background: var(--n-accent-softer); }
+.providerChoice[data-active='true'] { border-color: var(--n-accent-line); background: var(--n-accent-softer); }
+.composer__attachments { display: flex; align-items: center; gap: 5px; }
+.composer__attachment { position: relative; width: 32px; height: 32px; border-radius: 7px; overflow: hidden; border: 1px solid var(--n-line); flex: none; }
+.composer__attachment img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.composer__attachment button { position: absolute; top: 1px; right: 1px; width: 14px; height: 14px; border-radius: 50%; border: 0; background: rgba(8, 10, 16, 0.7); color: #fff; display: grid; place-items: center; padding: 0; }
+.composer__attachmentsAbove { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 4px 0; }
+.composer__attachmentChip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 7px 3px 3px; border: 1px solid var(--n-line); border-radius: 8px; background: var(--n-layer-2); font-size: 11px; max-width: 210px; }
+.composer__attachmentChip img { width: 22px; height: 22px; border-radius: 5px; object-fit: cover; }
+.composer__attachmentChip button { border: 0; background: transparent; color: var(--n-text-4); padding: 0; display: grid; place-items: center; }
+

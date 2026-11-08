@@ -147,6 +147,8 @@ export interface Attachment {
   ref?: string;
   mime?: string;
   size?: number;
+  /** data: URL for image attachments (vision models). */
+  dataUrl?: string;
 }
 
 export interface ChatMessage {

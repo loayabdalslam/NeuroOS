@@ -12,6 +12,7 @@ export interface LlmToolCall {
 export interface LlmMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  images?: { mime: string; dataUrl: string }[];
   toolCalls?: LlmToolCall[];
   toolCallId?: string;
   toolName?: string;
@@ -129,6 +130,14 @@ export class OpenAiCompatibleAdapter implements ProviderAdapter {
         });
       } else if (m.role === 'tool') {
         messages.push({ role: 'tool', tool_call_id: m.toolCallId, content: m.content });
+      } else if (m.role === 'user' && m.images?.length) {
+        messages.push({
+          role: 'user',
+          content: [
+            { type: 'text', text: m.content },
+            ...m.images.map((image) => ({ type: 'image_url', image_url: { url: image.dataUrl } })),
+          ],
+        });
       } else {
         messages.push({ role: m.role, content: m.content });
       }

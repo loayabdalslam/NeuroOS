@@ -74,6 +74,10 @@ export interface IpcMap {
   'system.showItemInFolder': { params: { path: string }; result: void };
   'system.pickDirectory': { params: { title?: string } | void; result: { path: string | null } };
   'system.pickFiles': { params: { multiple?: boolean } | void; result: { paths: string[] } };
+  'system.readDataUrl': {
+    params: { path: string };
+    result: { dataUrl: string; mime: string; name: string; size: number };
+  };
   'system.clipboardRead': { params: void; result: { text: string } };
   'system.clipboardWrite': { params: { text: string }; result: void };
   'system.screenshot': { params: { mode?: 'screen' | 'window' } | void; result: { path: string; dataUrl: string } };
