@@ -15,9 +15,9 @@ Screenshots: `screenshots/deep/` (file explorer, all 14 surfaces, start menu, co
 
 | | |
 | --- | --- |
-| Checks | **26** |
-| Pass | **25** |
-| Warn | **1** |
+| Checks | **28** |
+| Pass | **26** |
+| Warn | **2** |
 | Fail | **0** |
 | Fixed after the run | navigation crash, plugin isolation, Composio search, ACP model/auth, mesh list, chat error, brain fallback |
 
@@ -39,12 +39,13 @@ Screenshots: `screenshots/deep/` (file explorer, all 14 surfaces, start menu, co
 | Settings | theme/design, locale → RTL, restore |
 | ACP | mock agent connect/prompt + chat turn streaming `MOCK_ACP_OK` |
 | Composio | live key, catalog sync, search |
-| UI | 14 surfaces rendered + captured, start menu open/close, command palette Ctrl+K/Escape |
+| UI | 14 surfaces rendered + captured, start menu open/close, command palette Ctrl+K/Escape, all 8 theme presets captured, provider picker in a light theme |
 | Chat | no-provider error handling |
 
 ## Warnings (open)
 
-- **Workspace boundary (BUG-014, accepted):** `fs.read` is OS-wide by design, like Finder. The Workspace surface is a root, not a sandbox.
+- **Workspace boundary (BUG-014, accepted):** fs.read is OS-wide by design, like Finder. The Workspace surface is a root, not a sandbox.
+- **Composio (D-18):** the run had no NEURO_QA_COMPOSIO_KEY, so the live check was skipped (the earlier live run passed).
 
 ## Fixed
 

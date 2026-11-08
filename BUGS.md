@@ -82,3 +82,14 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 4. **BUG-003 stress** â€” add a session-store write queue test (many chunks, cancel, restart).
 5. **BUG-008/009/011/012** â€” UI polish and receipt/telemetry for relayed mail.
 
+
+## UI / theme pass
+
+| Issue | Fix |
+| --- | --- |
+| Photo-wallpaper overlay was applied globally (.app__bg, .desktop, .lockscreen), darkening every theme and turning Ubuntu light into flat grey. | Scoped to :root[data-wallpaper^=photo:] with a light variant; themed gradients render again. |
+| ACP provider cards had blank icons (brand bot has no mark, BrandIcon returned null). | Provider grids fall back to Icon name=plug when hasBrand() is false. |
+| Provider picker collapsed to one oversized column (1fr min-content + long ACP install strings). | repeat(2, minmax(0,1fr)) + min-width:0; verified 293px + 293px columns. |
+| “Add provider” skipped the preset list and opened DeepSeek directly. | It opens the picker now; 23 cards render in a light theme. |
+| Light-theme dock/taskbar glyphs were washed out on pale bars. | Light dock tiles + stronger glyph contrast; desktop tiles use color-mix accent backgrounds. |
+| Provider cards had faint borders in light themes. | Explicit light-theme surfaces, borders and logo tiles. |
