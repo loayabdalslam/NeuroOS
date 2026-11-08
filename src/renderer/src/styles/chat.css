@@ -667,3 +667,10 @@
 .composer__attachmentChip img { width: 22px; height: 22px; border-radius: 5px; object-fit: cover; }
 .composer__attachmentChip button { border: 0; background: transparent; color: var(--n-text-4); padding: 0; display: grid; place-items: center; }
 
+
+/* Chat composer must not inherit the Composer surface's 3-column grid */
+.chat .composer { display: flex; flex-direction: column; grid-template-columns: none; height: auto; min-height: 0; }
+.chat .composer__input { width: 100%; min-height: 58px; max-height: 220px; padding: 8px 6px 2px; }
+.chat .composer__bottom { width: 100%; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--n-line); }
+.chat .composer__attachmentsAbove { width: 100%; }
+

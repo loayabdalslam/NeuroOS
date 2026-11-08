@@ -118,3 +118,10 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | Model pill | Opens “Models with tool calling”: only models whose supportsTools is not false; shows context window and vision badges. |
 | Image upload | Paperclip reads PNG/JPEG/WebP/GIF up to 8 MB, shows thumbnails/chips (max 4), sends them as multimodal content to OpenAI-compatible providers, and renders them in the user message. |
 | Backend | New system.readDataUrl IPC returns a data URL; LlmMessage carries images; adapters with vision support receive image_url blocks. |
+
+## Chat layout pass
+
+| Issue | Fix |
+| --- | --- |
+| Chat composer inherited the Composer surface’s 3-column grid (`.composer { display: grid; grid-template-columns: 236px 1fr 300px }`), squeezing the textarea and putting the toolbar beside it. | Scoped `.chat .composer` overrides: flex column, full-width textarea with min-height, toolbar in its own row behind a divider, send button on the right. |
+| Identifiers with underscores (`MOCK_ACP_OK`) rendered as emphasis (`MOCKACPOK`) because the markdown inline parser treated `_…_` as italic anywhere. | Removed underscore emphasis from the inline pattern; `*italic*` and `**bold**` still work. |

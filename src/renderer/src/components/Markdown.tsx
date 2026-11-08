@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+﻿import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Icon } from './Icon';
 
 /* A small, dependency-free markdown renderer optimised for chat streaming. */
@@ -105,7 +105,7 @@ function parse(markdown: string): Block[] {
 
 function inline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  const pattern = /(`[^`]+`)|(\*\*[^*]+\*\*)|(__[^_]+__)|(\*[^*\n]+\*)|(_[^_\n]+_)|(\[[^\]]+\]\([^)]+\))|(https?:\/\/[^\s<)]+)/g;
+  const pattern = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\n]+\*)|(\[[^\]]+\]\([^)]+\))|(https?:\/\/[^\s<)]+)/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let i = 0;
@@ -240,3 +240,4 @@ export function Markdown({ source, className = '' }: { source: string; className
 }
 
 export const markdownHelpers = { Fragment };
+
