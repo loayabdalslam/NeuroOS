@@ -139,3 +139,9 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | Issue | Fix |
 | --- | --- |
 | The Model dialog only listed models with supportsTools !== false. Providers whose models do not declare tool support (or have no models) showed an empty list, so no model could be selected. | The dialog now falls back to all provider models with a clear note, adds a **Refresh models** action (providers.discoverModels + save) and a Manage providers shortcut. |
+
+## Model selection pass
+
+| Issue | Fix |
+| --- | --- |
+| Choosing a model could appear to do nothing: the click only patched an existing session, the dialog was filtered to tool-capable models, and a session with an empty model still showed “no model”. | The picker falls back to all provider models, creates a session if none exists, patches the session directly and updates the store, offers Refresh models (discoverModels + save), and the header/pill fall back to the provider default model. Verified by D-34 (fallback list) and D-35 (pill “Pick Me”, header pick-me). |
