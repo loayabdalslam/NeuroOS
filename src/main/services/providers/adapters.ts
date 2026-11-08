@@ -182,7 +182,13 @@ export class OpenAiCompatibleAdapter implements ProviderAdapter {
         delete body.tool_choice;
         response = await call();
       } else {
-        throw new Error(`${this.provider.name}: ${errorText.slice(0, 400) || response.statusText}`);
+        const detail = errorText.slice(0, 400) || response.statusText;
+        if (/CUDA error|llama-server process/i.test(detail)) {
+          throw new Error(
+            'Ollama GPU backend crashed (CUDA). Restart Ollama, or force CPU with OLLAMA_LLM_LIBRARY=cpu, or update the NVIDIA driver. Details: ' + detail,
+          );
+        }
+        throw new Error(`${this.provider.name}: ${detail}`);
       }
     }
     await assertOk(response, this.provider.name);

@@ -145,3 +145,10 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | Issue | Fix |
 | --- | --- |
 | Choosing a model could appear to do nothing: the click only patched an existing session, the dialog was filtered to tool-capable models, and a session with an empty model still showed “no model”. | The picker falls back to all provider models, creates a session if none exists, patches the session directly and updates the store, offers Refresh models (discoverModels + save), and the header/pill fall back to the provider default model. Verified by D-34 (fallback list) and D-35 (pill “Pick Me”, header pick-me). |
+
+## Ollama CUDA crash (environment)
+
+| Symptom | Cause / fix |
+| --- | --- |
+| `HTTP 500 — llama-server process has terminated … 0xc0000409 … CUDA error: device kernel image is invalid` on every Ollama model. | The Ollama CUDA 12 runner crashes on this machine (RTX 3050, NVIDIA driver 546.18, Ollama 0.40.14) before inference starts. Forced the CPU backend with `OLLAMA_LLM_LIBRARY=cpu` (persisted at user level) and restarted `ollama serve`; `gemma3:4b` then answered `CPU_OK` in ~12 s. Proper long-term fix: update the NVIDIA driver, then remove the variable to use the GPU again. |
+| The raw CUDA text was shown as the assistant error. | The OpenAI-compatible adapter now detects `CUDA error` / `llama-server process` and returns an actionable message (restart Ollama, force CPU, or update the driver) with the detail appended. |
