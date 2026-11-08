@@ -537,8 +537,21 @@
   .wcard--span4,
   .wcard--span6 { grid-column: span 12; }
   .desk__clockCard { display: none; }
-  .spaces__body { flex-direction: column; }
-  .spaceDetail { width: 100%; }
+  .spaces__body { flex-direction: row; gap: 10px; }
+  .spaces__grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .spaceDetail { width: 300px; }
+}
+@media (max-width: 760px) {
+  .spaces__body { position: relative; }
+  .spaceDetail {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: min(340px, 92%);
+    z-index: 5;
+    box-shadow: -18px 0 40px rgba(0, 0, 0, 0.25);
+  }
 }
 
 .settings__providerSection { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--n-line); }
@@ -551,4 +564,5 @@
 
 .providerPick { min-width: 0; }
 .providerPick > div { min-width: 0; }
+
 

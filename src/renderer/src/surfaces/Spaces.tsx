@@ -36,6 +36,12 @@ export function Spaces(): JSX.Element {
   const spaceNotes = notes.filter((note) => !note.spaceId || note.spaceId === selected?.id);
   const spaceSessions = sessions.filter((session) => session.spaceId === selected?.id);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    const detail = document.querySelector('.spaceDetail');
+    if (detail && window.innerWidth < 980) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedId]);
+
   const createSpace = async (): Promise<void> => {
     if (!draft.name.trim()) return;
     const space = await invoke('spaces.create', {
@@ -49,6 +55,13 @@ export function Spaces(): JSX.Element {
     setSelectedId(space.id);
     setCreateOpen(false);
     setDraft({ name: '', description: '', emoji: '◈', color: COLORS[0], path: '' });
+  };
+
+  const openSpace = (space: Space): void => {
+    if (space.path) {
+      void useAppStore.getState().patchSettings({ workspaceRoot: space.path });
+    }
+    navigate('workspace');
   };
 
   const removeSpace = async (id: string): Promise<void> => {
@@ -101,6 +114,8 @@ export function Spaces(): JSX.Element {
                 className="spaceCard"
                 data-active={space.id === selected?.id}
                 onClick={() => setSelectedId(space.id)}
+                onDoubleClick={() => openSpace(space)}
+                title="Click to preview · double-click to open its workspace"
               >
                 <div className="spaceCard__top">
                   <span className="spaceCard__glyph" style={{ color: space.color, background: `${space.color}1f`, borderColor: `${space.color}3d` }}>
@@ -156,6 +171,9 @@ export function Spaces(): JSX.Element {
             <p className="spaceDetail__desc">{selected.description || 'Add a description to give the agent intent.'}</p>
 
             <div className="spaceDetail__actions">
+              <Button variant="primary" size="sm" icon="external-link" onClick={() => openSpace(selected)}>
+                Open
+              </Button>
               <Button variant="outline" size="sm" icon="message" onClick={() => navigate('chat', {}, { forceNew: true })}>
                 {t('chat.newChat')}
               </Button>

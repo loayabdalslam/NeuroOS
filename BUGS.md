@@ -102,3 +102,10 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | Agent failures were only toasts; the assistant bubble stayed empty with a caret. | Error events now fill the message with ⚠️ + message and render an inline error block. |
 | Composer looked like a control panel: workspace/auto-approve chips, send/newline hints, crowded provider/model pills. | ChatGPT-style composer: paperclip left, compact provider + model selectors, circular send/stop button, chip row removed, larger radius and softer shadow. |
 | Mail setup card inherited the 3-column mail grid and was clipped on the left. | .mail--setup is a single-column centred grid with padding and overflow; D-00 verifies left=505px, width=520px inside a 1480px viewport. |
+
+## Spaces interaction pass
+
+| Issue | Fix |
+| --- | --- |
+| Selecting a space looked like nothing happened: under 980 CSS px the master-detail layout stacked the detail panel below the grid, often outside the viewport, so the click only changed hidden state. | The layout keeps the detail panel beside the grid down to 980 px (300 px aside, 220 px cards) and turns it into a slide-over drawer below 760 px. The panel scrolls into view on selection. |
+| A space card had no “open” action; double-click and the detail panel now open the space workspace (patching workspaceRoot when the space has a folder). | `openSpace()` + primary Open button + double-click + tooltip. |
