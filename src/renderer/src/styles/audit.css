@@ -146,8 +146,9 @@
 
 /* photo wallpapers */
 body { background-color: #07080d; background-image: var(--n-wallpaper-image, none); background-size: cover; background-position: center; background-attachment: fixed; }
-.desktop { background-image: linear-gradient(180deg, rgba(5,6,11,.25), rgba(5,6,11,.55)), var(--n-wallpaper-image, none) !important; background-size: cover !important; background-position: center !important; }
-.lockscreen { background-image: linear-gradient(180deg, rgba(5,6,11,.35), rgba(5,6,11,.7)), var(--n-wallpaper-image, none) !important; background-size: cover !important; background-position: center !important; }
+:root[data-wallpaper^='photo:'] .desktop { background-image: linear-gradient(180deg, rgba(5,6,11,.18), rgba(5,6,11,.45)), var(--n-wallpaper-image, none) !important; background-size: cover !important; background-position: center !important; }
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktop { background-image: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.4)), var(--n-wallpaper-image, none) !important; }
+:root[data-wallpaper^='photo:'] .lockscreen { background-image: linear-gradient(180deg, rgba(5,6,11,.3), rgba(5,6,11,.65)), var(--n-wallpaper-image, none) !important; background-size: cover !important; background-position: center !important; }
 .photoWallpaperGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .photoWallpaper { position: relative; display: flex; flex-direction: column; text-align: left; border-radius: var(--n-radius); overflow: hidden; border: 1px solid var(--n-line); background: var(--n-layer-1); padding: 0; }
 .photoWallpaper img { width: 100%; height: 118px; object-fit: cover; display: block; transition: transform 240ms var(--n-ease); }
@@ -160,18 +161,20 @@ body { background-color: #07080d; background-image: var(--n-wallpaper-image, non
 .photoWallpaperReset:hover { color: var(--n-accent); }
 
 
-/* ambient wallpaper behind the shell */
-.app__bg {
-  background-image: linear-gradient(180deg, rgba(6, 7, 12, 0.55), rgba(6, 7, 12, 0.8)), var(--n-wallpaper-image, none) !important;
+/* photo wallpapers only — themed wallpapers keep their design gradients */
+:root[data-wallpaper^='photo:'] .app__bg {
+  background-image: linear-gradient(180deg, rgba(6, 7, 12, 0.35), rgba(6, 7, 12, 0.6)), var(--n-wallpaper-image, none) !important;
   background-size: cover !important;
   background-position: center !important;
-  filter: blur(22px) brightness(0.6) saturate(1.15);
+  filter: blur(22px) brightness(0.75) saturate(1.1);
   transform: scale(1.06);
 }
-
-/* readable desktop hint over photo wallpapers */
-.desktop__hintTitle { text-shadow: 0 2px 24px rgba(0,0,0,.85), 0 1px 4px rgba(0,0,0,.8); }
-.desktop__hintBody { color: rgba(240,242,248,.92); text-shadow: 0 1px 12px rgba(0,0,0,.9); }
-.desktop__hintChip { background: rgba(9,11,18,.72); border-color: rgba(255,255,255,.16); backdrop-filter: blur(12px); }
-.desktopIcon__label { text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.6); }
+:root[data-theme='light'][data-wallpaper^='photo:'] .app__bg {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.55)), var(--n-wallpaper-image, none) !important;
+  filter: blur(22px) brightness(1) saturate(1.05);
+}
+:root[data-wallpaper^='photo:'] .desktop__hintTitle { text-shadow: 0 2px 24px rgba(0,0,0,.55), 0 1px 4px rgba(0,0,0,.5); }
+:root[data-wallpaper^='photo:'] .desktop__hintChip { background: rgba(9,11,18,.55); border-color: rgba(255,255,255,.18); backdrop-filter: blur(12px); }
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktop__hintChip { background: rgba(255,255,255,.78); border-color: rgba(15,18,26,.12); color: var(--n-text); }
+:root[data-wallpaper^='photo:'] .desktopIcon__label { text-shadow: 0 1px 6px rgba(0,0,0,.75); }
 

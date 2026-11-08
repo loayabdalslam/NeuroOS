@@ -1,4 +1,4 @@
-/* ================================ Settings =============================== */
+﻿/* ================================ Settings =============================== */
 
 .settings {
   display: flex;
@@ -495,7 +495,7 @@
 }
 .providerGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 .providerPick {
@@ -542,4 +542,13 @@
 }
 
 .settings__providerSection { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--n-line); }
+
+
+:root[data-theme='light'] .providerPick { background: #ffffff; border-color: rgba(15, 18, 26, 0.14); }
+:root[data-theme='light'] .providerPick:hover { background: var(--n-accent-softer); border-color: var(--n-accent-line); }
+:root[data-theme='light'] .providerPick__logo { background: rgba(15, 18, 26, 0.05); border-color: rgba(15, 18, 26, 0.1); color: var(--n-text-2); }
+
+
+.providerPick { min-width: 0; }
+.providerPick > div { min-width: 0; }
 

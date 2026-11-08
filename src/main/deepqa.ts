@@ -7,6 +7,7 @@ import { buildHandlers } from './ipcHandlers';
 import { log } from './core/ipc';
 import { MailService } from './services/mail.service';
 import { WebService } from './services/web.service';
+import { THEME_PRESETS } from '@shared/themes';
 
 type Status = 'pass' | 'fail' | 'warn';
 
@@ -565,6 +566,46 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     } finally {
       await peer.dispose();
     }
+  });
+
+  await check('D-27', 'ui', 'every theme renders and is captured', async () => {
+    const visited: string[] = [];
+    for (const preset of THEME_PRESETS) {
+      await call('settings.patch', {
+        theme: { design: preset.design, theme: preset.mode, accent: 'neuro', surface: preset.surface, wallpaper: preset.wallpaper },
+      });
+      await wait(700);
+      const probe = await win.webContents.executeJavaScript(
+        `(() => ({ bg: Boolean(document.querySelector('.app__bg')), aurora: Boolean(document.querySelector('.n-aurora')), text: document.body.innerText.length }))()`,
+      );
+      if (!probe.bg || probe.text < 40) throw new Error(`${preset.id}: shell did not render`);
+      await shot(`theme-${preset.id}`);
+      visited.push(preset.id);
+    }
+    return { evidence: `${visited.length} themes rendered (light + dark)` };
+  });
+
+  await check('D-28', 'ui', 'provider picker renders icons in a light theme', async () => {
+    await call('settings.patch', { theme: { design: 'ios', theme: 'light', accent: 'neuro', surface: 'white', wallpaper: 'aurora' } });
+    kernel.emit('ui:navigate', { surface: 'settings', params: {} });
+    await wait(900);
+    await win.webContents.executeJavaScript(
+      `(() => { const nav = [...document.querySelectorAll('button')].find((element) => element.textContent?.trim() === 'Providers'); if (nav) nav.click(); return Boolean(nav); })()`,
+    );
+    await wait(600);
+    const opened = await win.webContents.executeJavaScript(
+      `(() => { const button = [...document.querySelectorAll('button')].find((element) => element.textContent?.trim() === 'Add provider'); if (!button) return false; button.click(); return true; })()`,
+    );
+    if (!opened) throw new Error('Add provider button not found');
+    await wait(700);
+    await shot('provider-picker-light');
+    const cards = await win.webContents.executeJavaScript(`document.querySelectorAll('.providerPick').length`);
+    const gridStyle = await win.webContents.executeJavaScript(
+      `(() => { const el = document.querySelector('.providerGrid'); if (!el) return null; const s = getComputedStyle(el); return { display: s.display, cols: s.gridTemplateColumns, width: el.clientWidth, rect: el.getBoundingClientRect().width }; })()`,
+    );
+    await win.webContents.executeJavaScript("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+    await wait(400);
+    return { evidence: `${cards} cards; ${JSON.stringify(gridStyle)}` };
   });
 
   const report = results;

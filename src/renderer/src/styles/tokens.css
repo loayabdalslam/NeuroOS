@@ -495,3 +495,19 @@
 :root[data-surface='white'] .n-grid-bg {
   opacity: 0.4;
 }
+
+:root[data-theme='light'] .dock__item[data-active='true'] .dock__icon { color: color-mix(in srgb, var(--dock-accent, var(--n-accent)) 58%, #10141b); }
+:root[data-theme='light'] .dock__item .dock__icon { color: var(--n-text-2); }
+
+/* Light themes: keep duotone dock/taskbar glyphs legible on pale bars */
+:root[data-theme='light'] .dock__item .dock__icon svg { filter: brightness(0.78) saturate(1.25); }
+:root[data-theme='light'] .taskbar__app svg { filter: brightness(0.82) saturate(1.2); }
+:root[data-theme='light'] .settings__providerSection span:first-child { color: var(--n-text-2); }
+
+
+:root[data-theme='light'] .dock__item .dock__icon svg { filter: brightness(0.66) saturate(1.45) contrast(1.08); opacity: 1; }
+:root[data-theme='light'] .taskbar__app svg { filter: brightness(0.72) saturate(1.35); }
+
+
+:root[data-theme='light'] .dock__icon { width: 28px; height: 28px; border-radius: 8px; background: color-mix(in srgb, var(--dock-accent, var(--n-accent)) 16%, #ffffff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dock-accent, var(--n-accent)) 26%, transparent); }
+

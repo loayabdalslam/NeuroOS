@@ -10,7 +10,7 @@ import { invoke } from '../lib/ipc';
 import { BrandMark } from '../components/BrandMark';
 import { Flag } from '../components/Flag';
 import { Icon } from '../components/Icon';
-import { BrandIcon } from '../components/BrandIcon';
+import { BrandIcon, hasBrand } from '../components/BrandIcon';
 import { Button, Spinner } from '../components/ui';
 import { WelcomeTicker, WelcomePanel } from './WelcomeMotion';
 
@@ -429,7 +429,7 @@ export function Onboarding(): JSX.Element {
                     }}
                   >
                     <span className="providerPick__logo">
-                      {item.brand ? <BrandIcon brand={item.brand} size={22} /> : <span className="providerCard__dot" style={{ background: item.color }} />}
+                      {item.brand ? (hasBrand(item.brand) ? <BrandIcon brand={item.brand} size={22} /> : <Icon name="plug" size={18} />) : <span className="providerCard__dot" style={{ background: item.color }} />}
                     </span>
                     <div className="grow" style={{ minWidth: 0 }}>
                       <div className="row" style={{ gap: 6 }}>

@@ -9,7 +9,7 @@ import { useT } from '../lib/i18n';
 import { invoke, modKey } from '../lib/ipc';
 import { relativeTime } from '../lib/format';
 import { Icon } from '../components/Icon';
-import { BrandIcon } from '../components/BrandIcon';
+import { BrandIcon, hasBrand } from '../components/BrandIcon';
 import { ComposioPanel } from './ComposioPanel';
 import { Flag } from '../components/Flag';
 import { BrandMark } from '../components/BrandMark';
@@ -49,6 +49,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
   const patch = useAppStore((s) => s.patchSettings);
   const pushToast = useAppStore((s) => s.pushToast);
   const [providerModal, setProviderModal] = useState<ProviderConfig | null>(null);
+  const [providerPicker, setProviderPicker] = useState(false);
   const [agentModal, setAgentModal] = useState<AgentConfig | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [pluginThemes, setPluginThemes] = useState<InstalledTheme[]>([]);
@@ -420,7 +421,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                 <Button
                   variant="primary"
                   icon="plus"
-                  onClick={() => setProviderModal(presetToProvider(PROVIDER_PRESETS[0]))}
+                  onClick={() => { setProviderModal(null); setProviderPicker(true); }}
                 >
                   Add provider
                 </Button>
@@ -435,7 +436,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                     Add DeepSeek, OpenAI, Anthropic, Gemini, a local Ollama server, or any ACP agent. Chat stays disabled until one is
                     connected.
                   </div>
-                  <Button variant="primary" icon="plus" onClick={() => setProviderModal(presetToProvider(PROVIDER_PRESETS[0]))}>
+                  <Button variant="primary" icon="plus" onClick={() => { setProviderModal(null); setProviderPicker(true); }}>
                     Connect a provider
                   </Button>
                 </div>
@@ -848,7 +849,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
         ) : null}
       </div>
 
-      <ProviderModal provider={providerModal} onClose={() => setProviderModal(null)} pluginProviders={pluginProviders} />
+      <ProviderModal provider={providerModal} open={providerModal !== null || providerPicker} onClose={() => { setProviderModal(null); setProviderPicker(false); }} pluginProviders={pluginProviders} />
       <AgentModal agent={agentModal} onClose={() => setAgentModal(null)} tools={tools} />
       <Modal
         open={resetOpen}
@@ -977,10 +978,12 @@ function ToolsSection({ tools, settings, onChange }: { tools: ToolDescriptor[]; 
 
 function ProviderModal({
   provider,
+  open,
   onClose,
   pluginProviders,
 }: {
   provider: ProviderConfig | null;
+  open: boolean;
   onClose: () => void;
   pluginProviders: PluginProviderEntry[];
 }): JSX.Element | null {
@@ -999,7 +1002,9 @@ function ProviderModal({
     setStep(provider ? 'configure' : 'pick');
   }, [provider]);
 
-  if (!provider || !draft) return null;
+  if (!open) return null;
+  if (step === 'configure' && !draft) return null;
+  const model = (draft ?? presetToProvider(PROVIDER_PRESETS[0])) as ProviderConfig;
 
   const save = async (): Promise<void> => {
     const models = modelsText
@@ -1007,11 +1012,12 @@ function ProviderModal({
       .map((id) => id.trim())
       .filter(Boolean)
       .map((id) => ({ id, label: id, supportsTools: true }));
+    if (!draft) return;
     const next: ProviderConfig = {
-      ...draft,
-      models: models.length ? models : draft.models,
-      defaultModel: models[0]?.id ?? draft.defaultModel,
-      createdAt: draft.createdAt ?? new Date().toISOString(),
+      ...model,
+      models: models.length ? models : model.models,
+      defaultModel: models[0]?.id ?? model.defaultModel,
+      createdAt: model.createdAt ?? new Date().toISOString(),
     };
     await invoke('providers.save', next);
     useAppStore.getState().setSettings(await invoke('settings.get', undefined));
@@ -1023,7 +1029,7 @@ function ProviderModal({
     <Modal
       open
       onClose={onClose}
-      title={step === 'pick' ? 'Add a provider' : `Configure ${draft.name}`}
+      title={step === 'pick' ? 'Add a provider' : `Configure ${draft?.name ?? ''}`}
       description={step === 'pick' ? 'Pick a preset — every field stays editable.' : 'Keys are encrypted with the OS keychain.'}
       width={640}
       footer={
@@ -1040,7 +1046,7 @@ function ProviderModal({
               onClick={async () => {
                 setProbing(true);
                 try {
-                  const result = await invoke('providers.probeDraft', draft);
+                  const result = await invoke('providers.probeDraft', model);
                   setProbe({ ok: result.ok, message: `${result.message} · ${result.latencyMs}ms` });
                 } catch (error) {
                   setProbe({ ok: false, message: (error as Error).message });
@@ -1072,7 +1078,7 @@ function ProviderModal({
               }}
             >
               <span className="providerPick__logo">
-                {preset.brand ? <BrandIcon brand={preset.brand} size={22} /> : <span className="providerCard__dot" style={{ background: preset.color }} />}
+                {preset.brand ? (hasBrand(preset.brand) ? <BrandIcon brand={preset.brand} size={22} /> : <Icon name="plug" size={18} />) : <span className="providerCard__dot" style={{ background: preset.color }} />}
               </span>
               <div style={{ minWidth: 0 }}>
                 <div className="small strong">{preset.name}</div>
@@ -1096,7 +1102,7 @@ function ProviderModal({
               }}
             >
               <span className="providerPick__logo">
-                <BrandIcon brand={preset.brand} size={22} />
+                {hasBrand(preset.brand) ? <BrandIcon brand={preset.brand} size={22} /> : <Icon name="plug" size={18} />}
               </span>
               <div style={{ minWidth: 0 }}>
                 <div className="row" style={{ gap: 6 }}>
@@ -1154,26 +1160,26 @@ function ProviderModal({
         <div className="col" style={{ gap: 14 }}>
           <div className="row" style={{ gap: 10 }}>
             <Field label="Display name">
-              <input className="n-input" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+              <input className="n-input" value={model.name} onChange={(event) => setDraft({ ...model, name: event.target.value })} />
             </Field>
             <Field label="Kind">
-              <select className="n-select" value={draft.kind} onChange={(event) => setDraft({ ...draft, kind: event.target.value as ProviderConfig['kind'] })}>
+              <select className="n-select" value={model.kind} onChange={(event) => setDraft({ ...model, kind: event.target.value as ProviderConfig['kind'] })}>
                 {['openai', 'anthropic', 'gemini', 'ollama', 'custom', 'acp'].map((kind) => (
                   <option key={kind} value={kind}>{kind}</option>
                 ))}
               </select>
             </Field>
           </div>
-          {draft.kind === 'acp' ? (
+          {model.kind === 'acp' ? (
             <>
               <Field label="Agent command" hint="Spawned over stdio. The client negotiates ACP v1, sessions, fs and terminal capabilities.">
-                <input className="n-input n-input--mono" value={draft.acp?.command ?? ''} onChange={(event) => setDraft({ ...draft, acp: { command: event.target.value, args: draft.acp?.args ?? [] } })} placeholder="npx" />
+                <input className="n-input n-input--mono" value={model.acp?.command ?? ''} onChange={(event) => setDraft({ ...model, acp: { command: event.target.value, args: model.acp?.args ?? [] } })} placeholder="npx" />
               </Field>
               <Field label="Arguments" hint="Space separated.">
                 <input
                   className="n-input n-input--mono"
-                  value={(draft.acp?.args ?? []).join(' ')}
-                  onChange={(event) => setDraft({ ...draft, acp: { command: draft.acp?.command ?? '', args: event.target.value.split(/\s+/).filter(Boolean) } })}
+                  value={(model.acp?.args ?? []).join(' ')}
+                  onChange={(event) => setDraft({ ...model, acp: { command: model.acp?.command ?? '', args: event.target.value.split(/\s+/).filter(Boolean) } })}
                   placeholder="-y @google/gemini-cli --experimental-acp"
                 />
               </Field>
@@ -1181,10 +1187,10 @@ function ProviderModal({
           ) : (
             <>
               <Field label="Base URL" hint="OpenAI-compatible endpoints should end with /v1.">
-                <input className="n-input n-input--mono" value={draft.baseUrl} onChange={(event) => setDraft({ ...draft, baseUrl: event.target.value })} />
+                <input className="n-input n-input--mono" value={model.baseUrl} onChange={(event) => setDraft({ ...model, baseUrl: event.target.value })} />
               </Field>
-              <Field label="API key" hint={draft.apiKey ? 'Stored encrypted — replace to rotate.' : 'Paste the key. It never leaves this machine.'}>
-                <input className="n-input n-input--mono" type="password" value={draft.apiKey} onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })} />
+              <Field label="API key" hint={model.apiKey ? 'Stored encrypted — replace to rotate.' : 'Paste the key. It never leaves this machine.'}>
+                <input className="n-input n-input--mono" type="password" value={model.apiKey} onChange={(event) => setDraft({ ...model, apiKey: event.target.value })} />
               </Field>
               <Field label="Models" hint="Comma separated model ids.">
                 <input className="n-input n-input--mono" value={modelsText} onChange={(event) => setModelsText(event.target.value)} />

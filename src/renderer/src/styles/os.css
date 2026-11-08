@@ -62,8 +62,18 @@
   border-radius: 12px;
   display: grid;
   place-items: center;
-  border: 1px solid;
-  background: var(--n-layer-1);
+  border: 1px solid color-mix(in srgb, var(--tile-accent, var(--n-accent)) 34%, transparent);
+  background: color-mix(in srgb, var(--tile-accent, var(--n-accent)) 14%, var(--n-layer-1));
+}
+.desktopIcon__glyph {
+  color: var(--tile-accent, var(--n-accent));
+}
+:root[data-theme='light'] .desktopIcon__tile {
+  background: color-mix(in srgb, var(--tile-accent, var(--n-accent)) 12%, #ffffff);
+  border-color: color-mix(in srgb, var(--tile-accent, var(--n-accent)) 28%, transparent);
+}
+:root[data-theme='light'] .desktopIcon__glyph {
+  color: color-mix(in srgb, var(--tile-accent, var(--n-accent)) 62%, #0f131a);
 }
 .desktopIcon__label {
   font-size: 11px;

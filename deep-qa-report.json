@@ -5,7 +5,7 @@
     "title": "mkdir + unicode write + read round-trip",
     "status": "pass",
     "evidence": "50 bytes at Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§ Ã˜Â¹Ã˜Â§Ã™â€žÃ™â€¦.txt",
-    "ms": 271
+    "ms": 206
   },
   {
     "id": "D-02",
@@ -21,7 +21,7 @@
     "title": "rename + overwrite + delete",
     "status": "pass",
     "evidence": "rename Ã¢â€ â€™ overwrite Ã¢â€ â€™ delete verified",
-    "ms": 53
+    "ms": 36
   },
   {
     "id": "D-04",
@@ -29,7 +29,7 @@
     "title": "large file (300 KB) write/read",
     "status": "pass",
     "evidence": "300000 bytes",
-    "ms": 49
+    "ms": 38
   },
   {
     "id": "D-05",
@@ -45,7 +45,7 @@
     "title": "create, update and delete a note",
     "status": "pass",
     "evidence": "create Ã¢â€ â€™ update Ã¢â€ â€™ delete",
-    "ms": 2
+    "ms": 1
   },
   {
     "id": "D-07",
@@ -53,31 +53,31 @@
     "title": "create a space, edit it and remove it",
     "status": "pass",
     "evidence": "create Ã¢â€ â€™ rename Ã¢â€ â€™ remove",
-    "ms": 1
+    "ms": 0
   },
   {
     "id": "D-08",
     "area": "notebooks",
     "title": "create a notebook and run code + error cells",
     "status": "pass",
-    "evidence": "ok=DEEP_c522d7b2 error=error",
-    "ms": 14
+    "evidence": "ok=DEEP_8bf7c94b error=error",
+    "ms": 8
   },
   {
     "id": "D-09",
     "area": "terminal",
     "title": "spawn PTY, run a command, read buffer, resize, kill",
     "status": "pass",
-    "evidence": "414 buffer chars, resize + kill ok",
-    "ms": 3665
+    "evidence": "412 buffer chars, resize + kill ok",
+    "ms": 3580
   },
   {
     "id": "D-10",
     "area": "mail",
     "title": "peer-to-peer send, receive, reply, read and delete",
     "status": "pass",
-    "evidence": "encrypted qa.peer@26d2dd11b2d4dc3e.neuro send + reply, decrypt ok, peer removed",
-    "ms": 833
+    "evidence": "encrypted qa.peer@42c4b193b90428f2.neuro send + reply, decrypt ok, peer removed",
+    "ms": 815
   },
   {
     "id": "D-11",
@@ -85,7 +85,7 @@
     "title": "save a workflow, run it, inspect steps and remove it",
     "status": "pass",
     "evidence": "2 steps, output DEEP_AUTOMATION_OK",
-    "ms": 422
+    "ms": 419
   },
   {
     "id": "D-12",
@@ -93,15 +93,15 @@
     "title": "remember, recall, ask, timeline, forget",
     "status": "pass",
     "evidence": "3 hits, answer 336 chars, 2 events, forget ok",
-    "ms": 64
+    "ms": 46
   },
   {
     "id": "D-13",
     "area": "web",
     "title": "publish, serve HTML + asset, counts, unpublish",
     "status": "pass",
-    "evidence": "deep-a57029.neuro served (2 files), traversal blocked, unpublish ok",
-    "ms": 247
+    "evidence": "deep-457836.neuro served (2 files), traversal blocked, unpublish ok",
+    "ms": 172
   },
   {
     "id": "D-14",
@@ -109,7 +109,7 @@
     "title": "install, toggle and uninstall a catalog item",
     "status": "pass",
     "evidence": "Code Review (skill) install Ã¢â€ â€™ toggle Ã¢â€ â€™ uninstall",
-    "ms": 41
+    "ms": 21
   },
   {
     "id": "D-15",
@@ -117,7 +117,7 @@
     "title": "install a local plugin, list it, uninstall it",
     "status": "pass",
     "evidence": "Deep QA plugin install Ã¢â€ â€™ list Ã¢â€ â€™ uninstall",
-    "ms": 406
+    "ms": 341
   },
   {
     "id": "D-16",
@@ -125,7 +125,7 @@
     "title": "theme, density, locale and wallpaper patch",
     "status": "pass",
     "evidence": "design Ã¢â€ â€™ windows, locale Ã¢â€ â€™ ar/rtl, restored",
-    "ms": 529
+    "ms": 368
   },
   {
     "id": "D-17",
@@ -133,15 +133,15 @@
     "title": "add a mock ACP provider, prompt it, then chat through it",
     "status": "pass",
     "evidence": "acp.connect Ã¢â€ â€™ prompt Ã¢â€ â€™ chat turn streamed MOCK_ACP_OK",
-    "ms": 1266
+    "ms": 1094
   },
   {
     "id": "D-18",
     "area": "composio",
     "title": "configure with the live key and search the catalog",
-    "status": "pass",
-    "evidence": "1000 tools, 26 toolkits, 0 github hits",
-    "ms": 9128
+    "status": "warn",
+    "evidence": "NEURO_QA_COMPOSIO_KEY not set",
+    "ms": 1
   },
   {
     "id": "D-19",
@@ -149,7 +149,7 @@
     "title": "navigate every surface and capture it",
     "status": "pass",
     "evidence": "14 surfaces rendered + screenshotted",
-    "ms": 13090
+    "ms": 11280
   },
   {
     "id": "D-20",
@@ -157,7 +157,7 @@
     "title": "start menu opens and closes",
     "status": "pass",
     "evidence": "open + scrim close",
-    "ms": 2669
+    "ms": 2551
   },
   {
     "id": "D-21",
@@ -165,7 +165,7 @@
     "title": "command palette opens with Ctrl+K and closes with Escape",
     "status": "pass",
     "evidence": "Ctrl+K â†’ palette â†’ Escape",
-    "ms": 1735
+    "ms": 1640
   },
   {
     "id": "D-22",
@@ -173,7 +173,7 @@
     "title": "a session with no provider fails with a clear message",
     "status": "pass",
     "evidence": "No provider is connected. Add one in Settings â†’ Providers, then send again.",
-    "ms": 42
+    "ms": 51
   },
   {
     "id": "D-23",
@@ -181,7 +181,7 @@
     "title": "two concurrent PTY sessions keep separate buffers",
     "status": "pass",
     "evidence": "two PTYs, isolated buffers, both killed",
-    "ms": 3494
+    "ms": 3462
   },
   {
     "id": "D-24",
@@ -189,7 +189,7 @@
     "title": "recording toggle, graph, profile and batch capture",
     "status": "pass",
     "evidence": "recorded 2, graph 35 nodes, profile ? nodes",
-    "ms": 4
+    "ms": 5
   },
   {
     "id": "D-25",
@@ -197,14 +197,30 @@
     "title": "sent folder holds the outgoing message",
     "status": "pass",
     "evidence": "2 sent, direction=out, encrypted=true",
-    "ms": 1
+    "ms": 0
   },
   {
     "id": "D-26",
     "area": "web",
     "title": "peer replication: another node publishes, this node serves it",
     "status": "pass",
-    "evidence": "replica-0ff06b.neuro published on peer, served by this gateway",
-    "ms": 113
+    "evidence": "replica-aac7d8.neuro published on peer, served by this gateway",
+    "ms": 95
+  },
+  {
+    "id": "D-27",
+    "area": "ui",
+    "title": "every theme renders and is captured",
+    "status": "pass",
+    "evidence": "8 themes rendered (light + dark)",
+    "ms": 7244
+  },
+  {
+    "id": "D-28",
+    "area": "ui",
+    "title": "provider picker renders icons in a light theme",
+    "status": "pass",
+    "evidence": "23 cards; {\"display\":\"grid\",\"cols\":\"293.4px 293.4px\",\"width\":593,\"rect\":592.7999877929688}",
+    "ms": 2861
   }
 ]

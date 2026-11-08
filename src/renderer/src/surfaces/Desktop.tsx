@@ -116,8 +116,8 @@ export function Desktop(): JSX.Element {
             onDoubleClick={() => open(app.id)}
             onKeyDown={(event) => event.key === 'Enter' && open(app.id)}
           >
-            <span className="desktopIcon__tile" style={{ background: `${app.accent}22`, borderColor: `${app.accent}44` }}>
-              <Icon name={app.icon} size={26} style={{ color: app.accent }} />
+            <span className="desktopIcon__tile" style={{ ['--tile-accent' as string]: app.accent }}>
+              <Icon name={app.icon} size={26} className="desktopIcon__glyph" />
             </span>
             <span className="desktopIcon__label">{app.name}</span>
           </button>
