@@ -61,7 +61,8 @@ export function App(): JSX.Element {
     root.dataset.accent = settings.theme.accent;
     root.dataset.design = settings.theme.design;
     root.dataset.surface = settings.theme.surface;
-    root.dataset.wallpaper = settings.theme.wallpaper;
+    const customWallpaper = settings.theme.customWallpaper;
+    root.dataset.wallpaper = customWallpaper ? 'photo:custom' : settings.theme.wallpaper;
     root.dataset.density = settings.theme.density;
     root.dataset.transparency = settings.theme.transparency ? 'on' : 'off';
     root.dataset.motion = settings.theme.motion === 'reduced' ? 'reduced' : 'full';
@@ -74,8 +75,9 @@ export function App(): JSX.Element {
     root.style.setProperty('--n-radius-lg', `${Math.round(settings.theme.radius * 1.25)}px`);
     root.style.setProperty('--n-radius-xl', `${Math.round(settings.theme.radius * 1.7)}px`);
     root.style.setProperty('--n-anchor-w', `${settings.anchor.width}px`);
-    const photo = settings.theme.wallpaper.startsWith('photo:') ? photoWallpaper(settings.theme.wallpaper.slice(6)) : undefined;
-    if (photo) root.style.setProperty('--n-wallpaper-image', `url("${wallpaperUrl(photo.file)}")`);
+    const photo = !customWallpaper && settings.theme.wallpaper.startsWith('photo:') ? photoWallpaper(settings.theme.wallpaper.slice(6)) : undefined;
+    if (customWallpaper) root.style.setProperty('--n-wallpaper-image', `url("${customWallpaper}")`);
+    else if (photo) root.style.setProperty('--n-wallpaper-image', `url("${wallpaperUrl(photo.file)}")`);
     else root.style.removeProperty('--n-wallpaper-image');
   }, [settings, systemDark]);
 

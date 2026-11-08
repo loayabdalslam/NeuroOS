@@ -125,3 +125,11 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | --- | --- |
 | Chat composer inherited the Composer surface’s 3-column grid (`.composer { display: grid; grid-template-columns: 236px 1fr 300px }`), squeezing the textarea and putting the toolbar beside it. | Scoped `.chat .composer` overrides: flex column, full-width textarea with min-height, toolbar in its own row behind a divider, send button on the right. |
 | Identifiers with underscores (`MOCK_ACP_OK`) rendered as emphasis (`MOCKACPOK`) because the markdown inline parser treated `_…_` as italic anywhere. | Removed underscore emphasis from the inline pattern; `*italic*` and `**bold**` still work. |
+
+## Wallpaper pass
+
+| Feature | Behaviour |
+| --- | --- |
+| Custom wallpaper | Settings → Appearance → Photography now has a **Your wallpaper** card: Upload (PNG/JPEG/WebP/GIF, max 8 MB), preview and Remove. The image is stored as a data URL and applied to the desktop and shell backdrop. |
+| Presets | The existing design wallpapers and NASA photography gallery remain; choosing any preset clears the custom image. |
+| Verification | Deep QA D-33: data-wallpaper=photo:custom, --n-wallpaper-image=data:image/png…, uploader present. |

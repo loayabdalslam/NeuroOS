@@ -70,6 +70,18 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
     void patch(partial).catch((error) => pushToast({ title: 'Update failed', message: (error as Error).message, kind: 'error' }));
   };
 
+  const uploadWallpaper = async (): Promise<void> => {
+    const picked = await invoke('system.pickFiles', { multiple: false });
+    const file = picked.paths[0];
+    if (!file) return;
+    try {
+      const image = await invoke('system.readDataUrl', { path: file });
+      update({ theme: { customWallpaper: image.dataUrl, wallpaper: 'photo:custom' } });
+    } catch (error) {
+      pushToast({ title: 'Could not set wallpaper', message: (error as Error).message, kind: 'error' });
+    }
+  };
+
   return (
     <div className="settings">
       <aside className="settings__nav">
@@ -103,7 +115,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
           <>
             <SettingsHeader
               title={t('settings.appearance')}
-              description="Choose a whole desktop language — or fine-tune it. Every change applies instantly across the OS."
+              description="Choose a whole desktop language â€” or fine-tune it. Every change applies instantly across the OS."
             />
             <Section title="Theme gallery" description="Windows, Ubuntu, iOS or Neuro OS. Each preset also moves the taskbar and picks its wallpaper.">
               <div className="themeGrid">
@@ -131,6 +143,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                             transparency: preset.transparency,
                             glow: preset.glow,
                             wallpaper: preset.wallpaper,
+                            customWallpaper: '',
                           },
                           taskbar: { position: preset.taskbar },
                         })
@@ -176,7 +189,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
             </Section>
 
             {pluginThemes.length ? (
-              <Section title="Installed themes" description="Contributed by plugins in Marketplace → Extensions.">
+              <Section title="Installed themes" description="Contributed by plugins in Marketplace â†’ Extensions.">
                 <div className="themeGrid themeGrid--plugins">
                   {pluginThemes.map((theme) => (
                     <button
@@ -255,7 +268,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
               </div>
               <ToggleRow
                 title="White theme"
-                hint="Force pure-white surfaces — the highest-contrast light mode."
+                hint="Force pure-white surfaces â€” the highest-contrast light mode."
                 on={settings.theme.surface === 'white'}
                 onChange={(white) => update({ theme: { surface: white ? 'white' : 'standard' } })}
               />
@@ -277,7 +290,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
               </div>
             </Section>
 
-            <Section title={t('settings.wallpaper')} description="Wallpapers follow the design language — pick any.">
+            <Section title={t('settings.wallpaper')} description="Wallpapers follow the design language â€” pick any.">
               <div className="wallpaperGrid">
                 {WALLPAPERS.map((wallpaper) => (
                   <button
@@ -286,7 +299,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                     className="wallpaperSwatch"
                     data-active={settings.theme.wallpaper === wallpaper.id}
                     data-wallpaper={wallpaper.id}
-                    onClick={() => update({ theme: { wallpaper: wallpaper.id } })}
+                    onClick={() => update({ theme: { wallpaper: wallpaper.id, customWallpaper: '' } })}
                   >
                     <span>{wallpaper.label}</span>
                   </button>
@@ -295,6 +308,27 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
             </Section>
 
             <Section title={t('settings.photography')} description={t('settings.photographyHint')}>
+              <div className="customWallpaper">
+                <span className="customWallpaper__preview">
+                  {settings.theme.customWallpaper ? (
+                    <img src={settings.theme.customWallpaper} alt="Custom wallpaper" />
+                  ) : (
+                    <Icon name="image" size={18} />
+                  )}
+                </span>
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="small strong">Your wallpaper</div>
+                  <div className="tiny faint">PNG, JPEG, WebP or GIF · up to 8 MB. Applied to the desktop and shell.</div>
+                </div>
+                <Button variant="soft" size="sm" icon="upload" onClick={() => void uploadWallpaper()}>
+                  Upload
+                </Button>
+                {settings.theme.customWallpaper ? (
+                  <Button variant="ghost" size="sm" icon="trash" onClick={() => update({ theme: { customWallpaper: '', wallpaper: 'nebula' } })}>
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
               <div className="photoWallpaperGrid">
                 {PHOTO_WALLPAPERS.map((photo) => (
                   <button
@@ -302,7 +336,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                     type="button"
                     className="photoWallpaper"
                     data-active={settings.theme.wallpaper === `photo:${photo.id}`}
-                    onClick={() => update({ theme: { wallpaper: `photo:${photo.id}` } })}
+                    onClick={() => update({ theme: { wallpaper: `photo:${photo.id}`, customWallpaper: '' } })}
                   >
                     <img src={wallpaperUrl(photo.file)} alt={photo.label} loading="lazy" />
                     <span className="photoWallpaper__meta">
@@ -359,7 +393,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
 
         {section === 'language' ? (
           <>
-            <SettingsHeader title={t('settings.language')} description="Interface language, direction and regional formatting. Flags are vector — not emoji." />
+            <SettingsHeader title={t('settings.language')} description="Interface language, direction and regional formatting. Flags are vector â€” not emoji." />
             <Section title="Interface language" description="Right-to-left languages flip the entire layout.">
               <div className="settings__languages">
                 {LANGUAGES.map((language) => (
@@ -373,7 +407,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                     <Flag code={language.flag} size={26} />
                     <div className="grow" style={{ minWidth: 0 }}>
                       <div className="small">{language.nativeName}</div>
-                      <div className="tiny faint">{language.name} · {language.region}</div>
+                      <div className="tiny faint">{language.name} Â· {language.region}</div>
                     </div>
                     <span className="mono tiny faint uppercase">{language.code}</span>
                     {language.dir === 'rtl' ? <span className="n-badge">RTL</span> : null}
@@ -455,8 +489,8 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                         ) : null}
                       </div>
                       <div className="tiny faint truncate">
-                        {provider.baseUrl || provider.acp?.command || '—'} · {provider.models.length} models · key{' '}
-                        {provider.apiKey ? '••••' : 'none'}
+                        {provider.baseUrl || provider.acp?.command || 'â€”'} Â· {provider.models.length} models Â· key{' '}
+                        {provider.apiKey ? 'â€¢â€¢â€¢â€¢' : 'none'}
                       </div>
                       {provider.lastCheck && !provider.lastCheck.ok ? (
                         <div className="tiny errText truncate">{provider.lastCheck.message}</div>
@@ -543,7 +577,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                     <div className="row" style={{ gap: 10, marginTop: 4 }}>
                       <span className="mono tiny faint">{agent.tools === 'all' ? 'all tools' : `${agent.tools.length} tools`}</span>
                       <span className="mono tiny faint">max {agent.maxSteps} steps</span>
-                      <span className="mono tiny faint">t° {agent.temperature}</span>
+                      <span className="mono tiny faint">tÂ° {agent.temperature}</span>
                     </div>
                   </div>
                   <div className="row" style={{ gap: 4 }}>
@@ -666,7 +700,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                       <Icon name="pin" size={12} className="faint" />
                       <div className="grow" style={{ minWidth: 0 }}>
                         <div className="small truncate">{pin.label}</div>
-                        <div className="tiny faint truncate">{pin.kind} · {pin.ref}</div>
+                        <div className="tiny faint truncate">{pin.kind} Â· {pin.ref}</div>
                       </div>
                       <span className="tiny faint">{relativeTime(new Date().toISOString())}</span>
                       <IconButton
@@ -728,8 +762,8 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                   [modKey, 'B', 'Toggle dock'],
                   [modKey, '`', 'Terminal'],
                   [modKey, ',', 'Settings'],
-                  [modKey, '⇧', 'N', 'New conversation'],
-                  [modKey, '1–9', 'Switch tab'],
+                  [modKey, 'â‡§', 'N', 'New conversation'],
+                  [modKey, '1â€“9', 'Switch tab'],
                 ].map((keys) => (
                   <div key={keys.join('')} className="shortcutRow">
                     <div className="row" style={{ gap: 4 }}>
@@ -748,7 +782,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
                   [modKey, 'S', 'Save file'],
                   [modKey, 'F', 'Find in file'],
                   [modKey, 'Z', 'Undo'],
-                  ['Ctrl', '↵', 'Run notebook cell'],
+                  ['Ctrl', 'â†µ', 'Run notebook cell'],
                 ].map((keys) => (
                   <div key={keys.join('')} className="shortcutRow">
                     <div className="row" style={{ gap: 4 }}>
@@ -809,7 +843,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
               <BrandMark size={56} animated />
               <div>
                 <div className="about__name display">Neuro OS</div>
-                <div className="tiny faint mono">version {info?.version} · build 2026.11</div>
+                <div className="tiny faint mono">version {info?.version} Â· build 2026.11</div>
               </div>
             </div>
             <Section title="Runtime">
@@ -824,7 +858,7 @@ export function SettingsSurface({ params }: { params?: Record<string, string> })
             </Section>
             <Section title="Design">
               <p className="small muted" style={{ lineHeight: 1.7 }}>
-                Built on the DeepSeek Harness design language — neutral-bluish surfaces, DeepSeek blue, Montserrat wordmark. The token
+                Built on the DeepSeek Harness design language â€” neutral-bluish surfaces, DeepSeek blue, Montserrat wordmark. The token
                 layer maps the DSH palette onto semantic surface, elevation and motion scales so every surface stays coherent.
               </p>
             </Section>
@@ -1030,7 +1064,7 @@ function ProviderModal({
       open
       onClose={onClose}
       title={step === 'pick' ? 'Add a provider' : `Configure ${draft?.name ?? ''}`}
-      description={step === 'pick' ? 'Pick a preset — every field stays editable.' : 'Keys are encrypted with the OS keychain.'}
+      description={step === 'pick' ? 'Pick a preset â€” every field stays editable.' : 'Keys are encrypted with the OS keychain.'}
       width={640}
       footer={
         step === 'pick' ? (
@@ -1047,7 +1081,7 @@ function ProviderModal({
                 setProbing(true);
                 try {
                   const result = await invoke('providers.probeDraft', model);
-                  setProbe({ ok: result.ok, message: `${result.message} · ${result.latencyMs}ms` });
+                  setProbe({ ok: result.ok, message: `${result.message} Â· ${result.latencyMs}ms` });
                 } catch (error) {
                   setProbe({ ok: false, message: (error as Error).message });
                 } finally {
@@ -1087,8 +1121,8 @@ function ProviderModal({
             </button>
           ))}
           <div className="settings__providerSection">
-            <span className="tiny faint uppercase">{'ACP agents · ' + ACP_PRESETS.length}</span>
-            <span className="tiny faint">official registry · stdio</span>
+            <span className="tiny faint uppercase">{'ACP agents Â· ' + ACP_PRESETS.length}</span>
+            <span className="tiny faint">official registry Â· stdio</span>
           </div>
           {ACP_PRESETS.filter((preset) => showAllAcp || ACP_CURATED.some((item) => item.id === preset.id)).map((preset) => (
             <button
@@ -1132,7 +1166,7 @@ function ProviderModal({
                 const models = (entry.models.length ? entry.models : ['default']).map((id) => ({ id, label: id, supportsTools: true }));
                 setDraft({
                   id: entry.id,
-                  name: `${entry.pluginName} · ${entry.name}`,
+                  name: `${entry.pluginName} Â· ${entry.name}`,
                   kind: entry.kind === 'adapter' ? 'custom' : 'openai',
                   baseUrl: entry.kind === 'adapter' ? `plugin://${entry.id}` : (entry.baseUrl ?? ''),
                   apiKey: '',
@@ -1150,7 +1184,7 @@ function ProviderModal({
               <div style={{ minWidth: 0 }}>
                 <div className="small strong">{entry.name}</div>
                 <div className="tiny faint">
-                  plugin · {entry.pluginName} {entry.kind === 'adapter' ? '(streaming adapter)' : ''}
+                  plugin Â· {entry.pluginName} {entry.kind === 'adapter' ? '(streaming adapter)' : ''}
                 </div>
               </div>
             </button>
@@ -1189,7 +1223,7 @@ function ProviderModal({
               <Field label="Base URL" hint="OpenAI-compatible endpoints should end with /v1.">
                 <input className="n-input n-input--mono" value={model.baseUrl} onChange={(event) => setDraft({ ...model, baseUrl: event.target.value })} />
               </Field>
-              <Field label="API key" hint={model.apiKey ? 'Stored encrypted — replace to rotate.' : 'Paste the key. It never leaves this machine.'}>
+              <Field label="API key" hint={model.apiKey ? 'Stored encrypted â€” replace to rotate.' : 'Paste the key. It never leaves this machine.'}>
                 <input className="n-input n-input--mono" type="password" value={model.apiKey} onChange={(event) => setDraft({ ...model, apiKey: event.target.value })} />
               </Field>
               <Field label="Models" hint="Comma separated model ids.">
@@ -1197,7 +1231,7 @@ function ProviderModal({
               </Field>
             </>
           )}
-          {probe ? <div className={`tiny ${probe.ok ? 'okText' : 'errText'}`}>{probe.ok ? '● ' : '× '}{probe.message}</div> : null}
+          {probe ? <div className={`tiny ${probe.ok ? 'okText' : 'errText'}`}>{probe.ok ? 'â— ' : 'Ã— '}{probe.message}</div> : null}
         </div>
       )}
     </Modal>
@@ -1303,3 +1337,4 @@ function AgentModal({ agent, onClose, tools }: { agent: AgentConfig | null; onCl
     </Modal>
   );
 }
+

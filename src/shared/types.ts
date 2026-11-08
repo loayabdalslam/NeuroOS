@@ -437,6 +437,8 @@ export interface ThemeConfig {
   radius: number;
   fontScale: number;
   wallpaper: string;
+  /** data: URL of a user-supplied wallpaper (overrides wallpaper presets). */
+  customWallpaper?: string;
   motion: MotionLevel;
   glow: boolean;
 }
