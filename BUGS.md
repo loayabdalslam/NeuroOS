@@ -190,3 +190,11 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | Groq (`openai/gpt-oss-120b`) | **PASS** — real round-trip returned GROQ_OK. |
 | Ollama (`gemma3:1b`, CPU) | **PASS** — real round-trip returned OLLAMA_REAL_OK; UI new-conversation D-40 streamed real content. |
 | OpenCode ACP | Handshake PASS, prompt needs `opencode auth login` (0 credentials) — warning by design. |
+
+## Packaging & fullscreen
+
+| Feature | Behaviour |
+| --- | --- |
+| GitHub Actions | `.github/workflows/build.yml` builds Windows (NSIS + portable) and Linux (AppImage, deb, rpm) on manual dispatch or a `v*` tag, uploads artifacts and publishes a GitHub Release on tags. Linux installs `rpm`/`libarchive-tools`; code signing is disabled for CI. |
+| Linux targets | `package.json` now declares `linux.target = AppImage, deb, rpm` with the 512×512 brand icon and `npm run dist:linux`. |
+| Fullscreen | **F11** toggles fullscreen in the main window, **Escape** exits; `window.toggleFullscreen` IPC is available and `window:state` broadcasts `fullscreen`. D-41 verifies enter/leave. |

@@ -828,6 +828,16 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     return { evidence: 'live=' + live + ' content="' + content.slice(0, 40) + '"' };
   });
 
+  await check('D-41', 'ui', 'F11 fullscreen toggle IPC', async () => {
+    const first = await call('window.toggleFullscreen');
+    await wait(700);
+    const second = await call('window.toggleFullscreen');
+    await wait(500);
+    if (!first.fullscreen) throw new Error('did not enter fullscreen: ' + JSON.stringify(first));
+    if (second.fullscreen) throw new Error('did not leave fullscreen: ' + JSON.stringify(second));
+    return { evidence: 'entered fullscreen, then restored' };
+  });
+
   const report = results;
   return report;
 }

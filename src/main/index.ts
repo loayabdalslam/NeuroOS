@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
 import { app, BrowserWindow, Menu, nativeTheme, protocol, shell } from 'electron';
 import { IpcRouter, log } from './core/ipc';
@@ -76,6 +76,17 @@ function createWindow(onLoaded?: () => void): BrowserWindow {
   win.on('blur', broadcastState);
   win.on('enter-full-screen', broadcastState);
   win.on('leave-full-screen', broadcastState);
+
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F11') {
+      event.preventDefault();
+      win.setFullScreen(!win.isFullScreen());
+    } else if (input.key === 'Escape' && win.isFullScreen()) {
+      event.preventDefault();
+      win.setFullScreen(false);
+    }
+  });
 
   win.on('close', () => {
     if (!kernel) return;

@@ -15,7 +15,8 @@
     "dist:win": "electron-vite build && electron-builder --win nsis portable",
     "pack": "electron-vite build && electron-builder --dir",
     "pack:win": "electron-vite build && electron-builder --win --dir --config.win.signAndEditExecutable=false",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "dist:linux": "electron-vite build && electron-builder --linux AppImage deb rpm"
   },
   "dependencies": {
     "@codemirror/lang-css": "^6.3.0",
@@ -80,6 +81,18 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "Neuro OS"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Utility",
+      "icon": "resources/brand/icon.png",
+      "maintainer": "Neuro OS <hello@neuro.os>",
+      "synopsis": "AI-native desktop operating environment",
+      "description": "Neuro OS desktop application"
     }
   }
 }

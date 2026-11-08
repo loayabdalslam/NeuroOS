@@ -1,4 +1,4 @@
-import fs from 'node:fs/promises';
+﻿import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
 import { app, dialog, BrowserWindow } from 'electron';
@@ -335,6 +335,13 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
       else win.maximize();
       return { maximized: win.isMaximized() };
     },
+    'window.toggleFullscreen': () => {
+      const target = getWindow();
+      if (!target) return { fullscreen: false };
+      const next = !target.isFullScreen();
+      target.setFullScreen(next);
+      return { fullscreen: next };
+    },
     'window.close': () => getWindow()?.close(),
     'window.devtools': () => getWindow()?.webContents.openDevTools({ mode: 'detach' }),
     'app.quit': () => app.quit(),
@@ -579,6 +586,7 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
     'onboarding.state': () => ({ complete: settings.public().onboardingComplete }),
   } as HandlerMap;
 }
+
 
 
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * The typed IPC contract. Both the kernel and the renderer compile against this
  * map, so adding a capability is a single-file change and cannot drift.
  */
@@ -187,6 +187,7 @@ export interface IpcMap {
   /* window & app */
   'window.minimize': { params: void; result: void };
   'window.maximize': { params: void; result: { maximized: boolean } };
+  'window.toggleFullscreen': { params: void; result: { fullscreen: boolean } };
   'window.close': { params: void; result: void };
   'window.devtools': { params: void; result: void };
   'app.quit': { params: void; result: void };
@@ -432,6 +433,7 @@ export const IPC_CHANNELS = [
   'acp.cancel',
   'window.minimize',
   'window.maximize',
+  'window.toggleFullscreen',
   'window.close',
   'window.devtools',
   'app.quit',
@@ -539,3 +541,5 @@ export interface RendererBridge {
   platform: NodeJS.Platform;
   versions: { electron: string; chrome: string; node: string };
 }
+
+
