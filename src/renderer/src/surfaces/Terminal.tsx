@@ -45,7 +45,7 @@ const LIGHT_THEME = {
   brightWhite: '#ffffff',
 };
 
-export function TerminalSurface(): JSX.Element {
+export function TerminalSurface({ params }: { params?: Record<string, string> }): JSX.Element {
   const t = useT();
   const settings = useAppStore((s) => s.settings);
   const [sessions, setSessions] = useState<TerminalInfo[]>([]);
@@ -54,6 +54,7 @@ export function TerminalSurface(): JSX.Element {
   const [pty, setPty] = useState(false);
   const [creating, setCreating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const autoCommandSent = useRef(false);
 
   const themeMode = settings?.theme.mode ?? 'dark';
   const resolvedTheme: 'dark' | 'light' = themeMode === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : themeMode;
@@ -88,6 +89,16 @@ export function TerminalSurface(): JSX.Element {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const command = params?.command;
+    if (!command || autoCommandSent.current || !activeId) return;
+    const timer = setTimeout(() => {
+      autoCommandSent.current = true;
+      void invoke('terminal.write', { id: activeId, data: command + '\r' });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [params?.command, activeId]);
 
   useEffect(() => {
     return on('terminal:exit', ({ id, code }) => {

@@ -161,3 +161,9 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | Reasoning stream | Parses OpenAI/OpenRouter/Ollama `reasoning_content`, `reasoning` and `thinking` deltas, Anthropic `thinking_delta`, Gemini thought parts, and ACP `agent_thought_chunk` + plan updates. The reasoning panel opens while live, auto-scrolls, shows a pulse/caret and a character count. |
 | Thinking level | Composer has a **Thinking: Auto/Off/Low/Medium/High** selector. It maps to `reasoning_effort` (OpenAI-compatible), Anthropic `thinking.budget_tokens`, Gemini `thinkingConfig.thinkingBudget/includeThoughts`, and ACP `thought_level` config option where the agent supports it. Unsupported models retry without the parameter. |
 | Model name | The model dialog includes a free-text **model id** field (ACP model, Ollama tag, deployment name…) plus the provider’s model list, Refresh models and Manage providers. D-37 verifies a custom id sticks. |
+
+## ACP authentication
+
+| Issue | Fix |
+| --- | --- |
+| ACP prompt timed out with “The agent did not finish in time and advertises authentication: Login with opencode”. `opencode auth list` shows 0 credentials, so the agent blocks until the prompt timeout. | The inline ACP error now includes **Open login terminal**, which navigates to Terminal and types the right command (`opencode auth login`, `codex login`, or `claude login`) into an interactive shell. The user completes the login there and retries the turn. D-38 verifies the command is typed into a live PTY. |

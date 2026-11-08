@@ -326,7 +326,7 @@ function SurfaceHost({ page }: { page: ReturnType<typeof useAppStore.getState>['
     case 'brain':
       return <BrainSurface />;
     case 'terminal':
-      return <TerminalSurface />;
+      return <TerminalSurface params={page.params} />;
     case 'mail':
       return <MailSurface />;
     case 'automation':

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage, ToolInvocation } from '@shared/types';
 import { useChatStore } from '../state/chat';
 import { useAppStore } from '../state/store';
@@ -809,7 +809,29 @@ function MessageRow({
         {message.error ? (
           <div className="msg__error">
             <Icon name="alert" size={13} />
-            {message.error}
+            <div className="grow" style={{ minWidth: 0 }}>
+              {message.error}
+              {/authentication|sign in|login with|timed out/i.test(message.error) ? (
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="msg__errorAction"
+                    onClick={() => {
+                      const cli = /codex/i.test(message.error ?? '')
+                        ? 'codex login'
+                        : /claude/i.test(message.error ?? '')
+                          ? 'claude login'
+                          : /opencode/i.test(message.error ?? '')
+                            ? 'opencode auth login'
+                            : 'opencode auth login';
+                      useAppStore.getState().navigate('terminal', { command: cli });
+                    }}
+                  >
+                    <Icon name="terminal" size={12} /> Open login terminal
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
 

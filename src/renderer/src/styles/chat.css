@@ -689,3 +689,7 @@
 .customModel { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .customModel .n-input { flex: 1; }
 
+
+.msg__errorAction { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 7px; border: 1px solid color-mix(in srgb, #ef4444 45%, transparent); background: transparent; color: #ef4444; font-size: 11px; cursor: pointer; }
+.msg__errorAction:hover { background: color-mix(in srgb, #ef4444 10%, transparent); }
+
