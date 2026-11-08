@@ -1,9 +1,8 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import vm from 'node:vm';
 import type {
   InstalledTheme,
   PluginManifest,
@@ -14,6 +13,7 @@ import type {
   ToolDescriptor,
 } from '@shared/types';
 import type { ProviderAdapter, LlmStreamEvent } from './providers/adapters';
+import { app } from 'electron';
 import { JsonStore, Paths } from '../core/store';
 import { log } from '../core/ipc';
 import { newId, nowIso, truncate } from '../core/util';
@@ -64,6 +64,7 @@ const DEFAULT_STATE: PluginState = { entries: [] };
 export class PluginService {
   private store: JsonStore<PluginState>;
   private loaded = new Map<string, LoadedPlugin>();
+  private hosts = new Map<string, { proc: ChildProcess; pending: Map<number, { resolve: (value: any) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>; nextId: number }>();
   private registry: ToolRegistry;
   private hooks: PluginHooks;
   private onChange: () => void;
@@ -83,7 +84,7 @@ export class PluginService {
       if (!entry.enabled) continue;
       await this.load(entry);
     }
-    log.info('plugins', `${this.store.get().entries.length} installed · ${this.loaded.size} loaded`);
+    log.info('plugins', `${this.store.get().entries.length} installed Ã‚Â· ${this.loaded.size} loaded`);
   }
 
   private async ensureDirs(): Promise<void> {
@@ -345,7 +346,7 @@ export class PluginService {
     return {
       stream: (request, signal) => bridgeAdapter(adapter.stream(request, signal)),
       listModels: async () => models.map((id) => ({ id, label: id, supportsTools: true })),
-      probe: async () => ({ ok: true, latencyMs: 0, message: `Plugin adapter · ${adapter.name}` }),
+      probe: async () => ({ ok: true, latencyMs: 0, message: `Plugin adapter Ã‚Â· ${adapter.name}` }),
     };
   }
 
@@ -353,6 +354,22 @@ export class PluginService {
 
   private unload(id: string): void {
     this.registry.removeSource(`plugin:${id}`);
+    const host = this.hosts.get(id);
+    if (host) {
+      try {
+        host.proc.send({ type: 'shutdown' });
+      } catch {
+        /* ignore */
+      }
+      setTimeout(() => {
+        try {
+          host.proc.kill();
+        } catch {
+          /* ignore */
+        }
+      }, 500).unref?.();
+      this.hosts.delete(id);
+    }
     this.loaded.delete(id);
   }
 
@@ -377,18 +394,15 @@ export class PluginService {
         colors: theme.colors,
       }));
 
-      let exports: Record<string, unknown> = {};
+      let available: { tools: string[]; commands: string[] } = { tools: [], commands: [] };
       if (manifest.main) {
-        const mainFile = path.join(entry.path, manifest.main);
-        if (!fsSync.existsSync(mainFile)) throw new Error(`Entry file not found: ${manifest.main}`);
-        const code = await fs.readFile(mainFile, 'utf8');
-        exports = this.runModule(entry, code, runtime);
+        runtime.storage = await this.readStorage(entry.id);
+        this.loaded.set(entry.id, runtime);
+        available = await this.startHost(entry, runtime);
       }
 
-      const toolExports = (exports.tools ?? {}) as Record<string, (args: Record<string, unknown>, ctx: unknown) => unknown>;
       const handlers: Record<string, (args: Record<string, unknown>) => Promise<{ ok: boolean; output: string; data?: unknown }>> = {};
       for (const contribution of manifest.contributes?.tools ?? []) {
-        const handler = toolExports[contribution.handler] ?? (exports[contribution.handler] as typeof toolExports[string]);
         const name = `${entry.id}.${contribution.name}`;
         const descriptor: ToolDescriptor = {
           name,
@@ -402,12 +416,15 @@ export class PluginService {
         };
         runtime.tools.push(descriptor);
         handlers[name] = async (args) => {
-          if (!handler) return { ok: false, output: `Tool handler "${contribution.handler}" is missing from module.exports.tools` };
           try {
-            const result = await handler(args, {
-              pluginId: entry.id,
-              workspaceRoot: this.hooks.cwd?.() ?? '.',
-              log: (message: string) => this.logLine(entry.id, message),
+            const result = await this.callHost(entry.id, 'invoke', {
+              handler: contribution.handler,
+              args,
+              ctx: {
+                pluginId: entry.id,
+                workspaceRoot: this.hooks.cwd?.() ?? '.',
+                log: (message: string) => this.logLine(entry.id, message),
+              },
             });
             if (typeof result === 'string') return { ok: true, output: result };
             if (result && typeof result === 'object') {
@@ -419,30 +436,22 @@ export class PluginService {
             return { ok: false, output: (error as Error).message };
           }
         };
+        void available;
       }
       this.registry.setSource(`plugin:${entry.id}`, runtime.tools, handlers);
 
-      const commandExports = (exports.commands ?? {}) as Record<string, () => unknown>;
       for (const command of manifest.contributes?.commands ?? []) {
-        const handler = commandExports[command.id] ?? (exports[command.id] as (() => unknown) | undefined);
-        if (typeof handler === 'function') {
-          runtime.commands.set(command.id, async () => String((await handler()) ?? ''));
-        }
+        if (!available.commands.includes(command.id)) continue;
+        runtime.commands.set(command.id, async () => String((await this.callHost(entry.id, 'command', { command: command.id })) ?? ''));
       }
 
-      const adapterExports = (exports.adapters ?? {}) as Record<string, unknown>;
-      for (const adapter of manifest.contributes?.adapters ?? []) {
-        const fn = adapterExports[adapter.id] as
-          | ((request: unknown, signal?: AbortSignal) => AsyncGenerator<unknown>)
-          | undefined;
-        if (typeof fn === 'function') {
-          runtime.adapters.set(adapter.id, { name: adapter.name, models: adapter.models, stream: fn });
-        }
+      if ((manifest.contributes?.adapters ?? []).length) {
+        this.logLine(entry.id, 'adapters are disabled in the sandboxed plugin host');
       }
 
       runtime.storage = await this.readStorage(entry.id);
       this.loaded.set(entry.id, { ...runtime, logs: runtime.logs });
-      this.logLine(entry.id, `loaded ${entry.name}@${entry.version} · ${runtime.tools.length} tools · ${runtime.themes.length} themes`);
+      this.logLine(entry.id, `loaded ${entry.name}@${entry.version} Ã‚Â· ${runtime.tools.length} tools Ã‚Â· ${runtime.themes.length} themes (isolated)`);
     } catch (error) {
       entry.error = (error as Error).message;
       runtime.logs.push(`ERROR ${(error as Error).message}`);
@@ -451,109 +460,210 @@ export class PluginService {
     }
   }
 
-  private runModule(entry: PluginEntry, code: string, runtime: LoadedPlugin): Record<string, unknown> {
-    const permissions = new Set(entry.permissions);
-    const module = { exports: {} as Record<string, unknown> };
-    const storageFile = path.join(entry.path, 'storage.json');
+  private async startHost(entry: PluginEntry, runtime: LoadedPlugin): Promise<{ tools: string[]; commands: string[] }> {
+    const hostSource = path.join(app.getAppPath(), 'resources', 'plugin-host.cjs');
+    const hostFile = path.join(Paths.cache, 'plugin-host.cjs');
+    await fs.mkdir(Paths.cache, { recursive: true });
+    await fs.copyFile(hostSource, hostFile);
 
-    const api = {
-      apiVersion: 1,
-      manifest: entry.manifest,
-      log: (...args: unknown[]) => this.logLine(entry.id, args.map((value) => (typeof value === 'string' ? value : JSON.stringify(value))).join(' ')),
-      storage: {
-        get: (key: string) => runtime.storage[key],
-        set: (key: string, value: unknown) => {
-          runtime.storage[key] = value;
-          fsSync.writeFileSync(storageFile, JSON.stringify(runtime.storage, null, 2), 'utf8');
+    const proc = spawn(
+      process.execPath,
+      [
+        '--experimental-permission',
+        `--allow-fs-read=${entry.path}`,
+        `--allow-fs-read=${hostFile}`,
+        hostFile,
+      ],
+      {
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+          PATH: process.env.PATH ?? '',
+          SystemRoot: process.env.SystemRoot ?? '',
+          TEMP: process.env.TEMP ?? '',
+          TMP: process.env.TMP ?? '',
         },
-        delete: (key: string) => {
-          delete runtime.storage[key];
-          fsSync.writeFileSync(storageFile, JSON.stringify(runtime.storage, null, 2), 'utf8');
-        },
-        all: () => ({ ...runtime.storage }),
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+        windowsHide: true,
       },
-      fs: permissions.has('fs')
-        ? {
-            readFile: async (file: string) => fs.readFile(file, 'utf8'),
-            writeFile: async (file: string, content: string) => {
-              await fs.mkdir(path.dirname(file), { recursive: true });
-              await fs.writeFile(file, content, 'utf8');
-            },
-            list: async (dir: string) => fs.readdir(dir),
-            exists: (file: string) => fsSync.existsSync(file),
-            stat: async (file: string) => {
-              const info = await fs.stat(file);
-              return { isDirectory: info.isDirectory(), size: info.size, modifiedAt: info.mtime.toISOString() };
-            },
-          }
-        : undefined,
-      shell: permissions.has('shell')
-        ? {
-            exec: async (command: string) => {
-              const isWin = process.platform === 'win32';
-              const shell = isWin ? 'powershell.exe' : '/bin/bash';
-              const args = isWin ? ['-NoLogo', '-NoProfile', '-Command', command] : ['-lc', command];
-              const { stdout, stderr } = await execFileAsync(shell, args, { timeout: 120_000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
-              return { stdout, stderr };
-            },
-          }
-        : undefined,
-      net: permissions.has('net')
-        ? {
-            fetch: async (url: string, init?: RequestInit) => {
-              const response = await fetch(url, init);
-              return { status: response.status, ok: response.ok, text: await response.text() };
-            },
-          }
-        : undefined,
-      ui: permissions.has('ui')
-        ? {
-            toast: (title: string, message?: string) => this.hooks.toast({ title, message, kind: 'info' }),
-            navigate: (surface: string, params?: Record<string, string>) => this.hooks.navigate(surface, params),
-          }
-        : undefined,
-      mail: permissions.has('mail')
-        ? {
-            send: async (input: { to: string; subject: string; body: string }) => this.hooks.mailSend?.(input),
-          }
-        : undefined,
-      agents: permissions.has('agents')
-        ? {
-            run: async (prompt: string, agentId?: string) => this.hooks.agentRun?.(prompt, agentId),
-          }
-        : undefined,
+    );
+
+    const state = { proc, pending: new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>(), nextId: 1 };
+    this.hosts.set(entry.id, state);
+
+    proc.stderr?.setEncoding('utf8');
+    proc.stderr?.on('data', (chunk: string) => {
+      for (const line of chunk.split('\n').filter(Boolean)) {
+        if (line.includes('ExperimentalWarning')) continue;
+        this.logLine(entry.id, line.slice(0, 400));
+      }
+    });
+    proc.on('message', (message: any) => {
+      if (!message || message.type === 'ready' || message.type === 'initError') return;
+      void this.onHostMessage(entry, state, message);
+    });
+    proc.on('exit', (code) => {
+      if (this.hosts.get(entry.id) === state) {
+        this.hosts.delete(entry.id);
+        this.logLine(entry.id, `host exited (${code ?? 'null'})`);
+      }
+    });
+
+    const ready = new Promise<{ tools: string[]; commands: string[] }>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('plugin host did not start in time')), 15_000);
+      const onMessage = (message: any): void => {
+        if (!message || typeof message !== 'object') return;
+        if (message.type === 'ready') {
+          clearTimeout(timer);
+          proc.off('message', onMessage);
+          resolve({ tools: message.tools ?? [], commands: message.commands ?? [] });
+          return;
+        }
+        if (message.type === 'initError') {
+          clearTimeout(timer);
+          proc.off('message', onMessage);
+          reject(new Error(String(message.error).slice(0, 800)));
+          return;
+        }
+      };
+      proc.on('message', onMessage);
+      proc.on('error', (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+    });
+
+    proc.send({
+      type: 'init',
+      manifest: entry.manifest,
+      permissions: entry.permissions,
+      storage: runtime.storage,
+      cwd: entry.path,
+      mainPath: path.join(entry.path, entry.manifest.main ?? 'main.js'),
+    });
+
+    return ready;
+  }
+
+  private async onHostMessage(
+    entry: PluginEntry,
+    state: { proc: ChildProcess; pending: Map<number, { resolve: (value: any) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }> },
+    message: any,
+  ): Promise<void> {
+    if (message.type === 'result') {
+      const pending = state.pending.get(message.id);
+      if (!pending) return;
+      state.pending.delete(message.id);
+      clearTimeout(pending.timer);
+      if (message.ok) pending.resolve(message.value);
+      else pending.reject(new Error(String(message.error ?? 'plugin call failed')));
+      return;
+    }
+    if (message.type === 'log') {
+      this.logLine(entry.id, String(message.message ?? ''));
+      return;
+    }
+    if (message.type === 'api') {
+      try {
+        const value = await this.handleHostApi(entry, message.method, message.args);
+        state.proc.send({ type: 'apiResult', id: message.id, ok: true, value });
+      } catch (error) {
+        state.proc.send({ type: 'apiResult', id: message.id, ok: false, error: (error as Error).message });
+      }
+    }
+  }
+
+  private callHost(pluginId: string, type: 'invoke' | 'command', payload: Record<string, unknown>): Promise<any> {
+    const state = this.hosts.get(pluginId);
+    if (!state) return Promise.reject(new Error('plugin host is not running'));
+    const id = state.nextId;
+    state.nextId += 1;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        state.pending.delete(id);
+        reject(new Error('plugin call timed out after 120s'));
+      }, 120_000);
+      state.pending.set(id, { resolve, reject, timer });
+      state.proc.send({ type, id, ...payload });
+    });
+  }
+
+  private async handleHostApi(entry: PluginEntry, method: string, args: any): Promise<any> {
+    const permissions = new Set(entry.permissions);
+    const need = (permission: PluginPermission): void => {
+      if (!permissions.has(permission)) throw new Error(`plugin lacks the "${permission}" permission`);
+    };
+    const storageFile = path.join(entry.path, 'storage.json');
+    const persist = (): void => {
+      const loaded = this.loaded.get(entry.id);
+      const storage = loaded?.storage ?? {};
+      fsSync.writeFileSync(storageFile, JSON.stringify(storage, null, 2), 'utf8');
     };
 
-    const context = vm.createContext({
-      module,
-      exports: module.exports,
-      neuro: api,
-      console: {
-        log: (...args: unknown[]) => this.logLine(entry.id, args.map(String).join(' ')),
-        warn: (...args: unknown[]) => this.logLine(entry.id, `warn: ${args.map(String).join(' ')}`),
-        error: (...args: unknown[]) => this.logLine(entry.id, `error: ${args.map(String).join(' ')}`),
-        info: (...args: unknown[]) => this.logLine(entry.id, args.map(String).join(' ')),
-        debug: (...args: unknown[]) => this.logLine(entry.id, args.map(String).join(' ')),
-      },
-      setTimeout,
-      clearTimeout,
-      setInterval,
-      clearInterval,
-      URL,
-      URLSearchParams,
-      TextEncoder,
-      TextDecoder,
-      structuredClone,
-      JSON,
-      Math,
-      Date,
-      Promise,
-      fetch: undefined,
-    }, { codeGeneration: { strings: false, wasm: false } });
-
-    const wrapper = `(function (module, exports, neuro) {\n${code}\n})(module, module.exports, neuro)`;
-    vm.runInContext(wrapper, context, { timeout: 5000, filename: `${entry.id}/${entry.manifest.main}` });
-    return module.exports;
+    switch (method) {
+      case 'log':
+        this.logLine(entry.id, (Array.isArray(args) ? args : [args]).map((value) => (typeof value === 'string' ? value : JSON.stringify(value))).join(' '));
+        return null;
+      case 'storage.set': {
+        const loaded = this.loaded.get(entry.id);
+        if (loaded) loaded.storage[args[0]] = args[1];
+        persist();
+        return null;
+      }
+      case 'storage.delete': {
+        const loaded = this.loaded.get(entry.id);
+        if (loaded) delete loaded.storage[args];
+        persist();
+        return null;
+      }
+      case 'fs.readFile':
+        need('fs');
+        return fs.readFile(String(args), 'utf8');
+      case 'fs.writeFile':
+        need('fs');
+        await fs.mkdir(path.dirname(String(args[0])), { recursive: true });
+        await fs.writeFile(String(args[0]), String(args[1]), 'utf8');
+        return null;
+      case 'fs.list':
+        need('fs');
+        return fs.readdir(String(args));
+      case 'fs.exists':
+        need('fs');
+        return fsSync.existsSync(String(args));
+      case 'fs.stat': {
+        need('fs');
+        const info = await fs.stat(String(args));
+        return { isDirectory: info.isDirectory(), size: info.size, modifiedAt: info.mtime.toISOString() };
+      }
+      case 'shell.exec': {
+        need('shell');
+        const isWin = process.platform === 'win32';
+        const shell = isWin ? 'powershell.exe' : '/bin/bash';
+        const shellArgs = isWin ? ['-NoLogo', '-NoProfile', '-Command', String(args)] : ['-lc', String(args)];
+        const { stdout, stderr } = await execFileAsync(shell, shellArgs, { timeout: 120_000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
+        return { stdout, stderr };
+      }
+      case 'net.fetch': {
+        need('net');
+        const response = await fetch(String(args[0]), args[1]);
+        return { status: response.status, ok: response.ok, text: await response.text() };
+      }
+      case 'ui.toast':
+        need('ui');
+        this.hooks.toast({ title: String(args[0]), message: args[1] ? String(args[1]) : undefined, kind: 'info' });
+        return null;
+      case 'ui.navigate':
+        need('ui');
+        this.hooks.navigate(String(args[0]), args[1]);
+        return null;
+      case 'mail.send':
+        need('mail');
+        return this.hooks.mailSend?.(args);
+      case 'agents.run':
+        need('agents');
+        return this.hooks.agentRun?.(String(args[0]), args[1]);
+      default:
+        throw new Error(`unsupported plugin api: ${method}`);
+    }
   }
 
   private async readStorage(id: string): Promise<Record<string, unknown>> {
@@ -583,3 +693,5 @@ async function* bridgeAdapter(source: AsyncGenerator<unknown>): AsyncGenerator<L
   }
   yield { type: 'done' };
 }
+
+

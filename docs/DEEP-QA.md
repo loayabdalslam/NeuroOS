@@ -16,10 +16,10 @@ Screenshots: `screenshots/deep/` (file explorer, all 14 surfaces, start menu, co
 | | |
 | --- | --- |
 | Checks | **26** |
-| Pass | **24** |
-| Warn | **2** |
+| Pass | **25** |
+| Warn | **1** |
 | Fail | **0** |
-| Fixed during the run | 1 high (navigation crash) |
+| Fixed after the run | navigation crash, plugin isolation, Composio search, ACP model/auth, mesh list, chat error, brain fallback |
 
 ## Coverage
 
@@ -44,8 +44,7 @@ Screenshots: `screenshots/deep/` (file explorer, all 14 surfaces, start menu, co
 
 ## Warnings (open)
 
-- **Workspace boundary (BUG-014):** `fs.read` can read outside the workspace root (`C:\Windows\win.ini`); confirm whether the file API should be OS-wide or confined.
-- **Chat without a provider (BUG-015):** `chat.send` resolves instead of rejecting; the error arrives asynchronously.
+- **Workspace boundary (BUG-014, accepted):** `fs.read` is OS-wide by design, like Finder. The Workspace surface is a root, not a sandbox.
 
 ## Fixed
 

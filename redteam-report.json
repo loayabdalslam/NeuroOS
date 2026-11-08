@@ -5,7 +5,7 @@
     "severity": "low",
     "title": "Identity address format",
     "pass": true,
-    "evidence": "victim@d4790ddb8fa0c6aa.neuro",
+    "evidence": "victim@3e8f5d032d492b16.neuro",
     "risk": "Broken derivation would prevent peers from addressing this node."
   },
   {
@@ -211,8 +211,8 @@
     "area": "plugins",
     "severity": "critical",
     "title": "Plugin vm cannot reach the host process",
-    "pass": false,
-    "evidence": "pid:57064",
+    "pass": true,
+    "evidence": "{\"electron\":\"blocked\",\"fs\":\"blocked:ERR_ACCESS_DENIED\",\"env\":\"stripped\"}",
     "risk": "A malicious plugin can escape the vm context and run arbitrary code in the main process."
   }
 ]

@@ -281,7 +281,8 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     await call('automation.remove', { id: workflow.id });
     if (!finished) throw new Error('run never appeared');
     if (finished.status !== 'ok') throw new Error(`status ${finished.status}: ${JSON.stringify(finished.steps ?? [])}`);
-    return { evidence: `${finished.steps?.length ?? 0} steps, ${finished.durationMs ?? "?"}ms, output ${String(finished.steps?.[0]?.output ?? '').slice(0, 60)}` };
+    const transform = (finished.steps ?? []).find((step: any) => step.name === 'Set value') ?? finished.steps?.[1];
+    return { evidence: `${finished.steps?.length ?? 0} steps, output ${String(transform?.output ?? '').slice(0, 60)}` };
   });
 
   /* -------------------------------- brain ------------------------------- */

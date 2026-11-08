@@ -217,7 +217,7 @@ export async function runQa(kernel: Kernel): Promise<QaFinding[]> {
         title: 'Composio catalog sync with a real API key',
         evidence: `configured=${status.configured} tools=${status.tools} toolkits=${status.toolkits} accounts=${status.connected}`,
       });
-      const hits = kernel.composio.tools({ query: 'gmail' }).length;
+      const hits = (await kernel.composio.searchRemote('gmail', 20)).length;
       add({
         id: 'CMP-02',
         area: 'composio',
@@ -226,7 +226,7 @@ export async function runQa(kernel: Kernel): Promise<QaFinding[]> {
         title: 'Composio catalog search',
         evidence: `gmail hits=${hits}`,
       });
-      const github = kernel.composio.tools({ toolkit: 'github' }).find((tool) => /GET_THE_AUTHENTICATED_USER/i.test(tool.slug));
+      const github = (await kernel.composio.searchRemote('github', 60)).find((tool) => /GET_THE_AUTHENTICATED_USER/i.test(tool.slug));
       if (github) {
         try {
           const result = await withTimeout(kernel.composio.execute(github.slug, {}), 60_000, 'composio execute');

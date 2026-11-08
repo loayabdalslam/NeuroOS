@@ -260,6 +260,7 @@ export interface IpcMap {
   'composio.configure': { params: { apiKey?: string; baseUrl?: string; userId?: string }; result: ComposioStatus };
   'composio.sync': { params: void; result: ComposioStatus };
   'composio.tools': { params: { query?: string; toolkit?: string } | void; result: ComposioTool[] };
+  'composio.search': { params: { query: string; limit?: number }; result: ComposioTool[] };
   'composio.toolkits': { params: void; result: ComposioToolkitInfo[] };
   'composio.accounts': { params: void; result: ComposioAccountInfo[] };
   'composio.connect': { params: { toolkit: string }; result: { redirectUrl: string; accountId: string } };
@@ -269,6 +270,7 @@ export interface IpcMap {
   /* neuro web (decentralized domains + hosting) */
   'web.status': { params: void; result: WebStats };
   'web.list': { params: void; result: SiteManifest[] };
+  'web.resolved': { params: void; result: SiteManifest[] };
   'web.publish': { params: { domain: string; title?: string; description?: string; files: WebPublishFile[] }; result: WebPublishResult };
   'web.publishFolder': { params: { domain: string; title?: string }; result: WebPublishResult };
   'web.unpublish': { params: { domain: string }; result: SiteManifest[] };

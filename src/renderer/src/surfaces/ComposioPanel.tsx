@@ -17,6 +17,7 @@ export function ComposioPanel(): JSX.Element {
   const [toolkits, setToolkits] = useState<ComposioToolkitInfo[]>([]);
   const [tools, setTools] = useState<ComposioTool[]>([]);
   const [query, setQuery] = useState('');
+  const [remoteBusy, setRemoteBusy] = useState(false);
   const [tab, setTab] = useState<Tab>('toolkits');
   const [keyDraft, setKeyDraft] = useState('');
   const [editingKey, setEditingKey] = useState(false);
@@ -129,6 +130,28 @@ export function ComposioPanel(): JSX.Element {
 
   const connectedToolkits = useMemo(() => new Set(accounts.map((account) => account.toolkit)), [accounts]);
 
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2 || filteredTools.length) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setRemoteBusy(true);
+      void invoke('composio.search', { query: q, limit: 40 })
+        .then((found) => {
+          if (cancelled || !found.length) return;
+          setTools((current) => [...current, ...found.filter((item) => !current.some((tool) => tool.slug === item.slug))]);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setRemoteBusy(false);
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, filteredTools.length]);
+
   if (!status) return <div className="composio"><Spinner size={18} /></div>;
 
   return (
@@ -228,6 +251,7 @@ export function ComposioPanel(): JSX.Element {
             <div className="composio__search">
               <Icon name="search" size={13} />
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search toolkits and actions…" />
+              {remoteBusy ? <Spinner size={11} /> : null}
             </div>
           </div>
 

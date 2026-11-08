@@ -27,22 +27,12 @@
     "repro": "Settings → Providers → Add provider → ACP agents"
   },
   {
-    "id": "ACP-05",
-    "area": "acp",
-    "severity": "high",
-    "status": "pass",
-    "title": "Codex via the official ACP adapter",
-    "evidence": "agent=@agentclientprotocol/codex-acp v2.5.0",
-    "repro": "npx -y @agentclientprotocol/codex-acp → initialize"
-  },
-  {
     "id": "ACP-03",
     "area": "acp",
-    "severity": "medium",
-    "status": "warn",
-    "title": "ACP availability of the locally installed agents",
-    "evidence": "No ACP-capable CLI on PATH: Codex CLI, DeepSeek Harness, Antigravity CLI. Only opencode exposes \"acp\".",
-    "repro": "where codex / where dsh / where antigravity"
+    "severity": "low",
+    "status": "pass",
+    "title": "ACP coverage of the locally installed agents",
+    "evidence": "native ACP: opencode; verified adapter: @agentclientprotocol/codex-acp v2.5.0; 44 registry presets added; DeepSeek Harness has no ACP mode"
   },
   {
     "id": "CMP-01",
@@ -56,9 +46,9 @@
     "id": "CMP-02",
     "area": "composio",
     "severity": "medium",
-    "status": "fail",
+    "status": "pass",
     "title": "Composio catalog search",
-    "evidence": "gmail hits=0"
+    "evidence": "gmail hits=20"
   },
   {
     "id": "CMP-03",

@@ -226,6 +226,56 @@ export class ComposioService {
     return this.status();
   }
 
+  async searchRemote(queryInput: string, limit = 24): Promise<ComposioTool[]> {
+    const query = queryInput.trim().toLowerCase();
+    if (!query) return [];
+    const toolkits = await this.toolkits();
+    const matches = toolkits
+      .filter((toolkit) => toolkit.slug.includes(query) || toolkit.name.toLowerCase().includes(query) || (toolkit.description ?? '').toLowerCase().includes(query))
+      .slice(0, 4);
+    const collected = new Map<string, StoredTool>();
+    for (const toolkit of matches) {
+      let cursor: string | undefined;
+      for (let page = 0; page < 5; page += 1) {
+        try {
+          const payload = await this.request<unknown>(
+            `/tools?toolkit_slug=${encodeURIComponent(toolkit.slug)}&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+          );
+          for (const row of this.items<Record<string, unknown>>(payload)) {
+            const normalized = this.normalizeTool(row);
+            if (normalized) collected.set(normalized.slug, normalized);
+          }
+          const next = (payload as { next_cursor?: string }).next_cursor;
+          if (!next) break;
+          cursor = next;
+        } catch (error) {
+          this.lastError = (error as Error).message;
+          break;
+        }
+      }
+    }
+    if (collected.size) {
+      const catalog = [...this.store.get().catalog];
+      const bySlug = new Map(catalog.map((tool) => [tool.slug, tool]));
+      for (const tool of collected.values()) bySlug.set(tool.slug, tool);
+      this.store.set({ catalog: [...bySlug.values()] });
+      this.emit();
+    }
+    const local = this.tools({ query });
+    if (local.length) return local.slice(0, limit);
+    return [...collected.values()]
+      .map((tool) => ({
+        slug: tool.slug,
+        name: tool.name,
+        description: tool.description,
+        toolkit: tool.toolkit,
+        toolkitName: tool.toolkitName,
+        parameters: tool.parameters,
+        enabled: this.store.get().enabled.includes(tool.slug),
+      }))
+      .slice(0, limit);
+  }
+
   tools(input?: { query?: string; toolkit?: string }): ComposioTool[] {
     const enabled = new Set(this.store.get().enabled);
     const query = input?.query?.trim().toLowerCase();
@@ -403,7 +453,10 @@ export class ComposioService {
       const query = String(args.query ?? '').toLowerCase();
       const toolkit = args.toolkit ? String(args.toolkit) : undefined;
       const limit = Math.min(Number(args.limit ?? 12) || 12, 40);
-      const results = this.tools({ query, toolkit }).slice(0, limit);
+      let results = this.tools({ query, toolkit }).slice(0, limit);
+      if (!results.length && query) {
+        results = (await this.searchRemote(query, limit)).slice(0, limit);
+      }
       if (!results.length) {
         return { ok: true, output: state.catalog.length ? 'No matching integrations.' : 'Catalog is empty — run a Composio sync first.' };
       }

@@ -62,10 +62,11 @@ export function SitesSurface(): JSX.Element {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    const [siteList, statsNow, peerList] = await Promise.all([invoke('web.list', undefined), invoke('web.status', undefined), invoke('web.peers', undefined)]);
+    const [siteList, statsNow, peerList, meshNow] = await Promise.all([invoke('web.list', undefined), invoke('web.status', undefined), invoke('web.peers', undefined), invoke('web.resolved', undefined)]);
     setSites(siteList);
     setStats(statsNow);
     setPeers(peerList);
+    setMeshSites(meshNow);
   }, []);
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export function SitesSurface(): JSX.Element {
   }, [load]);
 
   const totalBytes = useMemo(() => files.reduce((total, file) => total + file.size, 0), [files]);
+  const [meshSites, setMeshSites] = useState<SiteManifest[]>([]);
 
   const addFiles = (incoming: DraftFile[]): void => {
     const merged = new Map(files.map((file) => [file.path, file]));
@@ -334,6 +336,42 @@ export function SitesSurface(): JSX.Element {
           ) : (
             <EmptyState icon="globe" title={t('sites.empty')} body={t('sites.emptyBody')} />
           )}
+
+          {meshSites.length ? (
+            <>
+              <div className="sites__sectionHead" style={{ marginTop: 10 }}>
+                <Icon name="network" size={15} />
+                <span className="small strong">From the mesh</span>
+                <span className="grow" />
+                <span className="tiny faint">{meshSites.length}</span>
+              </div>
+              <div className="sites__list">
+                {meshSites.map((site) => (
+                  <div key={site.domain} className="siteCard">
+                    <div className="siteCard__top">
+                      <span className="siteCard__icon">
+                        <Icon name="network" size={15} />
+                      </span>
+                      <div className="grow" style={{ minWidth: 0 }}>
+                        <div className="small strong truncate">{site.domain}.neuro</div>
+                        <div className="tiny faint truncate">{site.title}</div>
+                      </div>
+                      <span className="n-badge">mesh</span>
+                    </div>
+                    <div className="siteCard__meta tiny faint">
+                      {site.files.length} files · {formatBytes(site.files.reduce((total, file) => total + file.size, 0))} · {relativeTime(site.updatedAt)}
+                    </div>
+                    <div className="siteCard__actions">
+                      <Button variant="soft" size="sm" icon="external-link" onClick={() => openSite(site)}>
+                        {t('sites.open')}
+                      </Button>
+                      <IconButton icon="copy" label="Copy URL" size={13} onClick={() => void navigator.clipboard.writeText(`${gateway}/dweb/${site.domain}/`)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
 
           <div className="sites__sectionHead" style={{ marginTop: 10 }}>
             <Icon name="network" size={15} />

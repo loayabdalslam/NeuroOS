@@ -199,7 +199,7 @@ export class BrainService {
     if (!this.store.get().recording || !inputs.length) return { recorded: 0 };
     let recorded = 0;
     for (const input of inputs) {
-      const label = (input.label ?? '').trim().slice(0, 120);
+      const label = String(input.label ?? (input as { title?: string }).title ?? '').trim().slice(0, 120);
       if (!label) continue;
       const key = `${input.kind}:${label}`;
       const now = Date.now();

@@ -507,6 +507,7 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
       return status;
     },
     'composio.tools': (params) => kernel.composio.tools(params ?? undefined),
+    'composio.search': ({ query, limit }) => kernel.composio.searchRemote(query, limit ?? 24),
     'composio.toolkits': () => kernel.composio.toolkits(),
     'composio.accounts': () => kernel.composio.refreshAccounts(),
     'composio.connect': ({ toolkit }) => kernel.composio.connect(toolkit),
@@ -515,6 +516,7 @@ export function buildHandlers(kernel: Kernel, getWindow: () => BrowserWindow | n
 
     'web.status': () => kernel.web.stats(),
     'web.list': () => kernel.web.list(),
+    'web.resolved': () => kernel.web.resolvedSites(),
     'web.publish': async (input) => {
       const result = await kernel.web.publish(input);
       if (result.ok && result.manifest) {

@@ -71,6 +71,7 @@ export class AcpClient extends EventEmitter {
   private disposed = false;
   public agentInfo: AcpAgentInfo | null = null;
   public capabilities: AcpInitializeResult['agentCapabilities'] = {};
+  public authMethods: NonNullable<AcpInitializeResult['authMethods']> = [];
 
   constructor(private readonly options: AcpClientOptions) {
     super();
@@ -134,6 +135,7 @@ export class AcpClient extends EventEmitter {
 
     this.agentInfo = result.agentInfo ?? null;
     this.capabilities = result.agentCapabilities ?? {};
+    this.authMethods = result.authMethods ?? [];
     log.info('acp', `initialized ${this.agentInfo?.name ?? command} (protocol v${result.protocolVersion})`);
     this.emit('initialized', result);
     return result;
@@ -161,6 +163,15 @@ export class AcpClient extends EventEmitter {
     const stopReason = result?.stopReason ?? 'end_turn';
     this.emit('update', { kind: 'stop', reason: stopReason } satisfies AcpUpdate);
     return stopReason;
+  }
+
+  async setModel(modelId: string): Promise<void> {
+    if (!this.sessionId || !modelId) return;
+    try {
+      await this.request('session/set_model', { sessionId: this.sessionId, modelId });
+    } catch (error) {
+      log.debug('acp', `set_model failed: ${(error as Error).message}`);
+    }
   }
 
   cancel(): void {

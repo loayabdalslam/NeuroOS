@@ -1,4 +1,4 @@
-import os from 'node:os';
+﻿import os from 'node:os';
 import path from 'node:path';
 import type {
   AgentConfig,
@@ -225,6 +225,8 @@ export class AgentService {
     const session = await this.getSession(sessionId);
     const settings = this.deps.settings.public();
     const provider = settings.providers.find((p) => p.id === session.providerId);
+    if (!provider) throw new Error('No provider is connected. Add one in Settings â†’ Providers, then send again.');
+    if (provider.enabled === false) throw new Error(`${provider.name} is disabled. Enable it in Settings â†’ Providers.`);
     const agent = settings.agents.find((a) => a.id === session.agentId) ?? settings.agents[0];
 
     const userMessage: ChatMessage = {
@@ -296,7 +298,7 @@ export class AgentService {
     const assistant = session.messages.find((m) => m.id === assistantId)!;
 
     if (!provider) {
-      throw new Error('No provider configured. Open Settings → Providers to connect one.');
+      throw new Error('No provider configured. Open Settings â†’ Providers to connect one.');
     }
     if (provider.kind === 'acp') {
       await this.runAcpTurn(session, assistant, provider, controller);
@@ -398,7 +400,7 @@ export class AgentService {
   private async executeTool(invocation: ToolInvocation, sessionId: string, signal: AbortSignal): Promise<ToolInvocation> {
     const policy = this.deps.toolRegistry.policyFor(invocation.name);
     if (policy === 'deny') {
-      return { ...invocation, status: 'denied', output: 'Tool is disabled by policy in Settings → Tools.', startedAt: nowIso(), endedAt: nowIso(), durationMs: 0 };
+      return { ...invocation, status: 'denied', output: 'Tool is disabled by policy in Settings â†’ Tools.', startedAt: nowIso(), endedAt: nowIso(), durationMs: 0 };
     }
     if (policy === 'ask') {
       const approved = await this.deps.approvals.request(invocation.id);
@@ -445,10 +447,13 @@ export class AgentService {
   private async runAcpTurn(session: ChatSessionFull, assistant: ChatMessage, provider: ProviderConfig, controller: AbortController): Promise<void> {
     const client = await this.ensureAcp(provider);
     const sessionId = session.id;
-    this.deps.emit({ type: 'status', sessionId, status: `ACP · ${client.agentInfo?.title ?? provider.name}` });
+    this.deps.emit({ type: 'status', sessionId, status: `ACP Â· ${client.agentInfo?.title ?? provider.name}` });
 
     if (!client.currentSession) {
       await client.newSession(this.deps.settings.public().workspaceRoot || this.deps.cwd());
+    }
+    if (provider.defaultModel && provider.defaultModel !== 'acp:auto') {
+      await client.setModel(provider.defaultModel);
     }
 
     const knownTools = new Map<string, ToolInvocation>();
@@ -504,8 +509,12 @@ export class AgentService {
       });
     } catch (error) {
       if (!controller.signal.aborted) {
-        assistant.error = (error as Error).message;
-        this.deps.emit({ type: 'error', sessionId, message: (error as Error).message });
+        const message = (error as Error).message;
+        const hint = /timed out/i.test(message)
+          ? ` The agent did not finish in time${client.authMethods.length ? ' and advertises authentication: ' + client.authMethods.map((method) => method.name).join(', ') : ''}. Sign in with the agent CLI, then retry.`
+          : '';
+        assistant.error = message + hint;
+        this.deps.emit({ type: 'error', sessionId, message: message + hint });
         this.deps.emit({ type: 'turn_end', sessionId, messageId: assistant.id, reason: 'error' });
       }
     } finally {
@@ -582,4 +591,5 @@ function findToolName(messages: ChatMessage[], callId?: string): string {
 }
 
 export const defaultWorkspaceCwd = (): string => path.join(os.homedir(), 'Neuro Workspace');
+
 
