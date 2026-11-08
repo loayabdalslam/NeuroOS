@@ -167,3 +167,10 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | Issue | Fix |
 | --- | --- |
 | ACP prompt timed out with “The agent did not finish in time and advertises authentication: Login with opencode”. `opencode auth list` shows 0 credentials, so the agent blocks until the prompt timeout. | The inline ACP error now includes **Open login terminal**, which navigates to Terminal and types the right command (`opencode auth login`, `codex login`, or `claude login`) into an interactive shell. The user completes the login there and retries the turn. D-38 verifies the command is typed into a live PTY. |
+
+## Wallpaper legibility (all themes, all wallpapers)
+
+| Issue | Fix |
+| --- | --- |
+| On the light theme, photo/custom wallpapers were covered by a white gradient, leaving desktop labels, the welcome card and dock labels washed out (black text on a pale image). | Photo/custom wallpapers now use a dark scrim on every theme (`rgba(4,6,12,.4→.62)`), desktop labels sit on a blurred contrast chip (white on dark for photos, theme-aware for gradients), the welcome block is a glass card with white text, and light-theme dock labels use stronger text tokens. Applies to every existing and future `photo:*`/custom wallpaper via the shared selector. |
+| Verification | D-39 asserts icon label `rgb(255,255,255)`, chip `rgba(7,9,15,.62)`, and a dark desktop scrim on Ubuntu light + Blue Marble. |

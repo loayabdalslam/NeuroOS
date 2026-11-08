@@ -178,3 +178,68 @@ body { background-color: #07080d; background-image: var(--n-wallpaper-image, non
 :root[data-theme='light'][data-wallpaper^='photo:'] .desktop__hintChip { background: rgba(255,255,255,.78); border-color: rgba(15,18,26,.12); color: var(--n-text); }
 :root[data-wallpaper^='photo:'] .desktopIcon__label { text-shadow: 0 1px 6px rgba(0,0,0,.75); }
 
+
+/* ================= Wallpaper legibility: every preset, photo and custom image ============ */
+.desktopIcon__label {
+  color: var(--n-text);
+  background: color-mix(in srgb, var(--n-bg) 60%, transparent);
+  padding: 2px 7px;
+  border-radius: 7px;
+  text-shadow: none;
+  backdrop-filter: blur(8px);
+}
+:root[data-theme='light'] .desktopIcon__label {
+  background: rgba(255, 255, 255, 0.82);
+  color: #111318;
+}
+:root[data-wallpaper^='photo:'] .desktopIcon__label,
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktopIcon__label {
+  background: rgba(7, 9, 15, 0.62);
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+:root[data-wallpaper^='photo:'] .desktopIcon:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktop {
+  background-image: linear-gradient(180deg, rgba(4, 6, 12, 0.4), rgba(4, 6, 12, 0.62)), var(--n-wallpaper-image, none) !important;
+}
+:root[data-wallpaper^='photo:'] .desktop__hint {
+  padding: 20px 26px;
+  border-radius: 22px;
+  background: rgba(6, 8, 14, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+}
+:root[data-wallpaper^='photo:'] .desktop__hintTitle,
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktop__hintTitle {
+  color: #ffffff;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+:root[data-wallpaper^='photo:'] .desktop__hintBody,
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktop__hintBody {
+  color: rgba(255, 255, 255, 0.84);
+}
+:root[data-wallpaper^='photo:'] .desktop__hintChip,
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktop__hintChip {
+  background: rgba(9, 11, 18, 0.62);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+:root[data-wallpaper^='photo:'] .desktop__hintChip:hover,
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktop__hintChip:hover {
+  background: rgba(20, 24, 34, 0.8);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+:root[data-wallpaper^='photo:'] .desktop__minimized,
+:root[data-theme='light'][data-wallpaper^='photo:'] .desktop__minimized {
+  color: rgba(255, 255, 255, 0.72);
+}
+:root[data-theme='light'] .dock__label,
+:root[data-theme='light'] .dock__item {
+  color: var(--n-text-2);
+}
+:root[data-theme='light'] .dock__item[data-active='true'],
+:root[data-theme='light'] .dock__item:hover {
+  color: var(--n-text);
+}
