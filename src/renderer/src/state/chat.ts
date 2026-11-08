@@ -60,13 +60,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   create: async (params) => {
-    const session = await invoke('chat.create', params ?? {});
-    set({ sessions: [session, ...get().sessions], activeId: session.id, active: session, draft: '' });
+    const created = await invoke('chat.create', params ?? {});
+    let active: any = { ...created, messages: [] };
+    try {
+      active = await invoke('chat.session', { id: created.id });
+    } catch {
+      // keep the empty-message fallback so sending still works
+    }
+    set({ sessions: [created, ...get().sessions], activeId: active.id, active, draft: '' });
   },
 
   send: async () => {
     const { active, draft, activeId } = get();
     if (!draft.trim() || !active || !activeId) return;
+    const messages = active.messages ?? [];
     const text = draft.trim();
     const userMessage: ChatMessage = {
       id: `local_${Date.now()}`,
@@ -87,7 +94,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       attachments: [],
       streaming: true,
       status: 'Thinking',
-      active: { ...active, messages: [...active.messages, userMessage, assistantMessage] },
+      active: { ...active, messages: [...messages, userMessage, assistantMessage] },
     });
     try {
       await invoke('chat.send', { sessionId: activeId, text, attachments: get().attachments as never });
@@ -160,7 +167,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     switch (event.type) {
       case 'turn_start': {
-        set({ streaming: true, status: 'Thinking' });
+        const messages = [...(active.messages ?? [])];
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+          if (messages[index].role === 'assistant' && !messages[index].content) {
+            messages[index] = { ...messages[index], id: event.messageId };
+            break;
+          }
+        }
+        set({ streaming: true, status: 'Thinking', active: { ...active, messages } });
         break;
       }
       case 'status': {
@@ -172,7 +186,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           status: '',
           active: {
             ...active,
-            messages: updateMessage(active.messages, event.messageId, (message) => ({ ...message, content: message.content + event.delta })),
+            messages: updateMessage(active.messages ?? [], event.messageId, (message) => ({ ...message, content: message.content + event.delta })),
           },
         });
         break;
@@ -181,7 +195,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({
           active: {
             ...active,
-            messages: updateMessage(active.messages, event.messageId, (message) => ({ ...message, reasoning: (message.reasoning ?? '') + event.delta })),
+            messages: updateMessage(active.messages ?? [], event.messageId, (message) => ({ ...message, reasoning: (message.reasoning ?? '') + event.delta })),
           },
         });
         break;
@@ -192,7 +206,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           status: event.call.status === 'pending' ? `Waiting for approval · ${event.call.name}` : `Running ${event.call.name}`,
           active: {
             ...active,
-            messages: updateMessage(active.messages, event.messageId, (message) => {
+            messages: updateMessage(active.messages ?? [], event.messageId, (message) => {
               const calls = [...(message.toolCalls ?? [])];
               const index = calls.findIndex((call) => call.id === event.call.id);
               if (index >= 0) calls[index] = event.call;
@@ -207,13 +221,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({
           active: {
             ...active,
-            messages: updateMessage(active.messages, event.messageId, (message) => ({ ...message, usage: event.usage })),
+            messages: updateMessage(active.messages ?? [], event.messageId, (message) => ({ ...message, usage: event.usage })),
           },
         });
         break;
       }
       case 'turn_end': {
         set({ streaming: false, status: event.reason === 'max_steps' ? 'Step limit reached' : '' });
+        void invoke('chat.session', { id: active.id })
+          .then((full) => {
+            set({ active: full });
+          })
+          .catch(() => undefined);
         void state.loadSessions().then(() => {
           const updated = get().sessions.find((session) => session.id === active.id);
           if (updated) set({ sessions: get().sessions, active: get().active ? { ...get().active!, updatedAt: updated.updatedAt, title: updated.title } : null });
@@ -221,7 +240,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         break;
       }
       case 'error': {
-        const failed = updateMessage(active.messages, (event as { messageId?: string }).messageId ?? active.messages[active.messages.length - 1]?.id ?? '', (message) => ({
+        const failed = updateMessage(active.messages ?? [], (event as { messageId?: string }).messageId ?? (active.messages ?? [])[(active.messages ?? []).length - 1]?.id ?? '', (message) => ({
           ...message,
           error: event.message,
           content: message.content || `⚠️ ${event.message}`,

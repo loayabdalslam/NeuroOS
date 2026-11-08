@@ -1,14 +1,14 @@
 # Neuro OS QA run
 
-Generated: 2026-11-08T16:10:10.091Z
+Generated: 2026-11-08T20:59:04.909Z
 
 ## ACP-01 â€” ACP provider handshake, session and streamed prompt
 
 - area: acp
 - severity: high
-- status: pass
+- status: fail
 - evidence: user: ping
-assistant: MOCK_ACP_OK
+assistant: 
 - repro: Add a provider with kind=acp and command "node scripts/mock-acp-agent.cjs", then send a message.
 
 ## ACP-02 â€” OpenCode exposes an ACP server
@@ -39,11 +39,33 @@ assistant: MOCK_ACP_OK
 
 - area: chat
 - severity: high
-- status: pass
-- evidence: first 6081ms, total 90219ms, "Okay.
+- status: fail
+- evidence: empty response after 90s
 
-```
-Inspect:  The taskbar is currently displaying a b"
+
+## REAL-01 â€” Groq provider round-trip with the configured key
+
+- area: chat
+- severity: high
+- status: pass
+- evidence: GROQ_OK
+
+
+## REAL-02 â€” Ollama provider round-trip with the configured local models
+
+- area: chat
+- severity: high
+- status: pass
+- evidence: OLLAMA_REAL_OK
+
+
+
+## REAL-03 â€” Local ACP provider (OpenCode) handshake
+
+- area: acp
+- severity: high
+- status: warn
+- evidence: initialized OpenCode; prompt requires CLI login (opencode auth login)
 
 
 ## CMP-01 â€” Composio live validation

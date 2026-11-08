@@ -204,8 +204,8 @@ export async function runQa(kernel: Kernel): Promise<QaFinding[]> {
       baseUrl: 'http://127.0.0.1:11434',
       apiKey: '',
       enabled: true,
-      models: [{ id: 'loaiabdalslam/gemma-700m-it-racore:latest', label: 'gemma-700m', supportsTools: true }],
-      defaultModel: 'loaiabdalslam/gemma-700m-it-racore:latest',
+      models: [{ id: 'gemma3:1b', label: 'gemma3:1b', supportsTools: true }],
+      defaultModel: 'gemma3:1b',
       createdAt: new Date().toISOString(),
       color: '#5686fe',
     };
@@ -239,6 +239,86 @@ export async function runQa(kernel: Kernel): Promise<QaFinding[]> {
     ollEvidence = (error as Error).message;
   }
   add({ id: 'OLL-01', area: 'chat', severity: 'high', status: ollStatus, title: 'Ollama chat round-trip (tools fallback)', evidence: ollEvidence });
+
+  /* ------------------------- REAL CONFIGURATION ------------------------- */
+  const realProviders = kernel.settings.public().providers;
+  const probe = async (providerId: string, model: string | undefined, expected: string) => {
+    const provider = realProviders.find((item) => item.id === providerId);
+    if (!provider) return { status: 'warn' as const, evidence: 'provider not configured: ' + providerId };
+    const session = await kernel.agent.createSession({
+      providerId: provider.id,
+      model: model ?? provider.defaultModel,
+      title: 'Real probe ' + provider.name,
+    });
+    try {
+      await kernel.agent.send(session.id, 'Reply with exactly: ' + expected);
+      let transcript = '';
+      let error = '';
+      const deadline = Date.now() + 75_000;
+      while (Date.now() < deadline) {
+        await wait(500);
+        const full = await kernel.agent.getSession(session.id);
+        const assistant = full.messages.filter((message) => message.role === 'assistant').at(-1);
+        transcript = assistant?.content ?? '';
+        error = assistant?.error ?? '';
+        if (transcript.includes(expected) || error) break;
+      }
+      if (error) return { status: 'fail' as const, evidence: error.slice(0, 400) };
+      if (!transcript.trim()) return { status: 'fail' as const, evidence: 'empty response after 75s' };
+      return { status: 'pass' as const, evidence: transcript.slice(0, 180) };
+    } finally {
+      await kernel.agent.deleteSession(session.id).catch(() => {});
+    }
+  };
+
+  let groqProbe: { status: 'pass' | 'fail' | 'warn'; evidence: string };
+  try {
+    groqProbe = await probe('groq', realProviders.find((item) => item.id === 'groq')?.defaultModel, 'GROQ_OK');
+  } catch (error) {
+    groqProbe = { status: 'fail', evidence: (error as Error).message };
+  }
+  add({
+    id: 'REAL-01',
+    area: 'chat',
+    severity: 'high',
+    status: groqProbe.status,
+    title: 'Groq provider round-trip with the configured key',
+    evidence: groqProbe.evidence,
+  });
+
+  let ollamaProbe: { status: 'pass' | 'fail' | 'warn'; evidence: string };
+  try {
+    ollamaProbe = await probe('ollama', realProviders.find((item) => item.id === 'ollama')?.models[0]?.id, 'OLLAMA_REAL_OK');
+  } catch (error) {
+    ollamaProbe = { status: 'fail', evidence: (error as Error).message };
+  }
+  add({
+    id: 'REAL-02',
+    area: 'chat',
+    severity: 'high',
+    status: ollamaProbe.status,
+    title: 'Ollama provider round-trip with the configured local models',
+    evidence: ollamaProbe.evidence,
+  });
+
+  const acpProvider = realProviders.find((item) => item.id === 'acp-opencode');
+  if (!acpProvider) {
+    add({ id: 'REAL-03', area: 'acp', severity: 'high', status: 'warn', title: 'Local ACP provider (OpenCode)', evidence: 'OpenCode provider is not configured' });
+  } else {
+    try {
+      const client = await withTimeout(kernel.agent.ensureAcp(acpProvider), 20_000, 'acp.connect');
+      add({
+        id: 'REAL-03',
+        area: 'acp',
+        severity: 'high',
+        status: 'warn',
+        title: 'Local ACP provider (OpenCode) handshake',
+        evidence: 'initialized ' + (client.agentInfo?.title ?? 'OpenCode') + '; prompt requires CLI login (opencode auth login)',
+      });
+    } catch (error) {
+      add({ id: 'REAL-03', area: 'acp', severity: 'high', status: 'fail', title: 'Local ACP provider (OpenCode) handshake', evidence: (error as Error).message });
+    }
+  }
 
   /* ----------------------------- COMPOSIO ---------------------------- */
   const key = process.env.NEURO_QA_COMPOSIO_KEY ?? '';
@@ -326,6 +406,7 @@ export function renderQa(findings: QaFinding[]): string {
   }
   return lines.join('\n');
 }
+
 
 
 

@@ -224,8 +224,16 @@ export class AgentService {
   async send(sessionId: string, text: string, attachments?: ChatMessage['attachments']): Promise<{ ok: boolean; messageId: string }> {
     const session = await this.getSession(sessionId);
     const settings = this.deps.settings.public();
-    const provider = settings.providers.find((p) => p.id === session.providerId);
-    if (!provider) throw new Error('No provider is connected. Add one in Settings â†’ Providers, then send again.');
+    let provider = settings.providers.find((p) => p.id === session.providerId);
+    if (!provider) throw new Error('No provider is connected. Add one in Settings → Providers, then send again.');
+    if (provider.kind !== 'acp' && provider.models.length && !provider.models.some((model) => model.id === session.model)) {
+      const fallback = provider.defaultModel || provider.models[0]?.id;
+      if (fallback) {
+        session.model = fallback;
+        await this.sessions.save(session);
+        this.deps.emit({ type: 'status', sessionId: session.id, status: `Model unavailable — using ${fallback}` });
+      }
+    }
     if (provider.enabled === false) throw new Error(`${provider.name} is disabled. Enable it in Settings â†’ Providers.`);
     const agent = settings.agents.find((a) => a.id === session.agentId) ?? settings.agents[0];
 

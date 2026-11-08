@@ -5,15 +5,15 @@
     "title": "mail setup card is centred and fully visible",
     "status": "pass",
     "evidence": "left=505 width=520 viewport=1480",
-    "ms": 1113
+    "ms": 991
   },
   {
     "id": "D-01",
     "area": "fs",
     "title": "mkdir + unicode write + read round-trip",
     "status": "pass",
-    "evidence": "50 bytes at Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§ Ã˜Â¹Ã˜Â§Ã™â€žÃ™â€¦.txt",
-    "ms": 329
+    "evidence": "83 bytes at Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â±ÃƒËœÃ‚Â­ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â§ ÃƒËœÃ‚Â¹ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â¦.txt",
+    "ms": 262
   },
   {
     "id": "D-02",
@@ -21,15 +21,15 @@
     "title": "list + search find the new file",
     "status": "pass",
     "evidence": "1 entries, 1 search hits",
-    "ms": 49
+    "ms": 15
   },
   {
     "id": "D-03",
     "area": "fs",
     "title": "rename + overwrite + delete",
     "status": "pass",
-    "evidence": "rename Ã¢â€ â€™ overwrite Ã¢â€ â€™ delete verified",
-    "ms": 111
+    "evidence": "rename ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ overwrite ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ delete verified",
+    "ms": 91
   },
   {
     "id": "D-04",
@@ -37,22 +37,22 @@
     "title": "large file (300 KB) write/read",
     "status": "pass",
     "evidence": "300000 bytes",
-    "ms": 87
+    "ms": 63
   },
   {
     "id": "D-05",
     "area": "fs",
     "title": "workspace boundary (read outside root)",
     "status": "warn",
-    "evidence": "read 92 bytes outside the workspace Ã¢â‚¬â€ no path guard",
-    "ms": 6
+    "evidence": "read 92 bytes outside the workspace ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no path guard",
+    "ms": 4
   },
   {
     "id": "D-06",
     "area": "notes",
     "title": "create, update and delete a note",
     "status": "pass",
-    "evidence": "create Ã¢â€ â€™ update Ã¢â€ â€™ delete",
+    "evidence": "create ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ update ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ delete",
     "ms": 1
   },
   {
@@ -60,32 +60,32 @@
     "area": "spaces",
     "title": "create a space, edit it and remove it",
     "status": "pass",
-    "evidence": "create Ã¢â€ â€™ rename Ã¢â€ â€™ remove",
-    "ms": 2
+    "evidence": "create ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ rename ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ remove",
+    "ms": 1
   },
   {
     "id": "D-08",
     "area": "notebooks",
     "title": "create a notebook and run code + error cells",
     "status": "pass",
-    "evidence": "ok=DEEP_d04b18e2 error=error",
-    "ms": 13
+    "evidence": "ok=DEEP_ff8ba5ea error=error",
+    "ms": 11
   },
   {
     "id": "D-09",
     "area": "terminal",
     "title": "spawn PTY, run a command, read buffer, resize, kill",
     "status": "pass",
-    "evidence": "428 buffer chars, resize + kill ok",
-    "ms": 3679
+    "evidence": "473 buffer chars, resize + kill ok",
+    "ms": 3709
   },
   {
     "id": "D-10",
     "area": "mail",
     "title": "peer-to-peer send, receive, reply, read and delete",
     "status": "pass",
-    "evidence": "encrypted qa.peer@69dcc8cc9b7cb388.neuro send + reply, decrypt ok, peer removed",
-    "ms": 830
+    "evidence": "encrypted qa.peer@04d92db295772a56.neuro send + reply, decrypt ok, peer removed",
+    "ms": 836
   },
   {
     "id": "D-11",
@@ -100,48 +100,48 @@
     "area": "brain",
     "title": "remember, recall, ask, timeline, forget",
     "status": "pass",
-    "evidence": "3 hits, answer 336 chars, 3 events, forget ok",
-    "ms": 36
+    "evidence": "3 hits, answer 337 chars, 3 events, forget ok",
+    "ms": 45
   },
   {
     "id": "D-13",
     "area": "web",
     "title": "publish, serve HTML + asset, counts, unpublish",
     "status": "pass",
-    "evidence": "deep-796662.neuro served (2 files), traversal blocked, unpublish ok",
-    "ms": 281
+    "evidence": "deep-375057.neuro served (2 files), traversal blocked, unpublish ok",
+    "ms": 354
   },
   {
     "id": "D-14",
     "area": "marketplace",
     "title": "install, toggle and uninstall a catalog item",
     "status": "pass",
-    "evidence": "Code Review (skill) install Ã¢â€ â€™ toggle Ã¢â€ â€™ uninstall",
-    "ms": 65
+    "evidence": "Code Review (skill) install ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ toggle ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ uninstall",
+    "ms": 36
   },
   {
     "id": "D-15",
     "area": "plugins",
     "title": "install a local plugin, list it, uninstall it",
     "status": "pass",
-    "evidence": "Deep QA plugin install Ã¢â€ â€™ list Ã¢â€ â€™ uninstall",
-    "ms": 538
+    "evidence": "Deep QA plugin install ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ list ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ uninstall",
+    "ms": 555
   },
   {
     "id": "D-16",
     "area": "settings",
     "title": "theme, density, locale and wallpaper patch",
     "status": "pass",
-    "evidence": "design Ã¢â€ â€™ windows, locale Ã¢â€ â€™ ar/rtl, restored",
-    "ms": 487
+    "evidence": "design ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ windows, locale ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ar/rtl, restored",
+    "ms": 354
   },
   {
     "id": "D-17",
     "area": "acp",
     "title": "add a mock ACP provider, prompt it, then chat through it",
     "status": "pass",
-    "evidence": "acp.connect Ã¢â€ â€™ prompt Ã¢â€ â€™ chat turn streamed MOCK_ACP_OK",
-    "ms": 1811
+    "evidence": "acp.connect ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ prompt ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ chat turn streamed MOCK_ACP_OK",
+    "ms": 2001
   },
   {
     "id": "D-18",
@@ -157,7 +157,7 @@
     "title": "navigate every surface and capture it",
     "status": "pass",
     "evidence": "14 surfaces rendered + screenshotted",
-    "ms": 12322
+    "ms": 12723
   },
   {
     "id": "D-20",
@@ -165,23 +165,23 @@
     "title": "start menu opens and closes",
     "status": "pass",
     "evidence": "open + scrim close",
-    "ms": 2635
+    "ms": 2716
   },
   {
     "id": "D-21",
     "area": "ui",
     "title": "command palette opens with Ctrl+K and closes with Escape",
     "status": "pass",
-    "evidence": "Ctrl+K â†’ palette â†’ Escape",
-    "ms": 1789
+    "evidence": "Ctrl+K Ã¢â€ â€™ palette Ã¢â€ â€™ Escape",
+    "ms": 1770
   },
   {
     "id": "D-22",
     "area": "chat",
     "title": "a session with no provider fails with a clear message",
     "status": "pass",
-    "evidence": "No provider is connected. Add one in Settings â†’ Providers, then send again.",
-    "ms": 47
+    "evidence": "No provider is connected. Add one in Settings → Providers, then send again.",
+    "ms": 34
   },
   {
     "id": "D-23",
@@ -189,7 +189,7 @@
     "title": "two concurrent PTY sessions keep separate buffers",
     "status": "pass",
     "evidence": "two PTYs, isolated buffers, both killed",
-    "ms": 3499
+    "ms": 3429
   },
   {
     "id": "D-24",
@@ -197,7 +197,7 @@
     "title": "recording toggle, graph, profile and batch capture",
     "status": "pass",
     "evidence": "recorded 2, graph 35 nodes, profile ? nodes",
-    "ms": 4
+    "ms": 3
   },
   {
     "id": "D-25",
@@ -212,8 +212,8 @@
     "area": "web",
     "title": "peer replication: another node publishes, this node serves it",
     "status": "pass",
-    "evidence": "replica-c48eb3.neuro published on peer, served by this gateway",
-    "ms": 122
+    "evidence": "replica-2be53e.neuro published on peer, served by this gateway",
+    "ms": 93
   },
   {
     "id": "D-27",
@@ -221,7 +221,7 @@
     "title": "every theme renders and is captured",
     "status": "pass",
     "evidence": "8 themes rendered (light + dark)",
-    "ms": 9038
+    "ms": 8329
   },
   {
     "id": "D-28",
@@ -229,7 +229,7 @@
     "title": "provider picker renders icons in a light theme",
     "status": "pass",
     "evidence": "23 cards; {\"display\":\"grid\",\"cols\":\"293.4px 293.4px\",\"width\":593,\"rect\":592.7999877929688}",
-    "ms": 3266
+    "ms": 3149
   },
   {
     "id": "D-29",
@@ -237,7 +237,7 @@
     "title": "ChatGPT-style composer with provider/model selectors",
     "status": "pass",
     "evidence": "3 selectors, circular send, chip row removed",
-    "ms": 2217
+    "ms": 2030
   },
   {
     "id": "D-31",
@@ -245,7 +245,7 @@
     "title": "clicking a space card updates the detail panel",
     "status": "pass",
     "evidence": "2 cards; detail shows QA Space B",
-    "ms": 1540
+    "ms": 1606
   },
   {
     "id": "D-32",
@@ -253,7 +253,7 @@
     "title": "provider and tool-model pickers plus image attachments",
     "status": "pass",
     "evidence": "1 providers, tool-model dialog, image 70B",
-    "ms": 3107
+    "ms": 2871
   },
   {
     "id": "D-33",
@@ -261,7 +261,7 @@
     "title": "custom wallpaper applies from settings",
     "status": "pass",
     "evidence": "desktop data-wallpaper=photo:custom, uploader present",
-    "ms": 2709
+    "ms": 2623
   },
   {
     "id": "D-34",
@@ -269,23 +269,23 @@
     "title": "model picker falls back to all models when none declare tools",
     "status": "pass",
     "evidence": "1 models listed (supportsTools=false fallback)",
-    "ms": 1762
+    "ms": 1770
   },
   {
     "id": "D-35",
     "area": "ui",
     "title": "selecting a model creates/updates the conversation",
     "status": "pass",
-    "evidence": "pill=Model Pick | Pick Me | Thinking: Auto header=Neuro Ãƒâ€š· pick-me · Auto MODEL PICK",
-    "ms": 2610
+    "evidence": "pill=Model Pick | Pick Me | Thinking: Auto header=Neuro ÃƒÆ’Ã¢â‚¬Å¡Â· pick-me Â· Auto MODEL PICK",
+    "ms": 2501
   },
   {
     "id": "D-37",
     "area": "ui",
     "title": "thinking level and custom model id are selectable",
     "status": "pass",
-    "evidence": "Think Provider | pick-me | Thinking: High · Think Provider | custom-deployment | Thinking: High",
-    "ms": 3920
+    "evidence": "Think Provider | pick-me | Thinking: High Â· Think Provider | custom-deployment | Thinking: High",
+    "ms": 3653
   },
   {
     "id": "D-38",
@@ -293,7 +293,7 @@
     "title": "login terminal runs the ACP sign-in command",
     "status": "pass",
     "evidence": "typed into powershell.exe; buffer has ACP_LOGIN_TEST",
-    "ms": 2108
+    "ms": 1968
   },
   {
     "id": "D-39",
@@ -301,6 +301,14 @@
     "title": "photo wallpapers stay readable on the light theme",
     "status": "pass",
     "evidence": "label #fff on rgba(7,9,15,.62), dark scrim active",
-    "ms": 2036
+    "ms": 1876
+  },
+  {
+    "id": "D-40",
+    "area": "ui",
+    "title": "a brand-new conversation can send immediately",
+    "status": "pass",
+    "evidence": "live=true content=\"TEXT\nCopy\"",
+    "ms": 7973
   }
 ]

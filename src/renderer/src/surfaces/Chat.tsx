@@ -105,6 +105,21 @@ export function Chat(): JSX.Element {
 
   const chooseModel = async (modelId: string, providerId?: string): Promise<void> => {
     const state = useChatStore.getState();
+    if (providerId) {
+      const app = useAppStore.getState();
+      const config = app.settings?.providers.find((entry) => entry.id === providerId);
+      if (config && !config.models.some((entry) => entry.id === modelId)) {
+        try {
+          const next = await invoke('providers.save', {
+            ...config,
+            models: [...config.models, { id: modelId, label: modelId, supportsTools: true }],
+          });
+          if (app.settings) app.setSettings({ ...app.settings, providers: next });
+        } catch {
+          // non-fatal: the session still receives the model id
+        }
+      }
+    }
     if (!state.activeId) {
       await create({ providerId: providerId ?? provider?.id, model: modelId });
       return;
@@ -145,7 +160,7 @@ export function Chat(): JSX.Element {
     if (!item.models.length) continue;
     for (const model of item.models) {
       modelItems.push({
-        label: `${item.name} Ãƒâ€š· ${model.label}`,
+        label: `${item.name} ÃƒÆ’Ã¢â‚¬Å¡Â· ${model.label}`,
         icon: 'cpu',
         hint: model.contextWindow ? `${Math.round(model.contextWindow / 1000)}k` : undefined,
         onClick: () => {
@@ -156,7 +171,7 @@ export function Chat(): JSX.Element {
     }
   }
   if (!modelItems.length) {
-    modelItems.push({ label: 'Connect a providerÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦', icon: 'plug', onClick: () => navigate('settings') });
+    modelItems.push({ label: 'Connect a providerÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦', icon: 'plug', onClick: () => navigate('settings') });
   }
 
   const providerItems: MenuItem[] = providers
@@ -172,7 +187,7 @@ export function Chat(): JSX.Element {
       },
     }));
   if (!providerItems.length) {
-    providerItems.push({ label: 'Connect a providerÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦', icon: 'plug', onClick: () => navigate('settings') });
+    providerItems.push({ label: 'Connect a providerÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦', icon: 'plug', onClick: () => navigate('settings') });
   }
   const modelLabel = provider?.models.find((model) => model.id === active?.model)?.label ?? active?.model?.split('/').pop() ?? provider?.defaultModel?.split('/').pop() ?? t('chat.model');
 
@@ -241,7 +256,7 @@ export function Chat(): JSX.Element {
         <aside className="chat__sessions">
           <div className="chat__sessionsHead">
             <span className="small strong">{t('chat.sessions')}</span>
-            <IconButton icon="plus" label={t('chat.newChat')} onClick={() => void create()} />
+            <IconButton icon="plus" label={t('chat.newChat')} onClick={() => void create({ providerId: provider?.id, model: provider?.defaultModel || provider?.models[0]?.id })} />
           </div>
           <div className="chat__search">
             <Icon name="search" size={13} className="faint" />
@@ -263,7 +278,7 @@ export function Chat(): JSX.Element {
                   <div className="grow" style={{ minWidth: 0 }}>
                     <div className="truncate small">{session.title}</div>
                     <div className="tiny faint truncate">
-                      {session.model} Ãƒâ€š· {relativeTime(session.updatedAt)}
+                      {session.model} ÃƒÆ’Ã¢â‚¬Å¡Â· {relativeTime(session.updatedAt)}
                     </div>
                   </div>
                 </button>
@@ -285,9 +300,9 @@ export function Chat(): JSX.Element {
             <div className="chat__sub">
               <span className="n-dot n-dot--online" />
               <span>{agent?.name ?? 'Neuro'}</span>
-              <span className="faint">Ãƒâ€š·</span>
+              <span className="faint">ÃƒÆ’Ã¢â‚¬Å¡Â·</span>
               <span className="mono tiny">{active?.model || provider?.defaultModel || 'select model'}</span>
-              <span className="tiny faint">· {thinkingLabel}</span>
+              <span className="tiny faint">Â· {thinkingLabel}</span>
               {provider ? <span className="n-badge" style={{ marginLeft: 4 }}>{provider.name}</span> : null}
               {streaming ? (
                 <span className="chat__live">
@@ -304,7 +319,7 @@ export function Chat(): JSX.Element {
               </Button>
               {agentMenu ? <Menu items={agentItems} onClose={() => setAgentMenu(false)} align="right" width={220} /> : null}
             </div>
-            <IconButton icon="plus" label={t('chat.newChat')} onClick={() => void create()} />
+            <IconButton icon="plus" label={t('chat.newChat')} onClick={() => void create({ providerId: provider?.id, model: provider?.defaultModel || provider?.models[0]?.id })} />
           </div>
         </header>
 
@@ -326,7 +341,7 @@ export function Chat(): JSX.Element {
             <div className="center" style={{ padding: 60 }}>
               <Spinner size={20} />
             </div>
-          ) : !active || active.messages.length === 0 ? (
+          ) : !active || (active.messages ?? []).length === 0 ? (
             <div className="chat__hero">
               <div className="chat__heroOrb">
                 <BrandMark size={42} animated />
@@ -368,7 +383,7 @@ export function Chat(): JSX.Element {
             </div>
           ) : (
             <div className="chat__thread">
-              {active.messages
+              {(active.messages ?? [])
                 .filter((message) => message.role !== 'tool')
                 .map((message) => (
                   <MessageRow
@@ -526,14 +541,14 @@ export function Chat(): JSX.Element {
                 <span className="grow" style={{ minWidth: 0 }}>
                   <span className="small strong">{item.name}</span>
                   <span className="tiny faint" style={{ display: 'block' }}>
-                    {item.kind} · {item.models.length} models · {item.enabled ? 'enabled' : 'disabled'}
+                    {item.kind} Â· {item.models.length} models Â· {item.enabled ? 'enabled' : 'disabled'}
                   </span>
                 </span>
                 {item.id === provider?.id ? <Icon name="check" size={13} /> : null}
               </button>
             ))
           ) : (
-            <span className="tiny faint">No providers yet. Open Settings Ã¢â€ â€™ Providers to add one.</span>
+            <span className="tiny faint">No providers yet. Open Settings ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Providers to add one.</span>
           )}
         </div>
       </Modal>
@@ -542,7 +557,7 @@ export function Chat(): JSX.Element {
         open={modelModal}
         onClose={() => setModelModal(false)}
         title={toolModels.length ? 'Models with tool calling' : 'Models'}
-        description={provider ? (toolModels.length ? 'Only models that can call the 46 Neuro tools are listed.' : 'No tool-capable models are declared for this provider Ã¢â‚¬â€ showing all of its models.') : 'Choose a provider first.'}
+        description={provider ? (toolModels.length ? 'Only models that can call the 46 Neuro tools are listed.' : 'No tool-capable models are declared for this provider ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â showing all of its models.') : 'Choose a provider first.'}
         width={520}
         footer={
           <>
@@ -568,7 +583,7 @@ export function Chat(): JSX.Element {
             className="n-input"
             value={customModel}
             onChange={(event) => setCustomModel(event.target.value)}
-            placeholder="Or type a model id (ACP model, tag, deployment…)"
+            placeholder="Or type a model id (ACP model, tag, deploymentâ€¦)"
             onKeyDown={(event) => {
               if (event.key === 'Enter' && customModel.trim()) {
                 setModelModal(false);
@@ -612,15 +627,15 @@ export function Chat(): JSX.Element {
                 <span className="grow" style={{ minWidth: 0 }}>
                   <span className="small strong">{model.label}</span>
                   <span className="tiny faint" style={{ display: 'block' }}>
-                    {model.id}{model.contextWindow ? ' · ' + Math.round(model.contextWindow / 1000) + 'k context' : ''}
-                    {model.supportsVision ? ' · vision' : ''}
+                    {model.id}{model.contextWindow ? ' Â· ' + Math.round(model.contextWindow / 1000) + 'k context' : ''}
+                    {model.supportsVision ? ' Â· vision' : ''}
                   </span>
                 </span>
                 {model.id === active?.model ? <Icon name="check" size={13} /> : null}
               </button>
             ))
           ) : (
-            <span className="tiny faint">This provider has no models yet. Use Refresh models, or add one in Settings Ã¢â€ â€™ Providers.</span>
+            <span className="tiny faint">This provider has no models yet. Use Refresh models, or add one in Settings ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Providers.</span>
           )}
         </div>
       </Modal>
@@ -837,7 +852,7 @@ function MessageRow({
 
         {message.usage ? (
           <div className="msg__usage mono tiny">
-            {message.usage.input ?? 0} in Ãƒâ€š· {message.usage.output ?? 0} out
+            {message.usage.input ?? 0} in ÃƒÆ’Ã¢â‚¬Å¡Â· {message.usage.output ?? 0} out
           </div>
         ) : null}
       </div>
@@ -931,6 +946,7 @@ function ToolCallCard({ call, onApprove }: { call: ToolInvocation; onApprove: (i
     </div>
   );
 }
+
 
 
 

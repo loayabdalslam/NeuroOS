@@ -1,4 +1,4 @@
-import fs from 'node:fs/promises';
+﻿import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { BrowserWindow } from 'electron';
@@ -42,11 +42,11 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
       const output = await fn();
       const result: DeepResult = { id, area, title, status: output.status ?? 'pass', evidence: output.evidence, ms: Date.now() - started };
       results.push(result);
-      log.info('deep', `${result.status.toUpperCase()} ${id} ${title} Ã¢â‚¬â€ ${output.evidence.slice(0, 180)}`);
+      log.info('deep', `${result.status.toUpperCase()} ${id} ${title} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${output.evidence.slice(0, 180)}`);
     } catch (error) {
       const result: DeepResult = { id, area, title, status: 'fail', evidence: (error as Error).message, ms: Date.now() - started };
       results.push(result);
-      log.warn('deep', `FAIL ${id} ${title} Ã¢â‚¬â€ ${(error as Error).message}`);
+      log.warn('deep', `FAIL ${id} ${title} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${(error as Error).message}`);
     }
   };
 
@@ -79,7 +79,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
 
   const settings = await call('settings.get');
   const root = path.join(settings.workspaceRoot, `deep-${Date.now().toString(36)}`);
-  const fileA = path.join(root, 'Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§ Ã˜Â¹Ã˜Â§Ã™â€žÃ™â€¦.txt');
+  const fileA = path.join(root, 'Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â±ÃƒËœÃ‚Â­ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â§ ÃƒËœÃ‚Â¹ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â¦.txt');
   const fileB = path.join(root, 'renamed.txt');
   const marker = `DEEP_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -98,7 +98,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
   /* ------------------------------ workspace ----------------------------- */
   await check('D-01', 'fs', 'mkdir + unicode write + read round-trip', async () => {
     await call('fs.mkdir', { path: root });
-    await call('fs.write', { path: fileA, content: `hello ${marker} Ã¢â‚¬â€ Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§` });
+    await call('fs.write', { path: fileA, content: `hello ${marker} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â±ÃƒËœÃ‚Â­ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â§` });
     const read = await call('fs.read', { path: fileA });
     if (!read.content.includes(marker)) throw new Error('content mismatch');
     await shot('fs');
@@ -127,7 +127,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
       gone = true;
     }
     if (!gone) throw new Error('delete did not remove the file');
-    return { evidence: 'rename Ã¢â€ â€™ overwrite Ã¢â€ â€™ delete verified' };
+    return { evidence: 'rename ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ overwrite ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ delete verified' };
   });
 
   await check('D-04', 'fs', 'large file (300 KB) write/read', async () => {
@@ -143,7 +143,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
   await check('D-05', 'fs', 'workspace boundary (read outside root)', async () => {
     try {
       const outside = await call('fs.read', { path: 'C:\\Windows\\win.ini' });
-      return { status: 'warn', evidence: `read ${outside.content.length} bytes outside the workspace Ã¢â‚¬â€ no path guard` };
+      return { status: 'warn', evidence: `read ${outside.content.length} bytes outside the workspace ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no path guard` };
     } catch (error) {
       return { evidence: `blocked: ${(error as Error).message.slice(0, 120)}` };
     }
@@ -163,12 +163,12 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     await call('notes.remove', { id: noteId });
     notes = await call('notes.list');
     if (notes.some((note: any) => note.id === noteId)) throw new Error('note still present');
-    return { evidence: 'create Ã¢â€ â€™ update Ã¢â€ â€™ delete' };
+    return { evidence: 'create ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ update ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ delete' };
   });
 
   /* -------------------------------- spaces ------------------------------ */
   await check('D-07', 'spaces', 'create a space, edit it and remove it', async () => {
-    const space = await call('spaces.create', { name: `Deep space ${marker}`, description: 'qa', emoji: 'Ã°Å¸Â§Âª' });
+    const space = await call('spaces.create', { name: `Deep space ${marker}`, description: 'qa', emoji: 'ÃƒÂ°Ã…Â¸Ã‚Â§Ã‚Âª' });
     const listed = await call('spaces.list');
     if (!listed.some((item: any) => item.id === space.id)) throw new Error('space not listed');
     await call('spaces.save', { ...space, name: `${space.name} v2` });
@@ -176,7 +176,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     if (!updated?.name.endsWith('v2')) throw new Error('space update failed');
     await call('spaces.remove', { id: space.id });
     if ((await call('spaces.list')).some((item: any) => item.id === space.id)) throw new Error('space still present');
-    return { evidence: 'create Ã¢â€ â€™ rename Ã¢â€ â€™ remove' };
+    return { evidence: 'create ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ rename ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ remove' };
   });
 
   /* ------------------------------ notebooks ----------------------------- */
@@ -348,7 +348,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     if (after.length <= before) throw new Error('install did not add an item');
     await call('marketplace.toggle', { id: candidate.id, enabled: false });
     await call('marketplace.uninstall', { id: candidate.id });
-    return { evidence: `${candidate.name} (${candidate.kind}) install Ã¢â€ â€™ toggle Ã¢â€ â€™ uninstall` };
+    return { evidence: `${candidate.name} (${candidate.kind}) install ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ toggle ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ uninstall` };
   });
 
   /* ------------------------------- plugins ------------------------------ */
@@ -378,7 +378,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     const list = await call('plugins.list');
     await call('plugins.uninstall', { id: installed.installed.id });
     if (!list.some((item: any) => item.id === installed.installed.id)) throw new Error('plugin not listed');
-    return { evidence: `${installed.installed.name} install Ã¢â€ â€™ list Ã¢â€ â€™ uninstall` };
+    return { evidence: `${installed.installed.name} install ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ list ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ uninstall` };
   });
 
   /* ------------------------------- settings ------------------------------ */
@@ -393,7 +393,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     if (arabic.locale !== 'ar' || dir !== 'rtl') throw new Error(`locale/dir mismatch: ${arabic.locale}/${dir}`);
     await call('settings.patch', { locale: 'en', theme: { design: original.theme.design, accent: original.theme.accent, theme: original.theme.theme, surface: original.theme.surface } });
     await wait(300);
-    return { evidence: 'design Ã¢â€ â€™ windows, locale Ã¢â€ â€™ ar/rtl, restored' };
+    return { evidence: 'design ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ windows, locale ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ar/rtl, restored' };
   });
 
   /* -------------------------------- ACP --------------------------------- */
@@ -429,7 +429,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     await call('chat.delete', { id: session.id });
     await call('providers.remove', { id: provider.id });
     if (!prompt.ok || !transcript.includes('MOCK_ACP_OK')) throw new Error(`prompt=${prompt.ok} transcript=${transcript.slice(0, 120)}`);
-    return { evidence: 'acp.connect Ã¢â€ â€™ prompt Ã¢â€ â€™ chat turn streamed MOCK_ACP_OK' };
+    return { evidence: 'acp.connect ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ prompt ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ chat turn streamed MOCK_ACP_OK' };
   });
 
   /* ----------------------------- composio ------------------------------- */
@@ -497,7 +497,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     const closed = await win.webContents.executeJavaScript(`Boolean(document.querySelector('.palette'))`);
     if (!open) throw new Error('palette did not open');
     if (closed) throw new Error('palette did not close');
-    return { evidence: 'Ctrl+K â†’ palette â†’ Escape' };
+    return { evidence: 'Ctrl+K Ã¢â€ â€™ palette Ã¢â€ â€™ Escape' };
   });
 
   await check('D-22', 'chat', 'a session with no provider fails with a clear message', async () => {
@@ -766,7 +766,7 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     if (!thinkingText.includes('High')) throw new Error('thinking level did not stick: ' + thinkingText);
     if (!hasCustom) throw new Error('custom model input missing');
     if (!modelText.includes('custom-deployment')) throw new Error('custom model id did not stick: ' + modelText);
-    return { evidence: thinkingText + ' · ' + modelText };
+    return { evidence: thinkingText + ' Â· ' + modelText };
   });
 
   await check('D-38', 'ui', 'login terminal runs the ACP sign-in command', async () => {
@@ -800,12 +800,40 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     return { evidence: 'label #fff on rgba(7,9,15,.62), dark scrim active' };
   });
 
+  await check('D-40', 'ui', 'a brand-new conversation can send immediately', async () => {
+    await call('providers.save', {
+      id: 'ui-fresh', name: 'Fresh Ollama', kind: 'ollama', baseUrl: 'http://127.0.0.1:11434', apiKey: '', enabled: true,
+      models: [{ id: 'gemma3:1b', label: 'gemma3:1b', supportsTools: true }], defaultModel: 'gemma3:1b',
+      createdAt: new Date().toISOString(), color: '#22c55e',
+    });
+    kernel.emit('ui:navigate', { surface: 'chat', params: {} });
+    await wait(800);
+    const newChatButton = await win.webContents.executeJavaScript(`(() => { const btn = [...document.querySelectorAll('button')].find((el) => /new chat|new conversation/i.test(el.getAttribute('aria-label') || '')); if (btn) btn.click(); return btn?.getAttribute('aria-label') ?? 'none'; })()`);
+    await wait(700);
+    const created = await win.webContents.executeJavaScript(`(() => ({ title: document.querySelector('.chat__title')?.innerText ?? '', pill: [...document.querySelectorAll('.composer__select')].map((el) => el.innerText.trim()).join(' | ') }))()`);
+    await win.webContents.executeJavaScript(`(() => { const area = document.querySelector('.composer__input'); if (!area) return false; const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set; setter.call(area, 'hello fresh'); area.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+    await win.webContents.executeJavaScript("document.querySelector('.composer__send')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))");
+    let live = false;
+    let content = '';
+    const deadline = Date.now() + 90_000;
+    while (Date.now() < deadline && !content) {
+      await wait(600);
+      const state = await win.webContents.executeJavaScript(`(() => ({ live: Boolean(document.querySelector('.chat__live')), content: [...document.querySelectorAll('.msg--assistant .msg__bubble')].map((el) => el.innerText).join('').trim() }))()`);
+      live = live || state.live;
+      if (state.content && state.content !== 'Thinking') content = state.content;
+    }
+    await shot('fresh-conversation-send');
+    await call('providers.remove', { id: 'ui-fresh' });
+    if (!content) throw new Error('new conversation did not stream an answer (live=' + live + ', button=' + newChatButton + ', created=' + JSON.stringify(created) + ')');
+    return { evidence: 'live=' + live + ' content="' + content.slice(0, 40) + '"' };
+  });
+
   const report = results;
   return report;
 }
 
 export function renderDeep(results: DeepResult[]): string {
-  const lines = ['# Neuro OS Ã¢â‚¬â€ deep automation QA', '', `Generated: ${new Date().toISOString()}`, ''];
+  const lines = ['# Neuro OS ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â deep automation QA', '', `Generated: ${new Date().toISOString()}`, ''];
   lines.push('| ID | Area | Status | Check | Evidence | ms |');
   lines.push('| --- | --- | --- | --- | --- | --- |');
   for (const item of results) {
@@ -814,5 +842,6 @@ export function renderDeep(results: DeepResult[]): string {
   lines.push('');
   return lines.join('\n');
 }
+
 
 

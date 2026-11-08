@@ -3,9 +3,9 @@
     "id": "ACP-01",
     "area": "acp",
     "severity": "high",
-    "status": "pass",
+    "status": "fail",
     "title": "ACP provider handshake, session and streamed prompt",
-    "evidence": "user: ping\nassistant: MOCK_ACP_OK",
+    "evidence": "user: ping\nassistant: ",
     "repro": "Add a provider with kind=acp and command \"node scripts/mock-acp-agent.cjs\", then send a message."
   },
   {
@@ -38,9 +38,33 @@
     "id": "OLL-01",
     "area": "chat",
     "severity": "high",
-    "status": "pass",
+    "status": "fail",
     "title": "Ollama chat round-trip (tools fallback)",
-    "evidence": "first 6081ms, total 90219ms, \"Okay.\n\n```\nInspect:  The taskbar is currently displaying a b\""
+    "evidence": "empty response after 90s"
+  },
+  {
+    "id": "REAL-01",
+    "area": "chat",
+    "severity": "high",
+    "status": "pass",
+    "title": "Groq provider round-trip with the configured key",
+    "evidence": "GROQ_OK"
+  },
+  {
+    "id": "REAL-02",
+    "area": "chat",
+    "severity": "high",
+    "status": "pass",
+    "title": "Ollama provider round-trip with the configured local models",
+    "evidence": "OLLAMA_REAL_OK\n"
+  },
+  {
+    "id": "REAL-03",
+    "area": "acp",
+    "severity": "high",
+    "status": "warn",
+    "title": "Local ACP provider (OpenCode) handshake",
+    "evidence": "initialized OpenCode; prompt requires CLI login (opencode auth login)"
   },
   {
     "id": "CMP-01",
