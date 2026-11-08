@@ -1,12 +1,13 @@
 // Stage 1: enumerate candidate channels from niche search queries.
 import fs from 'node:fs';
 import path from 'node:path';
-import { allQueries } from './lib/segments.mjs';
+import { allQueries } from './lib/queries.mjs';
 import { searchPage } from './lib/youtube.mjs';
 import { limiter } from './lib/net.mjs';
 
 const PAGES = Number(process.env.PAGES || 3);        // 1 search + (PAGES-1) continuations
 const QUERY_CONCURRENCY = Number(process.env.QC || 4);
+const FILTER = process.env.FILTER === '1';
 const DATA = path.resolve('data');
 fs.mkdirSync(DATA, { recursive: true });
 
@@ -23,8 +24,9 @@ console.log(`resume: ${seen.size} channels already known`);
 
 const out = fs.createWriteStream(channelsFile, { flags: 'a' });
 const limit = limiter(QUERY_CONCURRENCY);
-const queries = allQueries();
-console.log(`queries: ${queries.length}, pages each: ${PAGES}`);
+const queriesFile = process.env.QUERIES ? path.resolve(process.env.QUERIES) : path.join(DATA, 'queries.json');
+const queries = fs.existsSync(queriesFile) ? JSON.parse(fs.readFileSync(queriesFile, 'utf8')) : allQueries();
+console.log(`queries: ${queries.length}, pages each: ${PAGES}, channel filter: ${FILTER}`);
 
 let added = 0, done = 0, errors = 0;
 const startedAt = Date.now();
@@ -41,7 +43,7 @@ await Promise.all(queries.map(({ q, segment, weight, label }) => limit(async () 
   let continuation = null;
   for (let page = 0; page < PAGES; page++) {
     try {
-      const res = await searchPage(q, continuation);
+      const res = await searchPage(q, continuation, { channelFilter: FILTER });
       for (const id of res.ids) {
         write({ id, segment, weight, label, query: q, foundAt: new Date().toISOString(), subsText: res.subs.get(id) || null });
       }

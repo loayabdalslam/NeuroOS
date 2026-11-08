@@ -23,3 +23,8 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+
+leadgen
+screenshots
+scripts

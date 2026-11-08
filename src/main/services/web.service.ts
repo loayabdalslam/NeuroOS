@@ -427,6 +427,10 @@ export class WebService {
     return true;
   }
 
+  resolvedSites(): SiteManifest[] {
+    return [...this.remoteCache.values()].map((entry) => entry.manifest);
+  }
+
   async unpublish(domain: string): Promise<SiteManifest[]> {
     const clean = domain.replace(/\.neuro$/, '');
     const sites = this.store.get().sites.filter((site) => site.domain !== clean);

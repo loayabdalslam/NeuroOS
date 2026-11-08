@@ -37,9 +37,10 @@ export function parseSearchJson(text) {
   return { ids: [...new Set(ids)], subs: new Map(), continuation: cont ? cont[1] : null };
 }
 
-export async function searchPage(query, continuation) {
+export async function searchPage(query, continuation, { channelFilter = false } = {}) {
   if (!continuation) {
-    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&hl=en&gl=US`;
+    const sp = channelFilter ? '&sp=EgIQAg%253D%253D' : '';
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}${sp}&hl=en&gl=US`;
     const { text } = await fetchText(url, { timeoutMs: 30000, minGapMs: 90 });
     return parseSearchHtml(text);
   }

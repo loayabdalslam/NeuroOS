@@ -14,6 +14,7 @@ const read = (f) => fs.existsSync(path.join(DATA, f))
 
 const enriched = read('enriched.jsonl');
 const siteMap = new Map(read('sites.jsonl').map((s) => [s.id, s]));
+const rssMap = new Map(read('rss.jsonl').map((s) => [s.id, s]));
 
 // Preference: own-domain address over free mailbox, non-role over role, non-disposable.
 function rankEmail(e) {
@@ -32,12 +33,17 @@ for (const c of enriched) {
   if (!c.id || seenChannel.has(c.id)) continue;
   seenChannel.add(c.id);
   const site = siteMap.get(c.id);
-  const pool = [...new Set([...(c.emails || []), ...((site && site.emails) || [])])].filter(Boolean);
+  const rss = rssMap.get(c.id);
+  const fromDescription = c.emails || [];
+  const pool = [...new Set([...fromDescription, ...((rss && rss.emails) || []), ...((site && site.emails) || [])])].filter(Boolean);
   if (!pool.length) continue;
   pool.sort((a, b) => rankEmail(b) - rankEmail(a));
   const primary = pool[0];
   const cls = classifyEmail(primary);
   const score = Math.max(0, Math.min(100, (c.fitScore || 0) + (cls.disposable ? -40 : 0)));
+  const source = fromDescription.includes(primary)
+    ? 'channel description'
+    : ((rss && (rss.emails || []).includes(primary)) ? 'video description' : 'linked website');
   leads.push({
     channelId: c.id,
     channel: c.title || '(unknown)',
@@ -47,7 +53,7 @@ for (const c of enriched) {
     altEmails: pool.slice(1).join('; '),
     emailKind: cls.kind,
     freeProvider: cls.freeProvider ? 'yes' : 'no',
-    source: (c.emails || []).includes(primary) ? 'channel description' : 'linked website',
+    source,
     segment: c.segment,
     segmentLabel: c.segmentLabel,
     subsText: c.subsText || '',

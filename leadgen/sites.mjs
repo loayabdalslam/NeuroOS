@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fetchTextSoft, limiter } from './lib/net.mjs';
 import { extractEmails, isFreeProvider } from './lib/emails.mjs';
+import { channelAboutLinks } from './lib/youtube.mjs';
 
 const CONC = Number(process.env.CONC || 12);
 const MIN_SCORE = Number(process.env.MIN_SCORE || 40);
@@ -41,8 +42,16 @@ function pickForSite(emails, host) {
   });
 }
 
+const rssEmailed = new Set();
+if (fs.existsSync(path.join(DATA, 'rss.jsonl'))) {
+  for (const line of fs.readFileSync(path.join(DATA, 'rss.jsonl'), 'utf8').split('\n')) {
+    if (!line.trim()) continue;
+    try { const o = JSON.parse(line); if ((o.emails || []).length) rssEmailed.add(o.id); } catch { /* skip */ }
+  }
+}
+
 const todo = enriched
-  .filter((c) => (!c.emails || c.emails.length === 0) && !done.has(c.id) && (c.fitScore || 0) >= MIN_SCORE)
+  .filter((c) => (!c.emails || c.emails.length === 0) && !done.has(c.id) && !rssEmailed.has(c.id) && (c.fitScore || 0) >= MIN_SCORE)
   .slice(0, MAX_CHANNELS);
 console.log(`enriched ${enriched.length} · no-email & score>=${MIN_SCORE}: ${todo.length} · conc ${CONC}`);
 
@@ -52,7 +61,11 @@ let i = 0, hits = 0, noLink = 0;
 const t0 = Date.now();
 
 await Promise.all(todo.map((c) => limit(async () => {
-  const links = (c.links || []).map(siteRoot).filter(Boolean);
+  let links = (c.links || []).map(siteRoot).filter(Boolean);
+  if (!links.length && c.handle) {
+    // The description rarely carries links; the About page does.
+    links = (await channelAboutLinks(c.handle)).map(siteRoot).filter(Boolean);
+  }
   if (!links.length) { noLink++; i++; return; }
   const target = links[0];
   let found = [];
