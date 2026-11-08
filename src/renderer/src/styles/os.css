@@ -560,7 +560,10 @@
 }
 .mail--setup {
   display: grid;
+  grid-template-columns: 1fr;
   place-items: center;
+  overflow: auto;
+  padding: 24px;
 }
 .mailSetup {
   display: flex;

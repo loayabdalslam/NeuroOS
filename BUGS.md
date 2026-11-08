@@ -93,3 +93,12 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | “Add provider” skipped the preset list and opened DeepSeek directly. | It opens the picker now; 23 cards render in a light theme. |
 | Light-theme dock/taskbar glyphs were washed out on pale bars. | Light dock tiles + stronger glyph contrast; desktop tiles use color-mix accent backgrounds. |
 | Provider cards had faint borders in light themes. | Explicit light-theme surfaces, borders and logo tiles. |
+
+## Chat & composer pass
+
+| Issue | Fix |
+| --- | --- |
+| Ollama models that do not support tools returned HTTP 400 for the whole turn, leaving an empty bubble. | The OpenAI-compatible adapter detects “does not support tools” and retries the turn without a tools payload; Ollama base URLs without /v1 are normalized; streaming has a 180s hard timeout. OLL-01: first token ~6.1s. |
+| Agent failures were only toasts; the assistant bubble stayed empty with a caret. | Error events now fill the message with ⚠️ + message and render an inline error block. |
+| Composer looked like a control panel: workspace/auto-approve chips, send/newline hints, crowded provider/model pills. | ChatGPT-style composer: paperclip left, compact provider + model selectors, circular send/stop button, chip row removed, larger radius and softer shadow. |
+| Mail setup card inherited the 3-column mail grid and was clipped on the left. | .mail--setup is a single-column centred grid with padding and overflow; D-00 verifies left=505px, width=520px inside a 1480px viewport. |

@@ -35,27 +35,19 @@
     "evidence": "native ACP: opencode; verified adapter: @agentclientprotocol/codex-acp v2.5.0; 44 registry presets added; DeepSeek Harness has no ACP mode"
   },
   {
+    "id": "OLL-01",
+    "area": "chat",
+    "severity": "high",
+    "status": "pass",
+    "title": "Ollama chat round-trip (tools fallback)",
+    "evidence": "first 6081ms, total 90219ms, \"Okay.\n\n```\nInspect:  The taskbar is currently displaying a b\""
+  },
+  {
     "id": "CMP-01",
     "area": "composio",
     "severity": "high",
-    "status": "pass",
-    "title": "Composio catalog sync with a real API key",
-    "evidence": "configured=true tools=1000 toolkits=26 accounts=13"
-  },
-  {
-    "id": "CMP-02",
-    "area": "composio",
-    "severity": "medium",
-    "status": "pass",
-    "title": "Composio catalog search",
-    "evidence": "gmail hits=20"
-  },
-  {
-    "id": "CMP-03",
-    "area": "composio",
-    "severity": "medium",
     "status": "warn",
-    "title": "Composio action execution through the tool bridge",
-    "evidence": "No github authenticated-user action in the catalog"
+    "title": "Composio live validation",
+    "evidence": "NEURO_QA_COMPOSIO_KEY was not provided at launch"
   }
 ]

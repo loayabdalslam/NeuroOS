@@ -218,7 +218,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         break;
       }
       case 'error': {
-        set({ streaming: false, status: '', error: event.message });
+        const failed = updateMessage(active.messages, (event as { messageId?: string }).messageId ?? active.messages[active.messages.length - 1]?.id ?? '', (message) => ({
+          ...message,
+          error: event.message,
+          content: message.content || `⚠️ ${event.message}`,
+        }));
+        set({ streaming: false, status: '', error: event.message, active: { ...active, messages: failed } });
         useAppStore.getState().pushToast({ title: 'Agent error', message: event.message, kind: 'error', duration: 7000 });
         break;
       }

@@ -83,6 +83,18 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
   const fileB = path.join(root, 'renamed.txt');
   const marker = `DEEP_${crypto.randomBytes(4).toString('hex')}`;
 
+  await check('D-00', 'ui', 'mail setup card is centred and fully visible', async () => {
+    kernel.emit('ui:navigate', { surface: 'mail', params: {} });
+    await wait(800);
+    const rect = await win.webContents.executeJavaScript(
+      `(() => { const el = document.querySelector('.mailSetup'); if (!el) return null; const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, width: r.width, viewport: window.innerWidth }; })()`,
+    );
+    await shot('mail-setup');
+    if (!rect) throw new Error('mail setup card not rendered');
+    if (rect.left < 0 || rect.right > rect.viewport + 1) throw new Error('mail setup is clipped: ' + JSON.stringify(rect));
+    return { evidence: 'left=' + Math.round(rect.left) + ' width=' + Math.round(rect.width) + ' viewport=' + rect.viewport };
+  });
+
   /* ------------------------------ workspace ----------------------------- */
   await check('D-01', 'fs', 'mkdir + unicode write + read round-trip', async () => {
     await call('fs.mkdir', { path: root });
@@ -606,6 +618,22 @@ export async function runDeep(kernel: Kernel, win: BrowserWindow): Promise<DeepR
     await win.webContents.executeJavaScript("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
     await wait(400);
     return { evidence: `${cards} cards; ${JSON.stringify(gridStyle)}` };
+  });
+
+  await check('D-29', 'ui', 'ChatGPT-style composer with provider/model selectors', async () => {
+    await call('settings.patch', { theme: { design: 'ios', theme: 'light', accent: 'neuro', surface: 'white', wallpaper: 'aurora' } });
+    kernel.emit('ui:navigate', { surface: 'chat', params: {} });
+    await wait(900);
+    const controls = await win.webContents.executeJavaScript(
+      `(() => ({ selects: document.querySelectorAll('.composer__select').length, send: Boolean(document.querySelector('.composer__send')), top: Boolean(document.querySelector('.composer__top')) }))()`,
+    );
+    await shot('composer');
+    await win.webContents.executeJavaScript("document.querySelector('.composer__select')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))");
+    await wait(500);
+    await shot('composer-provider-menu');
+    await win.webContents.executeJavaScript("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+    if (controls.selects < 2 || !controls.send || controls.top) throw new Error('composer controls incomplete: ' + JSON.stringify(controls));
+    return { evidence: controls.selects + ' selectors, circular send, chip row removed' };
   });
 
   const report = results;

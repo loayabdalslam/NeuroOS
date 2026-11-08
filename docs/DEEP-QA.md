@@ -15,8 +15,8 @@ Screenshots: `screenshots/deep/` (file explorer, all 14 surfaces, start menu, co
 
 | | |
 | --- | --- |
-| Checks | **28** |
-| Pass | **26** |
+| Checks | **30** |
+| Pass | **28** |
 | Warn | **2** |
 | Fail | **0** |
 | Fixed after the run | navigation crash, plugin isolation, Composio search, ACP model/auth, mesh list, chat error, brain fallback |
@@ -39,7 +39,7 @@ Screenshots: `screenshots/deep/` (file explorer, all 14 surfaces, start menu, co
 | Settings | theme/design, locale → RTL, restore |
 | ACP | mock agent connect/prompt + chat turn streaming `MOCK_ACP_OK` |
 | Composio | live key, catalog sync, search |
-| UI | 14 surfaces rendered + captured, start menu open/close, command palette Ctrl+K/Escape, all 8 theme presets captured, provider picker in a light theme |
+| UI | 14 surfaces rendered + captured, start menu open/close, command palette Ctrl+K/Escape, all 8 theme presets captured, provider picker in a light theme, ChatGPT-style composer, centred mail setup |
 | Chat | no-provider error handling |
 
 ## Warnings (open)

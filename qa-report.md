@@ -1,6 +1,6 @@
 # Neuro OS QA run
 
-Generated: 2026-11-08T15:06:22.186Z
+Generated: 2026-11-08T16:10:10.091Z
 
 ## ACP-01 â€” ACP provider handshake, session and streamed prompt
 
@@ -35,26 +35,21 @@ assistant: MOCK_ACP_OK
 - evidence: native ACP: opencode; verified adapter: @agentclientprotocol/codex-acp v2.5.0; 44 registry presets added; DeepSeek Harness has no ACP mode
 
 
-## CMP-01 â€” Composio catalog sync with a real API key
+## OLL-01 â€” Ollama chat round-trip (tools fallback)
+
+- area: chat
+- severity: high
+- status: pass
+- evidence: first 6081ms, total 90219ms, "Okay.
+
+```
+Inspect:  The taskbar is currently displaying a b"
+
+
+## CMP-01 â€” Composio live validation
 
 - area: composio
 - severity: high
-- status: pass
-- evidence: configured=true tools=1000 toolkits=26 accounts=13
-
-
-## CMP-02 â€” Composio catalog search
-
-- area: composio
-- severity: medium
-- status: pass
-- evidence: gmail hits=20
-
-
-## CMP-03 â€” Composio action execution through the tool bridge
-
-- area: composio
-- severity: medium
 - status: warn
-- evidence: No github authenticated-user action in the catalog
+- evidence: NEURO_QA_COMPOSIO_KEY was not provided at launch
 

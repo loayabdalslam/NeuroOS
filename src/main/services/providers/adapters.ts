@@ -152,12 +152,30 @@ export class OpenAiCompatibleAdapter implements ProviderAdapter {
       }));
       body.tool_choice = 'auto';
     }
-    const response = await fetch(joinUrl(this.provider.baseUrl || 'https://api.openai.com/v1', 'chat/completions'), {
-      method: 'POST',
-      headers: authHeaders(this.provider),
-      body: JSON.stringify(body),
-      signal,
-    });
+        const rawBase = this.provider.baseUrl || 'https://api.openai.com/v1';
+    const base = this.provider.kind === 'ollama' && !/\/v1\/?$/.test(rawBase) ? `${rawBase.replace(/\/$/, '')}/v1` : rawBase;
+    const endpoint = joinUrl(base, 'chat/completions');
+    const timeoutSignal = AbortSignal.timeout(180_000);
+    const combinedSignal = AbortSignal.any ? AbortSignal.any([signal, timeoutSignal]) : signal;
+    const call = (): Promise<Response> =>
+      fetch(endpoint, {
+        method: 'POST',
+        headers: authHeaders(this.provider),
+        body: JSON.stringify(body),
+        signal: combinedSignal,
+      });
+    let response = await call();
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (body.tools && /does not support tools/i.test(errorText)) {
+        // Local models (Ollama, llama.cpp) may reject a tools payload.
+        delete body.tools;
+        delete body.tool_choice;
+        response = await call();
+      } else {
+        throw new Error(`${this.provider.name}: ${errorText.slice(0, 400) || response.statusText}`);
+      }
+    }
     await assertOk(response, this.provider.name);
 
     const pending = new Map<number, LlmToolCall>();
