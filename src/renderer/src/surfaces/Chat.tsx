@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage, ToolInvocation } from '@shared/types';
 import { useChatStore } from '../state/chat';
 import { useAppStore } from '../state/store';
@@ -43,6 +43,8 @@ export function Chat(): JSX.Element {
   const [modelMenu, setModelMenu] = useState(false);
   const [providerModal, setProviderModal] = useState(false);
   const [modelModal, setModelModal] = useState(false);
+  const [thinkingModal, setThinkingModal] = useState(false);
+  const [customModel, setCustomModel] = useState('');
   const [attaching, setAttaching] = useState(false);
   const [agentMenu, setAgentMenu] = useState(false);
   const [messageMenu, setMessageMenu] = useState<string | null>(null);
@@ -83,6 +85,23 @@ export function Chat(): JSX.Element {
 
 
   const modelChoices = toolModels.length ? toolModels : (provider?.models ?? []);
+  const thinking = active?.thinking ?? 'auto';
+  const thinkingLabel = { auto: 'Auto', off: 'Off', low: 'Low', medium: 'Medium', high: 'High' }[thinking] ?? 'Auto';
+
+  const chooseThinking = async (level: 'auto' | 'off' | 'low' | 'medium' | 'high'): Promise<void> => {
+    const state = useChatStore.getState();
+    if (!state.active) return;
+    const optimistic = { ...state.active, thinking: level };
+    useChatStore.setState({ active: optimistic });
+    setThinkingModal(false);
+    if (!state.activeId) return;
+    try {
+      const updated = await invoke('chat.patch', { id: state.activeId, thinking: level });
+      useChatStore.setState({ active: { ...optimistic, ...updated } });
+    } catch (error) {
+      pushToast({ title: 'Could not set thinking level', message: (error as Error).message, kind: 'error' });
+    }
+  };
 
   const chooseModel = async (modelId: string, providerId?: string): Promise<void> => {
     const state = useChatStore.getState();
@@ -90,14 +109,34 @@ export function Chat(): JSX.Element {
       await create({ providerId: providerId ?? provider?.id, model: modelId });
       return;
     }
-    const updated = await invoke('chat.patch', {
-      id: state.activeId,
+    const optimistic = {
+      ...(state.active ?? ({} as NonNullable<typeof state.active>)),
       ...(providerId ? { providerId } : {}),
       model: modelId,
-    });
+    };
     useChatStore.setState({
-      active: state.active ? { ...state.active, ...updated } : null,
-      sessions: state.sessions.map((session) => (session.id === updated.id ? { ...session, ...updated } : session)),
+      active: optimistic,
+      sessions: state.sessions.map((session) =>
+        session.id === state.activeId ? { ...session, ...(providerId ? { providerId } : {}), model: modelId } : session,
+      ),
+    });
+    let updated: any;
+    try {
+      updated = await invoke('chat.patch', {
+        id: state.activeId,
+        ...(providerId ? { providerId } : {}),
+        model: modelId,
+      });
+    } catch (error) {
+      if (/not found/i.test((error as Error).message)) {
+        await create({ providerId: providerId ?? provider?.id, model: modelId });
+        return;
+      }
+      throw error;
+    }
+    useChatStore.setState({
+      active: { ...optimistic, ...updated },
+      sessions: useChatStore.getState().sessions.map((session) => (session.id === updated.id ? { ...session, ...updated } : session)),
     });
   };
 
@@ -106,7 +145,7 @@ export function Chat(): JSX.Element {
     if (!item.models.length) continue;
     for (const model of item.models) {
       modelItems.push({
-        label: `${item.name} Â· ${model.label}`,
+        label: `${item.name} Ãƒâ€š· ${model.label}`,
         icon: 'cpu',
         hint: model.contextWindow ? `${Math.round(model.contextWindow / 1000)}k` : undefined,
         onClick: () => {
@@ -117,7 +156,7 @@ export function Chat(): JSX.Element {
     }
   }
   if (!modelItems.length) {
-    modelItems.push({ label: 'Connect a providerâ€¦', icon: 'plug', onClick: () => navigate('settings') });
+    modelItems.push({ label: 'Connect a providerÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦', icon: 'plug', onClick: () => navigate('settings') });
   }
 
   const providerItems: MenuItem[] = providers
@@ -133,7 +172,7 @@ export function Chat(): JSX.Element {
       },
     }));
   if (!providerItems.length) {
-    providerItems.push({ label: 'Connect a providerâ€¦', icon: 'plug', onClick: () => navigate('settings') });
+    providerItems.push({ label: 'Connect a providerÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦', icon: 'plug', onClick: () => navigate('settings') });
   }
   const modelLabel = provider?.models.find((model) => model.id === active?.model)?.label ?? active?.model?.split('/').pop() ?? provider?.defaultModel?.split('/').pop() ?? t('chat.model');
 
@@ -224,7 +263,7 @@ export function Chat(): JSX.Element {
                   <div className="grow" style={{ minWidth: 0 }}>
                     <div className="truncate small">{session.title}</div>
                     <div className="tiny faint truncate">
-                      {session.model} Â· {relativeTime(session.updatedAt)}
+                      {session.model} Ãƒâ€š· {relativeTime(session.updatedAt)}
                     </div>
                   </div>
                 </button>
@@ -246,9 +285,16 @@ export function Chat(): JSX.Element {
             <div className="chat__sub">
               <span className="n-dot n-dot--online" />
               <span>{agent?.name ?? 'Neuro'}</span>
-              <span className="faint">Â·</span>
+              <span className="faint">Ãƒâ€š·</span>
               <span className="mono tiny">{active?.model || provider?.defaultModel || 'select model'}</span>
+              <span className="tiny faint">· {thinkingLabel}</span>
               {provider ? <span className="n-badge" style={{ marginLeft: 4 }}>{provider.name}</span> : null}
+              {streaming ? (
+                <span className="chat__live">
+                  <Spinner size={10} />
+                  {status || 'Streaming'}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="row" style={{ gap: 4 }}>
@@ -407,6 +453,13 @@ export function Chat(): JSX.Element {
                     <Icon name="chevron-down" size={10} />
                   </button>
                 </div>
+                <div className="composer__selectWrap">
+                  <button type="button" className="composer__select" onClick={() => setThinkingModal(true)} title="Reasoning effort">
+                    <Icon name="brain" size={12} />
+                    <span className="truncate">Thinking: {thinkingLabel}</span>
+                    <Icon name="chevron-down" size={10} />
+                  </button>
+                </div>
               </div>
               <span className="grow" />
               {streaming ? (
@@ -463,7 +516,10 @@ export function Chat(): JSX.Element {
                 data-active={item.id === provider?.id}
                 onClick={() => {
                   const model = item.models.find((entry) => entry.id === active?.model)?.id ?? item.models.find((entry) => entry.supportsTools !== false)?.id ?? item.models[0]?.id ?? '';
-                  void chooseModel(model, item.id).then(() => setProviderModal(false));
+                  setProviderModal(false);
+                  void chooseModel(model, item.id).catch((error) =>
+                    pushToast({ title: 'Could not switch provider', message: (error as Error).message, kind: 'error' }),
+                  );
                 }}
               >
                 <span className="composer__selectDot" style={{ background: item.color ?? 'var(--n-accent)' }} />
@@ -477,7 +533,7 @@ export function Chat(): JSX.Element {
               </button>
             ))
           ) : (
-            <span className="tiny faint">No providers yet. Open Settings → Providers to add one.</span>
+            <span className="tiny faint">No providers yet. Open Settings Ã¢â€ â€™ Providers to add one.</span>
           )}
         </div>
       </Modal>
@@ -486,7 +542,7 @@ export function Chat(): JSX.Element {
         open={modelModal}
         onClose={() => setModelModal(false)}
         title={toolModels.length ? 'Models with tool calling' : 'Models'}
-        description={provider ? (toolModels.length ? 'Only models that can call the 46 Neuro tools are listed.' : 'No tool-capable models are declared for this provider — showing all of its models.') : 'Choose a provider first.'}
+        description={provider ? (toolModels.length ? 'Only models that can call the 46 Neuro tools are listed.' : 'No tool-capable models are declared for this provider Ã¢â‚¬â€ showing all of its models.') : 'Choose a provider first.'}
         width={520}
         footer={
           <>
@@ -507,7 +563,37 @@ export function Chat(): JSX.Element {
           </>
         }
       >
-        <div className="providerChooser">
+                <div className="customModel">
+          <input
+            className="n-input"
+            value={customModel}
+            onChange={(event) => setCustomModel(event.target.value)}
+            placeholder="Or type a model id (ACP model, tag, deployment…)"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && customModel.trim()) {
+                setModelModal(false);
+                void chooseModel(customModel.trim(), provider?.id).catch((error) =>
+                  pushToast({ title: 'Could not use model', message: (error as Error).message, kind: 'error' }),
+                );
+              }
+            }}
+          />
+          <Button
+            variant="soft"
+            size="sm"
+            icon="check"
+            disabled={!customModel.trim()}
+            onClick={() => {
+              setModelModal(false);
+              void chooseModel(customModel.trim(), provider?.id).catch((error) =>
+                pushToast({ title: 'Could not use model', message: (error as Error).message, kind: 'error' }),
+              );
+            }}
+          >
+            Use
+          </Button>
+        </div>
+<div className="providerChooser">
           {modelChoices.length ? (
             modelChoices.map((model) => (
               <button
@@ -516,7 +602,10 @@ export function Chat(): JSX.Element {
                 className="providerChoice"
                 data-active={model.id === active?.model}
                 onClick={() => {
-                  void chooseModel(model.id, provider?.id).then(() => setModelModal(false));
+                  setModelModal(false);
+                  void chooseModel(model.id, provider?.id).catch((error) =>
+                    pushToast({ title: 'Could not switch model', message: (error as Error).message, kind: 'error' }),
+                  );
                 }}
               >
                 <Icon name="cpu" size={15} />
@@ -531,10 +620,43 @@ export function Chat(): JSX.Element {
               </button>
             ))
           ) : (
-            <span className="tiny faint">This provider has no models yet. Use Refresh models, or add one in Settings → Providers.</span>
+            <span className="tiny faint">This provider has no models yet. Use Refresh models, or add one in Settings Ã¢â€ â€™ Providers.</span>
           )}
         </div>
       </Modal>
+      <Modal
+        open={thinkingModal}
+        onClose={() => setThinkingModal(false)}
+        title="Thinking level"
+        description="How much reasoning the model may spend before answering. Auto lets the provider decide; Off disables reasoning where supported."
+        width={480}
+      >
+        <div className="providerChooser">
+          {[
+            { id: 'auto', label: 'Auto', hint: 'Provider default (recommended)' },
+            { id: 'off', label: 'Off', hint: 'Disable reasoning tokens where the provider allows it' },
+            { id: 'low', label: 'Low', hint: 'Fast, light reasoning' },
+            { id: 'medium', label: 'Medium', hint: 'Balanced reasoning budget' },
+            { id: 'high', label: 'High', hint: 'Deeper reasoning, slower and more tokens' },
+          ].map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className="providerChoice"
+              data-active={thinking === option.id}
+              onClick={() => void chooseThinking(option.id as 'auto' | 'off' | 'low' | 'medium' | 'high')}
+            >
+              <Icon name="brain" size={15} />
+              <span className="grow" style={{ minWidth: 0 }}>
+                <span className="small strong">{option.label}</span>
+                <span className="tiny faint" style={{ display: 'block' }}>{option.hint}</span>
+              </span>
+              {thinking === option.id ? <Icon name="check" size={13} /> : null}
+            </button>
+          ))}
+        </div>
+      </Modal>
+
     </div>
   );
 }
@@ -554,6 +676,7 @@ function MessageRow({
 }): JSX.Element {
   const approve = useChatStore((s) => s.approve);
   const regenerate = useChatStore((s) => s.regenerate);
+  const status = useChatStore((s) => s.status);
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
   const isTool = message.role === 'tool';
@@ -665,7 +788,13 @@ function MessageRow({
               <Markdown source={message.content} />
             )
           ) : message.toolCalls?.length ? null : (
-            <span className="msg__cursor" />
+            <div className="msg__thinking">
+              <Spinner size={12} />
+              <span>{status || 'Thinking'}</span>
+              <span className="msg__thinkingDots" aria-hidden>
+                <i /><i /><i />
+              </span>
+            </div>
           )}
         </div>
 
@@ -686,7 +815,7 @@ function MessageRow({
 
         {message.usage ? (
           <div className="msg__usage mono tiny">
-            {message.usage.input ?? 0} in Â· {message.usage.output ?? 0} out
+            {message.usage.input ?? 0} in Ãƒâ€š· {message.usage.output ?? 0} out
           </div>
         ) : null}
       </div>
@@ -696,15 +825,32 @@ function MessageRow({
 
 function Reasoning({ text, live }: { text: string; live: boolean }): JSX.Element {
   const [open, setOpen] = useState(live);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (live) setOpen(true);
+  }, [live]);
+
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (body && open) body.scrollTop = body.scrollHeight;
+  }, [text, open]);
+
   return (
-    <div className="reasoning" data-open={open}>
+    <div className="reasoning" data-open={open} data-live={live}>
       <button type="button" className="reasoning__head" onClick={() => setOpen(!open)}>
         <Icon name="brain" size={12} />
-        <span>{live ? 'Thinkingâ€¦' : 'Reasoning'}</span>
+        <span>{live ? 'Thinking...' : 'Reasoning'}</span>
+        {live ? <span className="reasoning__pulse" aria-hidden /> : null}
         <span className="tiny faint mono">{text.length} chars</span>
         <Icon name={open ? 'chevron-up' : 'chevron-down'} size={12} style={{ marginLeft: 'auto' }} />
       </button>
-      {open ? <div className="reasoning__body n-scroll">{text}</div> : null}
+      {open ? (
+        <div className="reasoning__body n-scroll" ref={bodyRef}>
+          {text}
+          {live ? <span className="reasoning__caret" /> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -763,6 +909,8 @@ function ToolCallCard({ call, onApprove }: { call: ToolInvocation; onApprove: (i
     </div>
   );
 }
+
+
 
 
 

@@ -174,6 +174,20 @@ export class AcpClient extends EventEmitter {
     }
   }
 
+  /** Ask agents that expose the standard thought_level config option to change reasoning effort. */
+  async setThoughtLevel(level: string): Promise<void> {
+    if (!this.sessionId || !level || level === 'auto' || level === 'off') return;
+    try {
+      await this.request('session/set_config_option', {
+        sessionId: this.sessionId,
+        configId: 'thought_level',
+        value: level,
+      });
+    } catch (error) {
+      log.debug('acp', `thought_level config failed: ${(error as Error).message}`);
+    }
+  }
+
   cancel(): void {
     if (!this.sessionId) return;
     this.notify('session/cancel', { sessionId: this.sessionId });

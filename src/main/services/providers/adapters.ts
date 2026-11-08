@@ -26,6 +26,7 @@ export interface LlmRequest {
   tools: ToolDef[];
   temperature: number;
   maxTokens: number;
+  thinking?: 'auto' | 'off' | 'low' | 'medium' | 'high';
 }
 
 export type LlmStreamEvent =
@@ -161,6 +162,9 @@ export class OpenAiCompatibleAdapter implements ProviderAdapter {
       }));
       body.tool_choice = 'auto';
     }
+    if (req.thinking && req.thinking !== 'auto' && req.thinking !== 'off' && this.provider.kind !== 'ollama') {
+      body.reasoning_effort = req.thinking;
+    }
         const rawBase = this.provider.baseUrl || 'https://api.openai.com/v1';
     const base = this.provider.kind === 'ollama' && !/\/v1\/?$/.test(rawBase) ? `${rawBase.replace(/\/$/, '')}/v1` : rawBase;
     const endpoint = joinUrl(base, 'chat/completions');
@@ -180,6 +184,10 @@ export class OpenAiCompatibleAdapter implements ProviderAdapter {
         // Local models (Ollama, llama.cpp) may reject a tools payload.
         delete body.tools;
         delete body.tool_choice;
+        response = await call();
+      } else if (body.reasoning_effort) {
+        // Some models reject reasoning_effort; continue without it.
+        delete body.reasoning_effort;
         response = await call();
       } else {
         const detail = errorText.slice(0, 400) || response.statusText;
@@ -215,8 +223,16 @@ export class OpenAiCompatibleAdapter implements ProviderAdapter {
       const choice = parsed.choices?.[0];
       if (!choice) continue;
       const delta = choice.delta ?? {};
-      if (typeof delta.reasoning_content === 'string' && delta.reasoning_content) {
-        yield { type: 'reasoning', delta: delta.reasoning_content };
+      const reasoningDelta =
+        typeof delta.reasoning_content === 'string'
+          ? delta.reasoning_content
+          : typeof delta.reasoning === 'string'
+            ? delta.reasoning
+            : typeof delta.thinking === 'string'
+              ? delta.thinking
+              : '';
+      if (reasoningDelta) {
+        yield { type: 'reasoning', delta: reasoningDelta };
       }
       if (typeof delta.content === 'string' && delta.content) {
         yield { type: 'text', delta: delta.content };
@@ -350,6 +366,12 @@ export class AnthropicAdapter implements ProviderAdapter {
     if (req.tools.length) {
       body.tools = req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }));
     }
+    if (req.thinking && req.thinking !== 'auto' && req.thinking !== 'off') {
+      const budget = req.thinking === 'low' ? 1024 : req.thinking === 'medium' ? 4096 : 8192;
+      body.thinking = { type: 'enabled', budget_tokens: budget };
+      body.max_tokens = Math.max(req.maxTokens, budget + 1024);
+      delete body.temperature;
+    }
     const response = await fetch(joinUrl(this.provider.baseUrl || 'https://api.anthropic.com/v1', 'messages'), {
       method: 'POST',
       headers: this.headers(),
@@ -467,6 +489,12 @@ export class GeminiAdapter implements ProviderAdapter {
       systemInstruction: { parts: [{ text: req.system }] },
       generationConfig: { temperature: req.temperature, maxOutputTokens: req.maxTokens },
     };
+    if (req.thinking && req.thinking !== 'auto') {
+      (body.generationConfig as Record<string, unknown>).thinkingConfig = {
+        thinkingBudget: req.thinking === 'off' ? 0 : req.thinking === 'low' ? 1024 : req.thinking === 'medium' ? 4096 : 8192,
+        includeThoughts: req.thinking !== 'off',
+      };
+    }
     if (req.tools.length) {
       body.tools = [
         {
@@ -498,7 +526,10 @@ export class GeminiAdapter implements ProviderAdapter {
         };
       }
       for (const part of candidate?.content?.parts ?? []) {
-        if (typeof part.text === 'string' && part.text) yield { type: 'text', delta: part.text };
+        if (typeof part.text === 'string' && part.text) {
+          if (part.thought === true) yield { type: 'reasoning', delta: part.text };
+          else yield { type: 'text', delta: part.text };
+        }
         if (part.functionCall) {
           yield {
             type: 'tool_call',

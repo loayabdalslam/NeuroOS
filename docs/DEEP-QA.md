@@ -15,8 +15,8 @@ Screenshots: `screenshots/deep/` (file explorer, all 14 surfaces, start menu, co
 
 | | |
 | --- | --- |
-| Checks | **35** |
-| Pass | **33** |
+| Checks | **36** |
+| Pass | **34** |
 | Warn | **2** |
 | Fail | **0** |
 | Fixed after the run | navigation crash, plugin isolation, Composio search, ACP model/auth, mesh list, chat error, brain fallback |

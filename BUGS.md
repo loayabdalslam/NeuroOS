@@ -152,3 +152,12 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | --- | --- |
 | `HTTP 500 — llama-server process has terminated … 0xc0000409 … CUDA error: device kernel image is invalid` on every Ollama model. | The Ollama CUDA 12 runner crashes on this machine (RTX 3050, NVIDIA driver 546.18, Ollama 0.40.14) before inference starts. Forced the CPU backend with `OLLAMA_LLM_LIBRARY=cpu` (persisted at user level) and restarted `ollama serve`; `gemma3:4b` then answered `CPU_OK` in ~12 s. Proper long-term fix: update the NVIDIA driver, then remove the variable to use the GPU again. |
 | The raw CUDA text was shown as the assistant error. | The OpenAI-compatible adapter now detects `CUDA error` / `llama-server process` and returns an actionable message (restart Ollama, force CPU, or update the driver) with the detail appended. |
+
+## Thinking & streaming pass
+
+| Feature | Behaviour |
+| --- | --- |
+| Live thinking | While a turn is running the header shows a live status pill and the empty assistant bubble shows a spinner + current status (“Thinking”, “Running tool…”, ACP status) instead of a bare caret. |
+| Reasoning stream | Parses OpenAI/OpenRouter/Ollama `reasoning_content`, `reasoning` and `thinking` deltas, Anthropic `thinking_delta`, Gemini thought parts, and ACP `agent_thought_chunk` + plan updates. The reasoning panel opens while live, auto-scrolls, shows a pulse/caret and a character count. |
+| Thinking level | Composer has a **Thinking: Auto/Off/Low/Medium/High** selector. It maps to `reasoning_effort` (OpenAI-compatible), Anthropic `thinking.budget_tokens`, Gemini `thinkingConfig.thinkingBudget/includeThoughts`, and ACP `thought_level` config option where the agent supports it. Unsupported models retry without the parameter. |
+| Model name | The model dialog includes a free-text **model id** field (ACP model, Ollama tag, deployment name…) plus the provider’s model list, Refresh models and Manage providers. D-37 verifies a custom id sticks. |

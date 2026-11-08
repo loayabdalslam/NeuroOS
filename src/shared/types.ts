@@ -168,11 +168,15 @@ export interface ChatMessage {
   parentId?: ID;
 }
 
+export type ThinkingLevel = 'auto' | 'off' | 'low' | 'medium' | 'high';
+
 export interface ChatSession {
   id: ID;
   title: string;
   providerId: ID;
   model: string;
+  /** Provider-native reasoning effort: auto lets the provider decide. */
+  thinking?: ThinkingLevel;
   spaceId?: ID;
   agentId?: ID;
   systemPrompt?: string;

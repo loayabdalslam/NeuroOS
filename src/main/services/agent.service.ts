@@ -1,4 +1,4 @@
-﻿import os from 'node:os';
+import os from 'node:os';
 import path from 'node:path';
 import type {
   AgentConfig,
@@ -323,6 +323,7 @@ export class AgentService {
         tools: toolDefs,
         temperature: agent?.temperature ?? 0.3,
         maxTokens: 8192,
+        thinking: session.thinking ?? 'auto',
       };
 
       const pendingCalls: LlmToolCall[] = [];
@@ -455,6 +456,10 @@ export class AgentService {
     if (provider.defaultModel && provider.defaultModel !== 'acp:auto') {
       await client.setModel(provider.defaultModel);
     }
+    if (session.model && session.model !== 'acp:auto') {
+      await client.setModel(session.model);
+    }
+    await client.setThoughtLevel(session.thinking ?? 'auto');
 
     const knownTools = new Map<string, ToolInvocation>();
     const onUpdate = (update: AcpUpdate) => {
@@ -485,6 +490,26 @@ export class AgentService {
           this.deps.emit({ type: existing ? 'tool_result' : 'tool_call', sessionId, messageId: assistant.id, call: invocation });
           break;
         }
+        case 'plan': {
+          const plan = update.entries.map((entry) => `- [${entry.status}] ${entry.content}`).join('\n');
+          if (plan) {
+            const chunk = `${assistant.reasoning ? '\n\n' : ''}Plan:\n${plan}\n`;
+            assistant.reasoning = (assistant.reasoning ?? '') + chunk;
+            this.deps.emit({ type: 'reasoning_delta', sessionId, messageId: assistant.id, delta: chunk });
+          }
+          break;
+        }
+        case 'mode':
+          this.deps.emit({ type: 'status', sessionId, status: `ACP mode: ${update.currentModeId}` });
+          break;
+        case 'usage':
+          this.deps.emit({
+            type: 'usage',
+            sessionId,
+            messageId: assistant.id,
+            usage: { input: update.used, total: update.size },
+          });
+          break;
         case 'error':
           assistant.error = update.message;
           this.deps.emit({ type: 'error', sessionId, message: update.message });
