@@ -133,3 +133,9 @@ Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): ma
 | Custom wallpaper | Settings → Appearance → Photography now has a **Your wallpaper** card: Upload (PNG/JPEG/WebP/GIF, max 8 MB), preview and Remove. The image is stored as a data URL and applied to the desktop and shell backdrop. |
 | Presets | The existing design wallpapers and NASA photography gallery remain; choosing any preset clears the custom image. |
 | Verification | Deep QA D-33: data-wallpaper=photo:custom, --n-wallpaper-image=data:image/png…, uploader present. |
+
+## Model picker fallback
+
+| Issue | Fix |
+| --- | --- |
+| The Model dialog only listed models with supportsTools !== false. Providers whose models do not declare tool support (or have no models) showed an empty list, so no model could be selected. | The dialog now falls back to all provider models with a clear note, adds a **Refresh models** action (providers.discoverModels + save) and a Manage providers shortcut. |

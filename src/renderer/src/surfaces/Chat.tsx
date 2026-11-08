@@ -80,6 +80,7 @@ export function Chat(): JSX.Element {
   const setAttachments = useChatStore((s) => s.setAttachments);
   const pushToast = useAppStore((s) => s.pushToast);
   const toolModels = (provider?.models ?? []).filter((model) => model.supportsTools !== false);
+  const modelChoices = toolModels.length ? toolModels : (provider?.models ?? []);
 
   const modelItems: MenuItem[] = [];
   for (const item of providers.filter((p) => p.enabled)) {
@@ -126,6 +127,28 @@ export function Chat(): JSX.Element {
       void useChatStore.getState().setActiveMeta({ agentId: item.id });
     },
   }));
+
+  const refreshModels = async (): Promise<void> => {
+    const current = useAppStore.getState().settings;
+    if (!provider || !current) return;
+    try {
+      const discovered = await invoke('providers.discoverModels', {
+        kind: provider.kind,
+        baseUrl: provider.baseUrl,
+        apiKey: provider.apiKey ?? '',
+      });
+      if (!discovered.length) throw new Error('The provider returned no models.');
+      const next = await invoke('providers.save', {
+        ...provider,
+        models: discovered,
+        defaultModel: discovered[0].id,
+      });
+      useAppStore.getState().setSettings({ ...current, providers: next });
+      pushToast({ title: 'Models refreshed', message: discovered.length + ' models from ' + provider.name, kind: 'success' });
+    } catch (error) {
+      pushToast({ title: 'Could not refresh models', message: (error as Error).message, kind: 'error' });
+    }
+  };
 
   const attachImages = async (): Promise<void> => {
     setAttaching(true);
@@ -444,13 +467,31 @@ export function Chat(): JSX.Element {
       <Modal
         open={modelModal}
         onClose={() => setModelModal(false)}
-        title="Models with tool calling"
-        description={provider ? "Only models that can call the 46 Neuro tools are listed." : undefined}
+        title={toolModels.length ? 'Models with tool calling' : 'Models'}
+        description={provider ? (toolModels.length ? 'Only models that can call the 46 Neuro tools are listed.' : 'No tool-capable models are declared for this provider — showing all of its models.') : 'Choose a provider first.'}
         width={520}
+        footer={
+          <>
+            <Button onClick={() => setModelModal(false)}>Close</Button>
+            <Button icon="rotate-ccw" onClick={() => void refreshModels()} disabled={!provider}>
+              Refresh models
+            </Button>
+            <Button
+              variant="primary"
+              icon="settings"
+              onClick={() => {
+                setModelModal(false);
+                navigate('settings');
+              }}
+            >
+              Manage providers
+            </Button>
+          </>
+        }
       >
         <div className="providerChooser">
-          {toolModels.length ? (
-            toolModels.map((model) => (
+          {modelChoices.length ? (
+            modelChoices.map((model) => (
               <button
                 key={model.id}
                 type="button"
@@ -473,7 +514,7 @@ export function Chat(): JSX.Element {
               </button>
             ))
           ) : (
-            <span className="tiny faint">This provider has no tool-capable models. Add one in Settings → Providers.</span>
+            <span className="tiny faint">This provider has no models yet. Use Refresh models, or add one in Settings → Providers.</span>
           )}
         </div>
       </Modal>
