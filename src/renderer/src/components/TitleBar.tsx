@@ -5,7 +5,7 @@ import { useT } from '../lib/i18n';
 import { invoke, modKey } from '../lib/ipc';
 import { Icon } from './Icon';
 import { BrandMark } from './BrandMark';
-import { SURFACES } from '../surfaces/meta';
+import { surfaceMeta } from '../surfaces/meta';
 import { IconButton, Menu, type MenuItem } from './ui';
 
 export function TitleBar(): JSX.Element {
@@ -103,7 +103,7 @@ function PageTab({
   onSelect: () => void;
   onClose: () => void;
 }): JSX.Element {
-  const meta = SURFACES[page.surface];
+  const meta = surfaceMeta(page.surface);
   const t = useT();
   const title =
     page.surface === 'browser'

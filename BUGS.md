@@ -1,4 +1,4 @@
-﻿# Neuro OS â€” QA & bug log
+# Neuro OS â€” QA & bug log
 
 **Run date:** 2026-11-06
 **Build:** Electron 33 Â· Neuro OS 1.0.0 (dev build)
@@ -32,6 +32,11 @@ Screenshots: `screenshots/00-story.png` â€¦ `26-wallpaper.png`. Red-team rep
 | **BUG-010** (fixed) | Low | QA harness | The QA report printed a partial Composio key (`ak_bâ€¦UFF`) in evidence. | Fixed: evidence now only says `key=set`. |
 | **BUG-011** | Medium | ACP UX | ACP providers have no model picker in the provider UI; the configured `model` is not sent to the agent, so behaviour depends entirely on the agent's default. | `AcpClient.prompt` sends only `sessionId` + prompt. |
 | **BUG-012** | Low | Mail UX | An envelope addressed to a different node with `ttl > 0` is relayed silently (correct store-and-forward) but the sender gets `202 relayed` with no delivery receipt. | M-08 response `202`, target inbox later 1. |
+| **BUG-013** (fixed) | High | Navigation | Navigating to an app id that is not a surface key (`spaces`, `files`, `overview`) crashed the renderer: `SURFACES[surface].labelKey` on `undefined`. | Deep run D-19: error page on `spaces`, body `CANNOT READ PROPERTIES OF UNDEFINED (READING 'LABELKEY')`. Fixed with alias normalization + `surfaceMeta()` fallbacks. |
+| **BUG-014** | Medium | Files | `fs.read` has no workspace confinement: reading `C:\Windows\win.ini` succeeds from the Workspace API. | Deep D-05 WARN: 92 bytes read outside the workspace root. Decide whether the file API is OS-wide (like Finder) or workspace-scoped. |
+| **BUG-015** | Low | Chat | `chat.send` without a provider resolves instead of rejecting; the failure is only surfaced as an async agent event. | Deep D-22 WARN: send did not throw, transcript stayed empty. |
+| **BUG-016** | Low | Automation | `transform.code` step output is not stored on the run step; run evidence is blank even when the workflow succeeds. | Deep D-11: 2 steps, status ok, output "". |
+| **BUG-017** | Info | Brain API | `brain.capture` silently ignores items without a `label` (the test initially sent `title`/`body`); a fallback to `title` would make the API less error-prone. | Deep D-24 first attempt: recorded 0 with title/body; 2 with label/detail. |
 
 ## Fixed during this run
 
@@ -42,6 +47,7 @@ Screenshots: `screenshots/00-story.png` â€¦ `26-wallpaper.png`. Red-team rep
 | BUG-005 | Composio accounts | Fall back to unfiltered `/connected_accounts` when the user filter returns none | accounts 0 â†’ 13 |
 | BUG-010 | QA harness | Never print any part of a secret | clean report |
 | BUG-007 | ACP | Added all 44 agents from the official registry as provider presets; verified the Codex adapter end-to-end | ACP-05 PASS |
+| BUG-013 | Navigation | Map app-id aliases (`spaces`→`space`, `files`→`workspace`, `overview`→`desktop`) and fall back to desktop metadata for unknown surfaces | Deep D-19: 14/14 surfaces rendered |
 
 Earlier red-team fixes (details in [`redteam-report.md`](redteam-report.md)): mail relay signature, per-IP mail rate limit, domain proof-of-content, manifest `nodeId` binding, blob scoping, CSP sandbox + origin check, junction-safe folder publish, blob GC, remote-resolve claim poisoning, `neuro://` traversal, plugin `codeGeneration` (partial mitigation only).
 

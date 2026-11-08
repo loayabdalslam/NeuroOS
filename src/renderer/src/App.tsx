@@ -181,7 +181,10 @@ export function App(): JSX.Element {
       on('tools:changed', (tools) => useAppStore.setState({ tools })),
       on('window:state', (state) => useAppStore.getState().setWindowState(state)),
       on('toast', (toast) => useAppStore.getState().pushToast(toast)),
-      on('ui:navigate', ({ surface, params }) => useAppStore.getState().navigate(surface as SurfaceKind, params)),
+      on('ui:navigate', ({ surface, params }) => {
+      const aliases: Record<string, SurfaceKind> = { spaces: 'space', files: 'workspace', overview: 'desktop' };
+      useAppStore.getState().navigate((aliases[surface] ?? surface) as SurfaceKind, params);
+    }),
       on('os:open', ({ appId }) => {
         const state = useAppStore.getState();
         const desktopPage = state.pages.find((page) => page.surface === 'desktop');

@@ -10,7 +10,7 @@ import { clockTime } from '../lib/format';
 import { Icon } from './Icon';
 import { BrandMark } from './BrandMark';
 import { Flag } from './Flag';
-import { SURFACES, SURFACE_ORDER } from '../surfaces/meta';
+import { SURFACE_ORDER, surfaceMeta } from '../surfaces/meta';
 import { Menu, type MenuItem } from './ui';
 
 export function Taskbar(): JSX.Element {
@@ -123,7 +123,7 @@ export function Taskbar(): JSX.Element {
         </button>
         <div className="taskbar__divider" />
         {pinned.map((surface) => {
-          const meta = SURFACES[surface as keyof typeof SURFACES];
+          const meta = surfaceMeta(surface);
           const app = OS_APPS.find((item) => item.surface === surface);
           const window = app ? windows.find((win) => win.appId === app.id) : undefined;
           const active = Boolean(window && window.id === focusedWindow);
@@ -262,4 +262,5 @@ function Metric({ label, value, pct }: { label: string; value: string; pct?: num
     </div>
   );
 }
+
 

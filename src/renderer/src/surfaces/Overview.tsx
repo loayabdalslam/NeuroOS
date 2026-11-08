@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import type { CatalogItem, Notebook, Space, WorkspaceInfo } from '@shared/types';
 import { useAppStore } from '../state/store';
 import { useChatStore } from '../state/chat';
@@ -8,7 +8,7 @@ import { clockTime, formatBytes, fullDate, greeting, relativeTime } from '../lib
 import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
 import { Button, Dot, IconButton, Spinner } from '../components/ui';
-import { SURFACES, SURFACE_ORDER } from './meta';
+import { SURFACE_ORDER, surfaceMeta } from './meta';
 
 const PROMPTS = [
   'Summarise my workspace and what I should build next',
@@ -80,14 +80,14 @@ export function Overview(): JSX.Element {
             <div className="desk__eyebrow mono uppercase">
               <span className="desk__pulse" />
               {kernel && kernel.services.some((service) => service.status === 'offline') ? 'degraded services' : 'all systems nominal'}
-              <span className="faint">·</span>
+              <span className="faint">Â·</span>
               {fullDate(now, settings?.locale)}
             </div>
             <h1 className="desk__greeting display">
               {greeting(now)}, <span className="desk__name">{settings?.profile.name || 'explorer'}</span>
             </h1>
             <p className="desk__sub">
-              {sessions.length} conversations · {tools.length} tools · {providerCount || 'no'} providers · workspace{' '}
+              {sessions.length} conversations Â· {tools.length} tools Â· {providerCount || 'no'} providers Â· workspace{' '}
               <span className="mono tiny">{settings?.workspaceRoot.split(/[\\/]/).pop()}</span>
             </p>
 
@@ -97,9 +97,9 @@ export function Overview(): JSX.Element {
                 value={command}
                 onChange={(event) => setCommand(event.target.value)}
                 onKeyDown={(event) => event.key === 'Enter' && void run()}
-                placeholder="Ask Neuro anything — or describe what to build…"
+                placeholder="Ask Neuro anything â€” or describe what to buildâ€¦"
               />
-              <span className="n-kbd">←µ</span>
+              <span className="n-kbd">â†Âµ</span>
               <Button variant="primary" size="sm" onClick={() => void run()} disabled={!command.trim() || sending} icon={sending ? undefined : 'arrow-up'}>
                 {sending ? <Spinner size={13} /> : null}
               </Button>
@@ -140,9 +140,9 @@ export function Overview(): JSX.Element {
               <Ring value={Math.min(100, ((stats?.uptime ?? 0) / 86400) * 100)} label="Up" color="var(--n-violet)" detail={`${Math.floor((stats?.uptime ?? 0) / 3600)}h`} />
             </div>
             <div className="desk__kv">
-              <Kv label="Cores" value={String(info?.cpus ?? '—')} />
+              <Kv label="Cores" value={String(info?.cpus ?? 'â€”')} />
               <Kv label="Memory" value={formatBytes(info?.memoryTotal ?? 0).replace(' ', '')} />
-              <Kv label="GPU" value={info?.gpu.split(' ').slice(0, 2).join(' ') ?? '—'} />
+              <Kv label="GPU" value={info?.gpu.split(' ').slice(0, 2).join(' ') ?? 'â€”'} />
             </div>
           </div>
 
@@ -162,7 +162,7 @@ export function Overview(): JSX.Element {
                   <span className="tiny faint">{relativeTime(session.updatedAt)}</span>
                 </button>
               ))}
-              {!sessions.length ? <div className="tiny faint" style={{ padding: 6 }}>No conversations yet — ask something above.</div> : null}
+              {!sessions.length ? <div className="tiny faint" style={{ padding: 6 }}>No conversations yet â€” ask something above.</div> : null}
             </div>
           </div>
 
@@ -177,7 +177,7 @@ export function Overview(): JSX.Element {
                 <div className="desk__kv" style={{ marginTop: 8 }}>
                   <Kv label="Files" value={String(workspace.fileCount)} />
                   <Kv label="Size" value={formatBytes(workspace.totalBytes)} />
-                  <Kv label="Git" value={workspace.git ? workspace.git.branch : '—'} />
+                  <Kv label="Git" value={workspace.git ? workspace.git.branch : 'â€”'} />
                 </div>
                 <div className="desk__langs">
                   {workspace.languages.slice(0, 6).map((language) => (
@@ -297,15 +297,15 @@ export function Overview(): JSX.Element {
           <div className="wcard wcard--span12 wcard--launch">
             <div className="wcard__head">
               <span className="wcard__title"><Icon name="grid" size={13} /> Launch</span>
-              <span className="tiny faint mono">⌘K for everything</span>
+              <span className="tiny faint mono">âŒ˜K for everything</span>
             </div>
             <div className="desk__launch">
               {SURFACE_ORDER.map((surface) => (
                 <button key={surface} type="button" className="desk__launchItem" onClick={() => navigate(surface)}>
-                  <span className="desk__launchIcon" style={{ color: SURFACES[surface].accent }}>
-                    <Icon name={SURFACES[surface].icon} size={17} />
+                  <span className="desk__launchIcon" style={{ color: surfaceMeta(surface).accent }}>
+                    <Icon name={surfaceMeta(surface).icon} size={17} />
                   </span>
-                  <span className="tiny">{t(SURFACES[surface].labelKey)}</span>
+                  <span className="tiny">{t(surfaceMeta(surface).labelKey)}</span>
                 </button>
               ))}
               <button type="button" className="desk__launchItem" onClick={() => void invoke('system.screenshot', undefined).then((shot) => useAppStore.getState().pushToast({ title: 'Screenshot captured', message: shot.path, kind: 'success' }))}>
@@ -328,7 +328,7 @@ export function Overview(): JSX.Element {
           ))}
           <span className="grow" />
           <span className="tiny faint mono">
-            {info?.name} {info?.version} · electron {info?.electron} · {info?.ptyAvailable ? 'pty' : 'pipe'}
+            {info?.name} {info?.version} Â· electron {info?.electron} Â· {info?.ptyAvailable ? 'pty' : 'pipe'}
           </span>
         </section>
       </div>
@@ -372,4 +372,5 @@ function Kv({ label, value }: { label: string; value: string }): JSX.Element {
     </div>
   );
 }
+
 

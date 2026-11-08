@@ -1,0 +1,210 @@
+[
+  {
+    "id": "D-01",
+    "area": "fs",
+    "title": "mkdir + unicode write + read round-trip",
+    "status": "pass",
+    "evidence": "50 bytes at Ã™â€¦Ã˜Â±Ã˜Â­Ã˜Â¨Ã˜Â§ Ã˜Â¹Ã˜Â§Ã™â€žÃ™â€¦.txt",
+    "ms": 217
+  },
+  {
+    "id": "D-02",
+    "area": "fs",
+    "title": "list + search find the new file",
+    "status": "pass",
+    "evidence": "1 entries, 1 search hits",
+    "ms": 7
+  },
+  {
+    "id": "D-03",
+    "area": "fs",
+    "title": "rename + overwrite + delete",
+    "status": "pass",
+    "evidence": "rename Ã¢â€ â€™ overwrite Ã¢â€ â€™ delete verified",
+    "ms": 41
+  },
+  {
+    "id": "D-04",
+    "area": "fs",
+    "title": "large file (300 KB) write/read",
+    "status": "pass",
+    "evidence": "300000 bytes",
+    "ms": 69
+  },
+  {
+    "id": "D-05",
+    "area": "fs",
+    "title": "workspace boundary (read outside root)",
+    "status": "warn",
+    "evidence": "read 92 bytes outside the workspace Ã¢â‚¬â€ no path guard",
+    "ms": 8
+  },
+  {
+    "id": "D-06",
+    "area": "notes",
+    "title": "create, update and delete a note",
+    "status": "pass",
+    "evidence": "create Ã¢â€ â€™ update Ã¢â€ â€™ delete",
+    "ms": 2
+  },
+  {
+    "id": "D-07",
+    "area": "spaces",
+    "title": "create a space, edit it and remove it",
+    "status": "pass",
+    "evidence": "create Ã¢â€ â€™ rename Ã¢â€ â€™ remove",
+    "ms": 1
+  },
+  {
+    "id": "D-08",
+    "area": "notebooks",
+    "title": "create a notebook and run code + error cells",
+    "status": "pass",
+    "evidence": "ok=DEEP_6c5f6f1f error=error",
+    "ms": 12
+  },
+  {
+    "id": "D-09",
+    "area": "terminal",
+    "title": "spawn PTY, run a command, read buffer, resize, kill",
+    "status": "pass",
+    "evidence": "376 buffer chars, resize + kill ok",
+    "ms": 3667
+  },
+  {
+    "id": "D-10",
+    "area": "mail",
+    "title": "peer-to-peer send, receive, reply, read and delete",
+    "status": "pass",
+    "evidence": "encrypted qa.peer@065c8c69f5f5daca.neuro send + reply, decrypt ok, peer removed",
+    "ms": 923
+  },
+  {
+    "id": "D-11",
+    "area": "automation",
+    "title": "save a workflow, run it, inspect steps and remove it",
+    "status": "pass",
+    "evidence": "2 steps, ?ms, output ",
+    "ms": 432
+  },
+  {
+    "id": "D-12",
+    "area": "brain",
+    "title": "remember, recall, ask, timeline, forget",
+    "status": "pass",
+    "evidence": "3 hits, answer 336 chars, 2 events, forget ok",
+    "ms": 96
+  },
+  {
+    "id": "D-13",
+    "area": "web",
+    "title": "publish, serve HTML + asset, counts, unpublish",
+    "status": "pass",
+    "evidence": "deep-da6c3e.neuro served (2 files), traversal blocked, unpublish ok",
+    "ms": 362
+  },
+  {
+    "id": "D-14",
+    "area": "marketplace",
+    "title": "install, toggle and uninstall a catalog item",
+    "status": "pass",
+    "evidence": "Code Review (skill) install Ã¢â€ â€™ toggle Ã¢â€ â€™ uninstall",
+    "ms": 61
+  },
+  {
+    "id": "D-15",
+    "area": "plugins",
+    "title": "install a local plugin, list it, uninstall it",
+    "status": "pass",
+    "evidence": "Deep QA plugin install Ã¢â€ â€™ list Ã¢â€ â€™ uninstall",
+    "ms": 157
+  },
+  {
+    "id": "D-16",
+    "area": "settings",
+    "title": "theme, density, locale and wallpaper patch",
+    "status": "pass",
+    "evidence": "design Ã¢â€ â€™ windows, locale Ã¢â€ â€™ ar/rtl, restored",
+    "ms": 357
+  },
+  {
+    "id": "D-17",
+    "area": "acp",
+    "title": "add a mock ACP provider, prompt it, then chat through it",
+    "status": "pass",
+    "evidence": "acp.connect Ã¢â€ â€™ prompt Ã¢â€ â€™ chat turn streamed MOCK_ACP_OK",
+    "ms": 1917
+  },
+  {
+    "id": "D-18",
+    "area": "composio",
+    "title": "configure with the live key and search the catalog",
+    "status": "pass",
+    "evidence": "1000 tools, 26 toolkits, 0 github hits",
+    "ms": 11321
+  },
+  {
+    "id": "D-19",
+    "area": "ui",
+    "title": "navigate every surface and capture it",
+    "status": "pass",
+    "evidence": "14 surfaces rendered + screenshotted",
+    "ms": 14126
+  },
+  {
+    "id": "D-20",
+    "area": "ui",
+    "title": "start menu opens and closes",
+    "status": "pass",
+    "evidence": "open + scrim close",
+    "ms": 2823
+  },
+  {
+    "id": "D-21",
+    "area": "ui",
+    "title": "command palette opens with Ctrl+K and closes with Escape",
+    "status": "pass",
+    "evidence": "Ctrl+K â†’ palette â†’ Escape",
+    "ms": 1762
+  },
+  {
+    "id": "D-22",
+    "area": "chat",
+    "title": "a session with no provider fails with a clear message",
+    "status": "warn",
+    "evidence": "send did not throw without a provider",
+    "ms": 157
+  },
+  {
+    "id": "D-23",
+    "area": "terminal",
+    "title": "two concurrent PTY sessions keep separate buffers",
+    "status": "pass",
+    "evidence": "two PTYs, isolated buffers, both killed",
+    "ms": 3557
+  },
+  {
+    "id": "D-24",
+    "area": "brain",
+    "title": "recording toggle, graph, profile and batch capture",
+    "status": "pass",
+    "evidence": "recorded 2, graph 35 nodes, profile ? nodes",
+    "ms": 5
+  },
+  {
+    "id": "D-25",
+    "area": "mail",
+    "title": "sent folder holds the outgoing message",
+    "status": "pass",
+    "evidence": "2 sent, direction=out, encrypted=true",
+    "ms": 1
+  },
+  {
+    "id": "D-26",
+    "area": "web",
+    "title": "peer replication: another node publishes, this node serves it",
+    "status": "pass",
+    "evidence": "replica-d10f15.neuro published on peer, served by this gateway",
+    "ms": 129
+  }
+]

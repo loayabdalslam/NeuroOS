@@ -1,7 +1,7 @@
 ﻿import { useAppStore } from '../state/store';
 import { useT } from '../lib/i18n';
 import { Icon } from './Icon';
-import { SURFACES, SURFACE_ORDER } from '../surfaces/meta';
+import { SURFACES, SURFACE_ORDER, surfaceMeta } from '../surfaces/meta';
 import type { SurfaceKind } from '@shared/types';
 
 export function Dock(): JSX.Element {
@@ -27,7 +27,7 @@ export function Dock(): JSX.Element {
 
       <div className="dock__group">
         {SURFACE_ORDER.map((surface) => {
-          const meta = SURFACES[surface];
+          const meta = surfaceMeta(surface);
           return (
             <button
               key={surface}

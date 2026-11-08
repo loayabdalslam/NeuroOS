@@ -129,7 +129,7 @@ async function startStatsLoop(): Promise<void> {
 async function runSelfTest(win: BrowserWindow): Promise<void> {
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
   const watchdog = setTimeout(() => {
-    log.error('selftest', 'watchdog timeout ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â exiting');
+    log.error('selftest', 'watchdog timeout ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â exiting');
     app.exit(2);
   }, 180_000);
   watchdog.unref();
@@ -180,7 +180,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   await wait(900);
   await screenshot('01-onboarding');
 
-  // Walk to the appearance step (welcome ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ language ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ profile ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ appearance).
+  // Walk to the appearance step (welcome ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ language ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ profile ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ appearance).
   for (let i = 0; i < 3; i += 1) {
     const clicked = await win.webContents
       .executeJavaScript(`(() => {
@@ -206,7 +206,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
             `(() => { const card = [...document.querySelectorAll('.langcard')].find((element) => element.textContent?.includes(${JSON.stringify(label)})); if (!card) return 'missing'; card.click(); return 'clicked'; })()`,
           )
           .catch((error) => String(error));
-      const pickedArabic = await pickLanguage('العربية');
+      const pickedArabic = await pickLanguage('Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©');
       await wait(800);
       await screenshot('01c-onboarding-arabic');
       const liveLocale = await win.webContents
@@ -284,7 +284,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
 
   // Exercise the real agent loop against the sandbox endpoint: streaming,
   // a tool call, the tool result round-trip and persistence.
-  const session = await kernel.agent.createSession({ title: 'Sandbox Ãƒâ€šÃ‚Â· system check' });
+  const session = await kernel.agent.createSession({ title: 'Sandbox ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· system check' });
   await kernel.agent.send(session.id, 'Check this machine and summarise it in one line.');
   await wait(5200);
   const transcript = await kernel.agent.getSession(session.id);
@@ -349,14 +349,14 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
     await peerNode.send({
       to: myMail.identity!.address,
       subject: 'Welcome to the mesh',
-      body: 'This message travelled directly between two nodes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no server in between.',
+      body: 'This message travelled directly between two nodes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â no server in between.',
     });
     await wait(1400);
     const inbox = kernel.mail.messages('inbox', 5);
     const received = inbox.find((message) => message.subject === 'Welcome to the mesh');
     log.info(
       'selftest',
-      `mail p2p: peers=${kernel.mail.status().peers.length} inbox=${inbox.length} unread=${inboxBefore}ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢${kernel.mail.status().unread} encrypted=${received?.encrypted} verified=${received?.verified}`,
+      `mail p2p: peers=${kernel.mail.status().peers.length} inbox=${inbox.length} unread=${inboxBefore}ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢${kernel.mail.status().unread} encrypted=${received?.encrypted} verified=${received?.verified}`,
     );
   } catch (error) {
     log.error('selftest', `mail test failed: ${(error as Error).message}`);
@@ -385,7 +385,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
   const workflow = {
     id: 'flow_selftest',
     name: 'Selftest pipeline',
-    description: 'trigger ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ transform ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ notify',
+    description: 'trigger ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ transform ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ notify',
     nodes: [
       { id: 'n1', type: 'trigger.manual' as const, name: 'Start', x: 60, y: 80, config: {} },
       { id: 'n2', type: 'transform.code' as const, name: 'Uppercase', x: 330, y: 80, config: { code: 'return input.toUpperCase();' } },
@@ -549,7 +549,7 @@ async function runSelfTest(win: BrowserWindow): Promise<void> {
         `(() => { const w = document.querySelector('webview'); try { return JSON.stringify({ title: w.getTitle(), url: w.getURL(), loading: w.isLoading() }); } catch (e) { return 'probe error: ' + e.message; } })()`,
       )
       .catch((error) => `probe failed: ${String(error)}`);
-    log.info('selftest', `webview ${url} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${probe}`);
+    log.info('selftest', `webview ${url} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ${probe}`);
   }
   router?.emit('ui:navigate', { surface: 'browser', params: {} });
   await wait(600);
@@ -721,6 +721,18 @@ function bootstrap(): void {
     mainWindow = createWindow(() => {
       log.info('window', 'renderer loaded');
       if (isSelftest) setTimeout(() => void runSelfTest(mainWindow!), 400);
+      if (process.argv.includes('--deep')) {
+        setTimeout(() => {
+          void (async () => {
+            const { runDeep, renderDeep } = await import('./deepqa');
+            const findings = await runDeep(kernel!, mainWindow!);
+            fs.writeFileSync(path.join(process.cwd(), 'deep-qa-report.md'), renderDeep(findings), 'utf8');
+            fs.writeFileSync(path.join(process.cwd(), 'deep-qa-report.json'), JSON.stringify(findings, null, 2), 'utf8');
+            log.info('deep', `${findings.filter((item) => item.status === 'fail').length} failures / ${findings.length} checks`);
+            app.exit(0);
+          })();
+        }, 600);
+      }
     });
 
     void startStatsLoop();
@@ -753,6 +765,7 @@ function bootstrap(): void {
 }
 
 bootstrap();
+
 
 
 

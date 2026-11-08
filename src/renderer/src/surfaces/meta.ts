@@ -23,6 +23,8 @@ export const SURFACES: Record<SurfaceKind, SurfaceMeta> = {
   settings: { icon: 'settings', labelKey: 'nav.settings', accent: '#94a3b8' },
 };
 
+export const surfaceMeta = (surface: string): SurfaceMeta => SURFACES[surface as SurfaceKind] ?? SURFACES.desktop;
+
 export const SURFACE_ORDER: SurfaceKind[] = [
   'desktop',
   'chat',
