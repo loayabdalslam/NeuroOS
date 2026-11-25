@@ -5,10 +5,16 @@
 <h1 align="center">Neuro OS</h1>
 
 <p align="center">
-  <strong>A desktop operating environment where the agent is the operating system.</strong>
+  <strong>A local-first desktop workspace for AI agents.</strong>
   <br />
-  Chat, files, terminal, browser, notebooks, mail, automation and a local memory graph — all
-  driven by one agent loop, one tool bus and one set of on-disk JSON you can read.
+  Work with files, a terminal, a browser, and notebooks from one Electron desktop.
+  Follow the agent's tool calls in chat and approve actions when your policies require it.
+</p>
+
+<p align="center">
+  <a href="https://github.com/loayabdalslam/NeuroOS/releases/latest">Download for Windows</a> ·
+  <a href="#quick-start">Run from source</a> ·
+  <a href="#screenshots">Screenshots</a>
 </p>
 
 <p align="center">
@@ -39,18 +45,18 @@
 
 ---
 
-Neuro OS is not a chat window with a sidebar. It is a small operating environment: a simulated
-desktop with real windows, fourteen applications that all run on the same kernel, and an agent that
-can see and drive every one of them through a policy-gated tool bus.
+Neuro OS is a Windows-first Electron app with movable windows and one agent that can work across
+its built-in apps. Tool calls appear in the chat transcript, and each tool can be set to run
+automatically, ask for approval, or be denied.
 
-Everything is local by default. State is readable JSON. Keys live in the OS keychain. There is no
-account, no telemetry and no cloud memory — the only traffic is what you point the agent at.
+The app stores workspace settings, chat history, and memory locally in readable JSON. Connect a
+hosted model provider or run a model locally with Ollama.
 
 ```text
-You:  "Check this machine, write the results into the workspace, then mail them to Ada."
+You:    "Check this machine and save a short summary in notes.md."
 
-Neuro:  system.info  →  fs.write  →  mail.send
-        each call gated by policy · each result visible in the transcript
+Neuro:  Read system information → ask to write notes.md → save it to the workspace.
+        You can follow each step in the chat transcript.
 ```
 
 ---
@@ -211,6 +217,8 @@ hand-made mockups. Regenerate them with `npm run selftest`.
 
 ## Quick start
 
+For Windows 10/11, get the installer or portable `.exe` from the [latest release](https://github.com/loayabdalslam/NeuroOS/releases/latest). To run from source, follow the steps below.
+
 **Requirements**
 
 - **Node.js 20+** and npm 10+
@@ -221,7 +229,7 @@ hand-made mockups. Regenerate them with `npm run selftest`.
 **Run it**
 
 ```bash
-git clone <this-repo> neuro-os
+git clone https://github.com/loayabdalslam/NeuroOS.git neuro-os
 cd neuro-os
 
 npm install
@@ -1815,9 +1823,9 @@ by default. Give an agent an explicit tool allowlist if you want it read-only.
 <details>
 <summary><b>Is there a prebuilt download?</b></summary>
 
-Not published yet — this version is built from source. `npm run dist:win` produces an NSIS installer
-and a portable executable in `release/`; `npm run pack:win` produces an unpacked app directory if the
-signing step fails.
+Yes. The [latest release](https://github.com/loayabdalslam/NeuroOS/releases/latest) includes a Windows
+installer and a portable `.exe`. To package Windows builds from source, run `npm run dist:win`.
+Use `npm run pack:win` for an unpacked app directory if the signing step fails.
 
 </details>
 
@@ -2018,7 +2026,7 @@ photographs in the wallpaper gallery are public domain.
 
 <p align="center">
   <sub>
-    <strong>Neuro OS</strong> · v1.0.0 · build 2026.11 ·
+    <strong>Neuro OS</strong> ·
     <a href="#table-of-contents">back to top</a>
     <br /><br />
     Local-first. No telemetry. No account. Built to be read.
